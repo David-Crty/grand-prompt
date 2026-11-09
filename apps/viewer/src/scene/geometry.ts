@@ -34,8 +34,10 @@ const merged = (parts: CarPart[], colored: boolean) =>
   mergeGeometries(parts.map((p) => fromPart(p, colored ? (p.color ?? "#ffffff") : null)))!;
 
 export interface CarGeometries {
-  /** Painted in the car's color. */
+  /** Painted in the provider's body colour. */
   body: THREE.BufferGeometry;
+  /** Painted in the entry colour: top stripe and rear-wing endplates. */
+  livery: THREE.BufferGeometry;
   /** Carbon, wings and accents, vertex colored. */
   detail: THREE.BufferGeometry;
   /** Vertex colored, centred on the axle; spun around z. */
@@ -64,6 +66,7 @@ export function buildCarGeometries(length: number, width: number, wheelbase: num
   );
   return {
     body: merged(m.body, false),
+    livery: merged(m.livery, false),
     detail: merged(m.detail, true),
     wheel: sided(m.wheel),
     upright: sided(m.upright),

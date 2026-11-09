@@ -1,24 +1,19 @@
+import { type GapMode, stepMarker, type TimelineMarker } from "@bench/ui";
+import type { TransportFlag } from "@bench/ui/react";
 import { Canvas } from "@react-three/fiber";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type * as THREE from "three";
 import { Analysis } from "./components/Analysis.js";
 import { Classification } from "./components/Classification.js";
-import {
-  Controls,
-  Help,
-  type HudSnapshot,
-  Labels,
-  Messages,
-  SessionInfo,
-  Telemetry,
-  TimingTower,
-} from "./components/Hud.js";
+import { Focus, Help, type HudSnapshot, Labels, TopRight, Tower, Transport } from "./components/Hud.js";
 import { clampZoom, stepZoom } from "./lib/camera.js";
 import { lapInfoAt, overallBestAt } from "./lib/frames.js";
-import { recentMessages } from "./lib/messages.js";
+import { justOut } from "./lib/hud.js";
+import { visibleToasts } from "./lib/messages.js";
 import type { ViewerModel } from "./lib/model.js";
 import { CAMERA_MODES, type CameraMode, stepSpeed, type ViewerParams } from "./lib/params.js";
 import { PlaybackClock } from "./lib/playback.js";
+import { MARKER_LEAD } from "./lib/timeline.js";
 import { Cars } from "./scene/Cars.js";
 import { Driver } from "./scene/Driver.js";
 import type { LiveState } from "./scene/live.js";
@@ -28,10 +23,12 @@ export function Viewer({
   model,
   params,
   backHref,
+  backLabel,
 }: {
   model: ViewerModel;
   params: ViewerParams;
   backHref?: string;
+  backLabel?: string;
 }) {
   const lightRef = useRef<THREE.DirectionalLight>(null);
   const firstId = model.cars[0]!.car.id;
@@ -69,16 +66,15 @@ export function Viewer({
   }
   const [mode, setModeState] = useState<CameraMode>(live.current.mode);
   const [trails, setTrails] = useState(params.trails);
-  const [zoom, setZoomState] = useState(live.current.tvZoom);
   const setZoom = useCallback((z: number) => {
     live.current.tvZoom = clampZoom(z);
-    setZoomState(live.current.tvZoom);
   }, []);
   const [hud, setHud] = useState(params.hud);
   const [analysis, setAnalysis] = useState(params.analysis);
   const [fps, setFps] = useState(params.fps);
   const [help, setHelp] = useState(false);
-  const [interval, setIntervalMode] = useState(false);
+  const [gapMode, setGapMode] = useState<GapMode>("gap");
+  const [ghostOpen, setGhostOpen] = useState(false);
   const [classif, setClassif] = useState(false);
   const autoShown = useRef(false);
   const [snap, setSnap] = useState<HudSnapshot | null>(null);
@@ -86,6 +82,11 @@ export function Viewer({
   const setMode = useCallback((m: CameraMode) => {
     live.current.mode = m;
     setModeState(m);
+  }, []);
+
+  const toggleTrails = useCallback(() => {
+    live.current.trails = !live.current.trails;
+    setTrails(live.current.trails);
   }, []);
 
   const focusCar = useCallback((id: string) => {
@@ -108,7 +109,6 @@ export function Viewer({
       const t = L.clock.t;
       const k = model.cars.findIndex((c) => c.car.id === L.focusId);
       const best = overallBestAt(model.cars, t);
-      const w = Math.max(8, 4 * L.clock.speed);
       setSnap({
         t,
         playing: L.clock.playing,
@@ -119,7 +119,8 @@ export function Viewer({
         samples: [...L.samples],
         lap: k >= 0 ? lapInfoAt(model.cars[k]!, t) : null,
         fastestId: best?.id ?? null,
-        messages: recentMessages(model.messages, t, w, 3),
+        toasts: visibleToasts(model.messages, t, L.clock.speed, 3),
+        justOut: justOut(model.cars, t),
         fpsMs: L.fps.avgMs,
         stats: { jsMs: L.fps.jsMs, calls: L.fps.calls, tris: L.fps.tris },
       });
@@ -128,10 +129,22 @@ export function Viewer({
         setClassif(true);
       }
     };
-    const id = window.setInterval(tick, 100);
+    const id = window.setInterval(tick, 66);
     tick();
     return () => window.clearInterval(id);
   }, [model]);
+
+  const seekMarker = useCallback((m: TimelineMarker) => {
+    live.current.clock.seek(Math.max(0, m.t - MARKER_LEAD));
+  }, []);
+
+  const stepEvent = useCallback(
+    (dir: 1 | -1) => {
+      const m = stepMarker(model.markers, live.current.clock.t + MARKER_LEAD, dir);
+      if (m) seekMarker(m);
+    },
+    [model, seekMarker],
+  );
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -173,6 +186,12 @@ export function Viewer({
         case "-":
           c.speed = stepSpeed(c.speed, -1);
           break;
+        case ",":
+          stepEvent(-1);
+          break;
+        case ".":
+          stepEvent(1);
+          break;
         case "Home":
           c.seek(0);
           break;
@@ -189,8 +208,7 @@ export function Viewer({
           break;
         case "t":
         case "T":
-          L.trails = !L.trails;
-          setTrails(L.trails);
+          toggleTrails();
           break;
         case "h":
         case "H":
@@ -210,7 +228,7 @@ export function Viewer({
           break;
         case "g":
         case "G":
-          setIntervalMode((v) => !v);
+          setGapMode((v) => (v === "gap" ? "interval" : "gap"));
           break;
         case "?":
           setHelp((v) => !v);
@@ -227,7 +245,7 @@ export function Viewer({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [cycleCar, setMode, setZoom]);
+  }, [cycleCar, setMode, setZoom, stepEvent, toggleTrails]);
 
   useEffect(() => {
     const onWheel = (e: WheelEvent) => {
@@ -246,9 +264,27 @@ export function Viewer({
 
   const onSeek = useCallback((t: number) => live.current.clock.seek(t), []);
   const cursorS = useMemo(() => snap?.focus?.s ?? null, [snap]);
+  const onFlag = useCallback(
+    (f: TransportFlag) => {
+      if (f === "trails") toggleTrails();
+      else if (f === "analysis") setAnalysis((v) => !v);
+      else if (f === "classification") setClassif((v) => !v);
+      else setHelp((v) => !v);
+    },
+    [toggleTrails],
+  );
+  // Until incident cards exist (plan phase 4), "Why" follows the car and replays its last seconds.
+  const onWhy = useCallback(
+    (carId: string) => {
+      const m = model.markers.find((k) => k.kind === "dnf" && k.carIds.includes(carId));
+      focusCar(carId);
+      if (m) live.current.clock.seek(Math.max(0, m.t - 10));
+    },
+    [model, focusCar],
+  );
 
   return (
-    <div className="viewer">
+    <div className="viewer gp">
       <Canvas
         shadows="percentage"
         dpr={[1, 2]}
@@ -259,33 +295,35 @@ export function Viewer({
         <Cars model={model} live={live} />
         <Driver model={model} live={live} lightRef={lightRef} />
       </Canvas>
-      {snap ? <Labels model={model} snap={snap} register={registerLabel} /> : null}
+      {snap ? <Labels model={model} snap={snap} mode={mode} register={registerLabel} /> : null}
       {snap && hud ? (
         <>
-          <TimingTower model={model} snap={snap} showInterval={interval} onFocus={focusCar} />
-          <SessionInfo model={model} snap={snap} mode={mode} backHref={backHref} />
-          <Messages model={model} snap={snap} />
-          <Telemetry model={model} snap={snap} />
-          <Controls
+          <Tower model={model} snap={snap} mode={gapMode} onMode={setGapMode} onFocus={focusCar} />
+          <TopRight
             model={model}
             snap={snap}
             mode={mode}
-            trails={trails}
-            zoom={zoom}
-            onZoom={setZoom}
+            backHref={backHref}
+            backLabel={backLabel}
+            ghostOpen={ghostOpen}
+            onGhost={() => setGhostOpen((v) => !v)}
+            onWhy={onWhy}
+          />
+          <Focus model={model} snap={snap} />
+          <Transport
+            model={model}
+            snap={snap}
+            mode={mode}
+            toggles={{ trails, analysis, classification: classif }}
             onToggle={() => live.current.clock.toggle()}
             onSeek={onSeek}
+            onMarker={seekMarker}
             onSpeed={(dir) => {
               const c = live.current.clock;
               c.speed = stepSpeed(c.speed, dir);
             }}
             onMode={setMode}
-            onTrails={() => {
-              live.current.trails = !live.current.trails;
-              setTrails(live.current.trails);
-            }}
-            onAnalysis={() => setAnalysis((v) => !v)}
-            onHelp={() => setHelp((v) => !v)}
+            onFlag={onFlag}
           />
         </>
       ) : null}

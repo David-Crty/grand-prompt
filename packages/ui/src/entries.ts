@@ -139,3 +139,18 @@ export function resolveEntries(items: EntryInput[]): Entry[] {
 export function entryMap(entries: Entry[]): Map<string, Entry> {
   return new Map(entries.map((e) => [e.id, e]));
 }
+
+/** The entry colour as a token reference (`var(--entry-04)`), so components follow the theme rather than a hex. */
+export function entryVar(e: Pick<Entry, "slot"> | null | undefined): string {
+  return e && e.slot > 0 ? `var(--entry-${String(e.slot).padStart(2, "0")})` : "var(--entry-house)";
+}
+
+export const PROVIDER_LABEL: Record<Provider, string> = {
+  anthropic: "Anthropic",
+  openai: "OpenAI",
+  google: "Google",
+  xai: "xAI",
+  mistral: "Mistral",
+  house: "House driver",
+  other: "Other",
+};

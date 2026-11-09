@@ -5,6 +5,15 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./tokens.css": "./tokens.gen.css"
+    "./react": "./src/react/index.ts",
+    "./tokens.css": "./tokens.gen.css",
+    "./components.css": "./components.css"
+  },
+  "peerDependencies": {
+    "react": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "react": "^19.3.1"
   }
 }

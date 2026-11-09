@@ -1,9 +1,11 @@
 import { type Replay, replayDuration } from "@bench/sim";
-import type { Entry } from "@bench/ui";
+import type { Entry, TimelineMarker } from "@bench/ui";
+import { type Corner, detectCorners } from "./corners.js";
 import { eventEntries, recolorReplay } from "./entries.js";
 import { type CarIndex, indexReplay } from "./frames.js";
 import { bestLapTraces, type LapTrace } from "./laps.js";
 import { type RaceMessage, raceMessages } from "./messages.js";
+import { lapTicks, timelineMarkers } from "./timeline.js";
 import {
   buildLayout,
   type Grandstand,
@@ -26,6 +28,12 @@ export interface ViewerModel {
   totalLaps: number;
   bounds: { minX: number; maxX: number; minY: number; maxY: number };
   messages: RaceMessage[];
+  /** Corners numbered from the line, for "Turn 2" in messages and incident cards. */
+  corners: Corner[];
+  /** Every car ran alone and the runs are overlaid (the only mode until wheel-to-wheel racing exists). */
+  ghost: boolean;
+  markers: TimelineMarker[];
+  laps: { t: number; label: string }[];
   traces: LapTrace[];
   grandstands: Grandstand[];
   trees: Placement[];
@@ -37,6 +45,10 @@ export function buildModel(source: Replay, treeCount = 1400): ViewerModel {
   const layout = buildLayout(replay.track);
   const cars = indexReplay(replay);
   const grandstands = placeGrandstands(layout, replay.track);
+  const corners = detectCorners(replay.track);
+  const ghost = true;
+  const messages = raceMessages(cars, corners, ghost);
+  const winner = replay.classification.find((r) => r.position === 1)?.id ?? null;
   return {
     replay,
     entries,
@@ -45,7 +57,11 @@ export function buildModel(source: Replay, treeCount = 1400): ViewerModel {
     duration: replayDuration(replay),
     totalLaps: replay.header.session.laps,
     bounds: trackBounds(layout),
-    messages: raceMessages(cars),
+    messages,
+    corners,
+    ghost,
+    markers: timelineMarkers(messages, entries),
+    laps: lapTicks(cars, winner),
     traces: bestLapTraces(cars),
     grandstands,
     trees: placeTrees(layout, treeCount, replay.header.seed || 7, grandstands),

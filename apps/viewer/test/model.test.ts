@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { detectCorners } from "../src/lib/corners.js";
 import { indexReplay } from "../src/lib/frames.js";
 import { bestLapNumber, bestLapTraces, lapTrace, tracePath } from "../src/lib/laps.js";
-import { raceMessages, recentMessages } from "../src/lib/messages.js";
+import { dnfText, raceMessages, TOAST_KIND, toastLife, visibleToasts } from "../src/lib/messages.js";
 import { buildModel } from "../src/lib/model.js";
 import { makeCar, makeReplay, stadiumTrack } from "./fixtures.js";
 
@@ -61,30 +62,50 @@ describe("messages", () => {
     ],
   });
   const dnf = makeCar(track, { id: "b", speed: 49, dnfAt: 9 });
-  const msgs = raceMessages(indexReplay(makeReplay([car, dnf], track)));
+  const msgs = raceMessages(indexReplay(makeReplay([car, dnf], track)), detectCorners(track));
   it("turns events into race-control messages", () => {
     const texts = msgs.map((m) => m.text);
     expect(texts).toContain("5s penalty: track limits");
     expect(texts).toContain("0s penalty");
     expect(texts).toContain("Track limits warning 2");
     expect(texts).toContain("Track limits warning");
-    expect(texts).toContain("Crash at 108 km/h");
-    expect(texts).toContain("Crash at 0 km/h");
+    expect(texts).toContain("Lights out · 2 cars · ghost race");
+    expect(texts).toContain("Crashed at 108 km/h · before Turn 1");
+    expect(texts).toContain("Crashed at 0 km/h · before Turn 1");
     expect(texts).toContain("Barrier contact at 18 km/h");
     expect(texts).toContain("Barrier contact at 0 km/h");
     expect(texts).toContain("Driver code fault: TypeError");
     expect(texts).toContain("Driver code fault");
-    expect(texts).toContain("DNF: CRASHED (barrier)");
+    expect(texts).toContain("Crashed: barrier · Turn 1");
     expect(texts).toContain("Lap 2 deleted: track limits");
-    expect(texts).toContain("Chequered flag");
+    expect(texts).toContain("Chequered flag · Car a wins");
     expect(msgs.filter((m) => m.kind === "fastest")).toHaveLength(1);
     for (let k = 1; k < msgs.length; k++) expect(msgs[k]!.t).toBeGreaterThanOrEqual(msgs[k - 1]!.t);
   });
-  it("selects recent messages", () => {
-    const r = recentMessages(msgs, 6.2, 2, 3);
-    expect(r.map((m) => m.t)).toEqual([5, 5.5, 6]);
-    expect(recentMessages(msgs, 0.5, 2)).toEqual([]);
-    expect(recentMessages(msgs, 100, 0.001)).toEqual([]);
+  it("shows toasts for their lifetime, retirements longest, folding warnings into them", () => {
+    const at = (t: number, speed = 1) => visibleToasts(msgs, t, speed, 3).map((m) => m.kind);
+    expect(at(0.5)).toEqual(["start"]);
+    expect(at(6.2)).toEqual(["impact", "impact", "strike"]);
+    // b retires at 9; its own warnings would fold, a's stay.
+    expect(at(9.1)).toContain("dnf");
+    expect(at(30)).toEqual(["crash", "crash", "dnf"]);
+    expect(at(60)).toEqual(["finish"]);
+    expect(at(90)).toEqual([]);
+    // At 8x every message lives four times longer; still three at most.
+    expect(at(60, 8)).toHaveLength(3);
+    const warnBeforeOut = [
+      { t: 10, carId: "x", name: "", color: "", kind: "warning" as const, text: "w", lap: 1 },
+      { t: 11, carId: "x", name: "", color: "", kind: "dnf" as const, text: "out", lap: 1 },
+    ];
+    expect(visibleToasts(warnBeforeOut, 11.5, 1).map((m) => m.kind)).toEqual(["dnf"]);
+    expect(TOAST_KIND.fastest).toBe("fastest");
+    expect(toastLife(warnBeforeOut[0]!)).toBe(8);
+    expect(toastLife(warnBeforeOut[1]!)).toBe(30);
+  });
+  it("words retirements", () => {
+    expect(dnfText("DNF: STALLED", "Turn 3")).toBe("Stalled · Turn 3");
+    expect(dnfText("DNF: ECU FAILURE (TypeError: x)", "")).toBe("Ecu failure: TypeError: x");
+    expect(dnfText("odd", "Turn 1")).toBe("odd · Turn 1");
   });
 });
 

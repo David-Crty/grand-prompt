@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RaceList } from "./components/RaceList.js";
 import { decodeReplay, fetchReplay } from "./lib/load.js";
 import { buildModel } from "./lib/model.js";
-import { paramsForReplay, parseParams } from "./lib/params.js";
+import { eventOf, paramsForReplay, parseParams } from "./lib/params.js";
 import { Viewer } from "./Viewer.js";
 
 export function App() {
@@ -81,6 +81,7 @@ export function App() {
           key={gen}
           model={model}
           backHref={window.location.pathname}
+          backLabel={(fromUrl && eventOf(params.replay)) || "All races"}
           params={paramsForReplay(params, fromUrl)}
         />
       ) : null}

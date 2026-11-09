@@ -1,7 +1,7 @@
 import data from "./car-model.gen.json";
 import { buildRearWing, buildWheel, type Solid } from "./carparts.js";
 
-export type PartRole = "body" | "detail" | "wheel" | "upright";
+export type PartRole = "body" | "detail" | "wheel" | "upright" | "livery";
 
 /** The output of `scripts/import-car.ts`, in source units, car-local axes (x forward, y up, z right). */
 export interface CarModelFile {
@@ -25,6 +25,8 @@ export interface CarPart {
 
 export interface CarMesh {
   body: CarPart[];
+  /** Painted in the entry colour: a stripe along the top of the bodywork and the rear-wing endplates. */
+  livery: CarPart[];
   detail: CarPart[];
   /** The right wheel and front upright, centred on the axle; the left side is mirrored. */
   wheel: { right: CarPart[]; left: CarPart[] };
@@ -67,6 +69,42 @@ export const REAR_WING_SPAN_PER_WIDTH = 0.53;
  * wing is raised by as much to sit level with the roll hoop as it does on a 2026 car.
  */
 export const REAR_WING_LIFT = 1.12;
+
+/** Stripe half-width over car width: about 25 cm on a 1.9 m car. */
+export const STRIPE_HALF_PER_WIDTH = 0.065;
+
+/**
+ * Split a part's triangles into the stripe (upward-facing, centroid within `half` of the centreline) and the
+ * rest. Both keep the full vertex array; only the index lists differ.
+ */
+export function splitStripe(p: CarPart, half: number, minUp = 0.35): { stripe: CarPart; rest: CarPart } {
+  const v = p.positions;
+  const stripe: number[] = [];
+  const rest: number[] = [];
+  for (let i = 0; i + 2 < p.indices.length; i += 3) {
+    const [a, b, c] = [p.indices[i]! * 3, p.indices[i + 1]! * 3, p.indices[i + 2]! * 3];
+    const ux = v[b]! - v[a]!;
+    const uy = v[b + 1]! - v[a + 1]!;
+    const uz = v[b + 2]! - v[a + 2]!;
+    const wx = v[c]! - v[a]!;
+    const wy = v[c + 1]! - v[a + 1]!;
+    const wz = v[c + 2]! - v[a + 2]!;
+    const nx = uy * wz - uz * wy;
+    const ny = uz * wx - ux * wz;
+    const nz = ux * wy - uy * wx;
+    const len = Math.hypot(nx, ny, nz) || 1;
+    const cz = (v[a + 2]! + v[b + 2]! + v[c + 2]!) / 3;
+    const tri = [p.indices[i]!, p.indices[i + 1]!, p.indices[i + 2]!];
+    (Math.abs(cz) < half && ny / len > minUp ? stripe : rest).push(...tri);
+  }
+  const make = (role: PartRole, idx: number[]): CarPart => ({
+    role,
+    color: p.color,
+    positions: p.positions,
+    indices: Uint16Array.from(idx),
+  });
+  return { stripe: make("livery", stripe), rest: make(p.role, rest) };
+}
 
 const fromSolid = (role: PartRole, color: string | null, s: Solid): CarPart => ({
   role,
@@ -120,8 +158,10 @@ export function buildCarMesh(
   const f = wheelbase / 3.4;
   const wing = buildRearWing(bodyX(file.rear), REAR_WING_SPAN_PER_WIDTH * width, f, f * REAR_WING_LIFT);
   const upright = of("upright");
+  const split = of("body").map((p) => splitStripe(p, STRIPE_HALF_PER_WIDTH * width));
   return {
-    body: [...of("body"), ...wing.painted.map((e) => fromSolid("body", null, e))],
+    body: [...split.map((x) => x.rest), ...wing.painted.map((e) => fromSolid("body", null, e))],
+    livery: [...split.map((x) => x.stripe), ...wing.endplates.map((e) => fromSolid("livery", null, e))],
     detail: [...of("detail"), ...wing.carbon.map((e) => fromSolid("detail", "#1b1c20", e))],
     wheel: { right: wheel, left: wheel.map(mirrored) },
     upright: { right: upright, left: upright.map(mirrored) },

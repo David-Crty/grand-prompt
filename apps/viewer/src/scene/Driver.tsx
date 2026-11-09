@@ -214,7 +214,8 @@ export function Driver({
       if (hidden) return;
       const x = tmp.v.x * half.w + half.w;
       const y = -tmp.v.y * half.h + half.h;
-      boxes.push({ x, y: y - 6, w: el.offsetWidth || 120, h: el.offsetHeight || 20, priority: -d });
+      const tag = (el.firstElementChild as HTMLElement | null) ?? el;
+      boxes.push({ x, y: y - 6, w: tag.offsetWidth || 120, h: tag.offsetHeight || 20, priority: -d });
       shown.push(k);
       el.style.zIndex = String(10000 - Math.min(9999, Math.round(d)));
     });

@@ -398,3 +398,36 @@
 .gp-vframe__safe { position: absolute; inset: 64px 32px 96px 32px; display: flex; flex-direction: column; }
 .gp-vband { display: flex; height: 8px; }
 .gp-vband i { flex: 1; background: var(--entry); }
+
+/* ---------- live components (added with the viewer port) ---------- */
+/* Native controls carrying gp- classes: drop the browser chrome, keep the class's look. */
+button.gp-badge, button.gp-toast__more, button.gp-mark, button.gp-strip { border: 0; margin: 0; background: none; font-family: inherit; cursor: pointer; }
+button.gp-badge--ghost { box-shadow: inset 0 0 0 1px var(--text-100); }
+button.gp-badge--ghost[aria-expanded="true"] { background: var(--fill-chalk); color: var(--on-chalk); }
+button.gp-toast__more { padding: 0; color: var(--text-100); }
+button.gp-mark { padding: 0; }
+button.gp-strip { text-align: left; color: var(--text-100); background: var(--hud-panel-solid); border: 1px solid var(--line-200); border-radius: var(--radius-2); }
+fieldset.gp-seg { border: 0; margin: 0; min-inline-size: 0; }
+.gp-seg button:disabled { color: var(--text-disabled); cursor: default; }
+.gp-flex { flex: 1; }
+.gp-session__back { padding: 0 8px; height: 28px; }
+.gp-note { width: 330px; padding: 10px 12px; font-size: 13px; line-height: 18px; }
+.gp-note__head { display: flex; align-items: center; justify-content: space-between; }
+.gp-note__close { width: 24px; height: 24px; }
+.gp-note p { margin: 8px 0 0; }
+.gp-toast--compact { font-size: 13px; line-height: 16px; padding: 6px 8px; gap: 6px; max-width: none; }
+.gp-map__car { cursor: pointer; }
+.gp-map__car circle { stroke: var(--ink-000); stroke-width: 1.5; }
+.gp-map__car .ring { fill: none; stroke: var(--text-100); stroke-width: 1.5; }
+.gp-map__pin rect { fill: var(--status-dnf); stroke: var(--ink-000); stroke-width: 1.5; }
+.gp-map__pin .x { stroke: var(--on-chalk); stroke-width: 1.8; fill: none; }
+.gp-map__pin .stem { stroke: var(--status-dnf); stroke-width: 2; }
+/* phone: the followed car on one line */
+.gp-frow { --entry: var(--entry-house); display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 12px; border-bottom: 1px solid var(--line-100); }
+.gp-frow__name { flex: 1; font-size: 15px; }
+.gp-frow__speed { font-weight: 700; font-size: 20px; min-width: 34px; text-align: right; }
+.gp-frow__pedals { display: flex; gap: 3px; align-items: flex-end; height: 24px; }
+.gp-frow__pedals i { display: block; width: 6px; border-radius: 1px; }
+.gp-frow__pedals .thr { background: var(--telemetry-throttle); }
+.gp-frow__pedals .brk { background: var(--telemetry-brake); }
+.gp-frow__gap { min-width: 64px; text-align: right; font-size: 15px; }

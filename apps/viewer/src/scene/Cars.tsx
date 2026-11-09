@@ -31,9 +31,11 @@ export function Cars({ model, live }: { model: ViewerModel; live: React.RefObjec
           roughness: 0.32,
           metalness: 0.25,
         });
+        const livery = new THREE.MeshStandardMaterial({ color: c.car.color, roughness: 0.4, metalness: 0.1 });
         const body = new THREE.Mesh(geo.body, paint);
+        const stripe = new THREE.Mesh(geo.livery, livery);
         const detail = new THREE.Mesh(geo.detail, shared.detail);
-        for (const m of [body, detail]) {
+        for (const m of [body, stripe, detail]) {
           m.castShadow = true;
           m.receiveShadow = true;
           group.add(m);
@@ -89,7 +91,7 @@ export function Cars({ model, live }: { model: ViewerModel; live: React.RefObjec
         );
         trail.frustumCulled = false;
         trail.renderOrder = 1;
-        return { group, wheels, steer, marker, trail, paint, wheelRadius: geo.wheelRadius };
+        return { group, wheels, steer, marker, trail, paint, livery, wheelRadius: geo.wheelRadius };
       }),
     [model, geo, shared],
   );
@@ -101,6 +103,7 @@ export function Cars({ model, live }: { model: ViewerModel; live: React.RefObjec
       built.forEach((b, k) => {
         live.current.cars[k] = null;
         b.paint.dispose();
+        b.livery.dispose();
         b.trail.geometry.dispose();
       });
     };
