@@ -1,4 +1,4 @@
-// Generates tracks/{monaco,silverstone,portimao}.json from the raw extracts in tracks/sources/.
+// Generates tracks/{monaco,silverstone,portimao,barcelona}.json from the raw extracts in tracks/sources/.
 // Run: pnpm tsx scripts/import-tracks.ts   (see tracks/sources/README.md for where the extracts come from)
 import { readFileSync, writeFileSync } from "node:fs";
 import {
@@ -104,6 +104,17 @@ const files: TrackFile[] = [
       source: "TUMFTM racetrack-database tracks/Silverstone.csv, tracks/sources/tumftm-silverstone.csv",
     },
     parseTumftmCsv(read("tracks/sources/tumftm-silverstone.csv")),
+  ),
+  importedTrackFile(
+    {
+      id: "barcelona",
+      name: "Barcelona",
+      sectors: [0.33, 0.66],
+      runoff: { default: { type: "grass", width: 18 } },
+      license: "LGPL-3.0, TUMFTM racetrack-database (centerline from OpenStreetMap, ODbL)",
+      source: "TUMFTM racetrack-database tracks/Catalunya.csv, tracks/sources/tumftm-barcelona.csv",
+    },
+    parseTumftmCsv(read("tracks/sources/tumftm-barcelona.csv")),
   ),
 ];
 

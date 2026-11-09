@@ -6,6 +6,7 @@ anything here: `pnpm tsx scripts/import-tracks.ts`.
 | File | Track | Source | License |
 |---|---|---|---|
 | `tumftm-silverstone.csv` | silverstone | [TUMFTM racetrack-database](https://github.com/TUMFTM/racetrack-database) `tracks/Silverstone.csv` | LGPL-3.0 (centerline from OpenStreetMap) |
+| `tumftm-barcelona.csv` | barcelona | [TUMFTM racetrack-database](https://github.com/TUMFTM/racetrack-database) `tracks/Catalunya.csv`, fetched 2026-11-09 | LGPL-3.0 (centerline from OpenStreetMap) |
 | `osm-monaco.json` | monaco | OpenStreetMap relation 148194 "Circuit de Monaco" | ODbL-1.0, © OpenStreetMap contributors |
 | `osm-portimao.json` | portimao | OpenStreetMap relation 7509968 "Algarve International Circuit" | ODbL-1.0, © OpenStreetMap contributors |
 
