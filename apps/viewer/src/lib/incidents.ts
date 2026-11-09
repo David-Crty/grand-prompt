@@ -36,6 +36,8 @@ export interface Incident {
   lap: number;
   /** "Lap 1 · Turn 2 exit". */
   where: string;
+  /** The corner it happened at or before, for short labels ("T2"). */
+  corner: number | null;
   impactKmh: number | null;
   causes: IncidentCause[];
   /** Short cause for the card: "Power oversteer, then wrong way". */
@@ -121,6 +123,7 @@ export function analyseIncident(
   const end = Math.min(n - 1, Math.round(out.t * rate));
   const { slip, rel } = motion(c, track);
   const at = (i: number) => whereOnLap(corners, f.s[i]!, c.trackLength)?.text ?? "";
+  const cornerAt = (i: number) => whereOnLap(corners, f.s[i]!, c.trackLength)?.corner ?? null;
   const mean = (arr: ArrayLike<number>, i: number) => {
     const a = Math.max(0, i - Math.round(rate / 2));
     let sum = 0;
@@ -269,6 +272,7 @@ export function analyseIncident(
     t: out.t,
     lap,
     where: [`Lap ${lap}`, place].filter(Boolean).join(" · "),
+    corner: cornerAt(spins[0] ? Math.round(spins[0].t * rate) : end),
     impactKmh: impact,
     causes,
     cause,

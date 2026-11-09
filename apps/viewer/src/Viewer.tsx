@@ -25,6 +25,7 @@ import type { ViewerModel } from "./lib/model.js";
 import { launchBoard, startBoardVisible } from "./lib/pack.js";
 import { CAMERA_MODES, type CameraMode, stepSpeed, type ViewerParams } from "./lib/params.js";
 import { PlaybackClock } from "./lib/playback.js";
+import type { EventResults } from "./lib/results.js";
 import { MARKER_LEAD } from "./lib/timeline.js";
 import { Cars } from "./scene/Cars.js";
 import { Driver } from "./scene/Driver.js";
@@ -37,11 +38,14 @@ export function Viewer({
   params,
   backHref,
   backLabel,
+  results = null,
 }: {
   model: ViewerModel;
   params: ViewerParams;
   backHref?: string;
   backLabel?: string;
+  /** The event's results and build manifests, when published next to the replay. */
+  results?: EventResults | null;
 }) {
   const lightRef = useRef<THREE.DirectionalLight>(null);
   const firstId = model.cars[0]!.car.id;
@@ -390,8 +394,18 @@ export function Viewer({
           />
         </>
       ) : null}
-      {analysis ? <Analysis model={model} cursorS={cursorS} onClose={() => setAnalysis(false)} /> : null}
-      {classif ? <Classification model={model} onClose={() => setClassif(false)} /> : null}
+      {analysis && snap ? (
+        <div className="hud-analysis">
+          <Analysis
+            model={model}
+            focusId={snap.focusId}
+            t={snap.t}
+            cursorS={cursorS}
+            onClose={() => setAnalysis(false)}
+          />
+        </div>
+      ) : null}
+      {classif ? <Classification model={model} results={results} onClose={() => setClassif(false)} /> : null}
       {help ? <Help onClose={() => setHelp(false)} /> : null}
       {fps && snap ? (
         <div className="fps">

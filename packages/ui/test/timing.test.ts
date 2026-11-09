@@ -5,8 +5,12 @@ import {
   incidentTrace,
   lapCell,
   lapOrDash,
+  linear,
   mergeMarkers,
+  niceTop,
   PROVIDER_LABEL,
+  pathOf,
+  spreadLabels,
   stepMarker,
   type TimelineMarker,
   type TimingRow,
@@ -121,5 +125,18 @@ describe("incident trace", () => {
     ]);
     const flat = incidentTrace({ t: [], speedKmh: [], throttle: [] }, 100, 50);
     expect(flat.speed).toBe("");
+  });
+});
+
+describe("chart helpers", () => {
+  it("scales, draws paths, spreads labels and rounds axis tops", () => {
+    const sx = linear(0, 10, 0, 100);
+    expect(sx(5)).toBe(50);
+    expect(linear(3, 3, 0, 10)(3)).toBe(0);
+    expect(pathOf([0, 5, 10], [1, 2, 3], sx, (v) => v * 10)).toBe("M0.0 10.0 L50.0 20.0 L100.0 30.0");
+    expect(pathOf([0, 5, 10], [1, 2, 3], sx, (v) => v, 4, 6)).toBe("M50.0 2.0");
+    expect(spreadLabels([10, 12, 50, 11], 14)).toEqual([10, 38, 52, 24]);
+    expect(niceTop(312, 50)).toBe(350);
+    expect(niceTop(0, 50)).toBe(50);
   });
 });

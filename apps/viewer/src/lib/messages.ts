@@ -145,7 +145,7 @@ const isOut = (m: RaceMessage) => m.kind === "crash" || m.kind === "dnf";
 
 /** How long a message stays on screen at 1×, in replay seconds: retirements and the result stay longest. */
 export function toastLife(m: RaceMessage): number {
-  return isOut(m) || m.kind === "finish" ? 30 : 8;
+  return isOut(m) || (m.kind === "finish" && m.text.startsWith("Chequered")) ? 30 : 8;
 }
 
 /**

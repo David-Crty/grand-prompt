@@ -1,89 +1,231 @@
-import { formatLapTime, kmh } from "../lib/format.js";
-import { tracePath } from "../lib/laps.js";
+import {
+  type ChartTrack,
+  DeltaChart,
+  EntryChip,
+  IconButton,
+  InputLanes,
+  SectorTable,
+  SegmentedControl,
+  SpeedTrace,
+} from "@bench/ui/react";
+import { useMemo, useState } from "react";
+import { analysisPicks, bestProfiles, deltaSeries, sectorRows, whereTimeGoes } from "../lib/analysis.js";
+import { lapInfoAt } from "../lib/frames.js";
 import type { ViewerModel } from "../lib/model.js";
 
-const W = 860;
-const H = 300;
+type Part = "speed" | "delta" | "inputs" | "sectors";
 
+/** Best laps compared: speed, the gap to the reference along the lap, pedals, sectors and where the time goes. */
 export function Analysis({
   model,
+  focusId,
+  t,
   cursorS,
+  layout = "panel",
   onClose,
 }: {
   model: ViewerModel;
+  focusId: string;
+  t: number;
   cursorS: number | null;
+  layout?: "panel" | "sheet";
   onClose: () => void;
 }) {
-  const traces = model.traces;
-  const length = model.layout.length;
-  let vmax = 0;
-  for (const tr of traces) for (const v of tr.speed) vmax = Math.max(vmax, v);
-  const top = Math.ceil((vmax * 3.6) / 50) * 50;
-  const vmaxMs = top / 3.6;
-  const ticks: number[] = [];
-  for (let v = 0; v <= top; v += 50) ticks.push(v);
-  const sectors = model.replay.track.sectors;
-  return (
-    <div className="analysis panel">
-      <div className="analysis-head">
-        <h3>Best lap speed trace</h3>
-        <button type="button" className="close" onClick={onClose} aria-label="Close">
-          ×
-        </button>
-      </div>
-      <svg
-        viewBox={`-44 -10 ${W + 60} ${H + 40}`}
-        className="chart"
-        role="img"
-        aria-label="Speed against distance"
+  const profiles = useMemo(() => bestProfiles(model.cars), [model]);
+  const initial = useMemo(() => analysisPicks(profiles, focusId), [profiles, focusId]);
+  const [ids, setIds] = useState(initial.ids);
+  const [part, setPart] = useState<Part>("speed");
+  const ref = initial.ref;
+  const refEntry = ref ? model.entries.get(ref) : undefined;
+  const track: ChartTrack = useMemo(
+    () => ({
+      length: model.layout.length,
+      sectors: model.replay.track.sectors,
+      corners: model.corners.map((c) => ({ n: c.n, sApex: c.sApex })),
+    }),
+    [model],
+  );
+  const byId = new Map(profiles.map((p) => [p.id, p]));
+  const carOf = (id: string) => model.cars.find((c) => c.car.id === id);
+  const speed = ids.flatMap((id) => {
+    const p = byId.get(id);
+    const entry = model.entries.get(id);
+    return p && entry ? [{ entry, s: p.s, v: p.speedKmh }] : [];
+  });
+  const deltas = (() => {
+    const r = ref ? carOf(ref) : undefined;
+    if (!r) return [];
+    return ids.flatMap((id) => {
+      const c = carOf(id);
+      const entry = model.entries.get(id);
+      const d = c && id !== ref ? deltaSeries(r, c) : null;
+      return d && entry ? [{ entry, s: d.s, dt: d.dt }] : [];
+    });
+    // carOf reads model, already a dependency.
+  })();
+  const focus = byId.has(focusId) ? focusId : (ids.find((id) => id !== ref) ?? ref);
+  const focusCar = focus ? carOf(focus) : undefined;
+  const done = focusCar ? lapInfoAt(focusCar, t).completed : 0;
+  const lap = Math.max(1, Math.min(model.totalLaps, done));
+  const sectors = sectorRows(model.replay.classification, lap);
+  const code = (id: string) => model.entries.get(id)?.code ?? id;
+  const words = focus && ref ? whereTimeGoes(sectors, focus, ref, code) : null;
+  const focusEntry = focus ? model.entries.get(focus) : undefined;
+  const toggle = (id: string) =>
+    setIds((v) => (v.includes(id) ? (v.length > 1 ? v.filter((x) => x !== id) : v) : [...v, id]));
+  const sheet = layout === "sheet";
+  const w = sheet ? 358 : 1080;
+
+  if (!refEntry || profiles.length === 0)
+    return (
+      <section
+        className={sheet ? "analysis-sheet" : "gp-panel gp-panel--solid analysis"}
+        aria-label="Analysis"
       >
-        {ticks.map((v) => {
-          const y = H - (v / top) * H;
-          return (
-            <g key={v}>
-              <line x1={0} x2={W} y1={y} y2={y} className="grid" />
-              <text x={-8} y={y + 4} className="tick" textAnchor="end">
-                {v}
-              </text>
-            </g>
-          );
-        })}
-        {sectors.map((s, k) => (
-          <g key={s}>
-            <line x1={(s / length) * W} x2={(s / length) * W} y1={0} y2={H} className="sector" />
-            <text x={(s / length) * W + 4} y={12} className="tick">
-              S{k + 2}
-            </text>
-          </g>
-        ))}
-        {traces.map((tr) => (
-          <polyline
-            key={tr.carId}
-            points={tracePath(tr, length, 0, vmaxMs, W, H)}
-            fill="none"
-            stroke={tr.color}
-            strokeWidth={2}
-            strokeLinejoin="round"
+        <div className="analysis__head">
+          <h2 className="gp-x">Analysis</h2>
+          <span className="gp-flex" />
+          <IconButton icon="cross" label="Close analysis (A)" onClick={onClose} />
+        </div>
+        <p className="gp-muted">No completed lap yet: the analysis compares best laps.</p>
+      </section>
+    );
+
+  const charts = {
+    speed: (
+      <>
+        <div className="gp-label">Speed, km/h, against distance</div>
+        <div className="gp-chart">
+          <SpeedTrace
+            series={speed}
+            focusId={focus ?? ""}
+            track={track}
+            cursor={cursorS}
+            width={w}
+            height={sheet ? 210 : 250}
           />
-        ))}
-        {cursorS !== null ? (
-          <line x1={(cursorS / length) * W} x2={(cursorS / length) * W} y1={0} y2={H} className="cursor" />
+        </div>
+      </>
+    ),
+    delta: (
+      <>
+        <div className="gp-label">Time to {refEntry.name} at the same distance</div>
+        <div className="gp-chart">
+          <DeltaChart series={deltas} reference={refEntry} track={track} width={w} height={150} />
+        </div>
+      </>
+    ),
+    inputs:
+      focus && byId.get(focus) ? (
+        <>
+          <div className="gp-label analysis__lanes-label">
+            Throttle and brake · {focusEntry ? <EntryChip entry={focusEntry} /> : null}
+            {focus !== ref ? (
+              <>
+                {" "}
+                against <EntryChip entry={refEntry} /> dashed
+              </>
+            ) : null}
+          </div>
+          <div className="gp-chart">
+            <InputLanes
+              trace={byId.get(focus)!}
+              reference={focus !== ref ? byId.get(ref!) : null}
+              track={track}
+              width={w}
+              height={96}
+            />
+          </div>
+        </>
+      ) : null,
+    sectors: (
+      <>
+        <div className="gp-label">Sectors · lap {lap}</div>
+        <div className="gp-card analysis__sectors">
+          <SectorTable
+            lap={lap}
+            names={false}
+            rows={sectors.flatMap((r) => {
+              const entry = model.entries.get(r.id);
+              return entry ? [{ ...r, entry }] : [];
+            })}
+          />
+        </div>
+        {words ? (
+          <>
+            <div className="gp-label">Where the time goes</div>
+            <div className="gp-card analysis__words">
+              <p>{words}</p>
+              <p className="gp-muted">
+                From the sector times of lap {lap}: losses first, then where it gains.
+              </p>
+            </div>
+          </>
         ) : null}
-        <text x={W} y={H + 26} className="tick" textAnchor="end">
-          distance (m) · {Math.round(length)} m lap
-        </text>
-        <text x={0} y={H + 26} className="tick">
-          km/h
-        </text>
-      </svg>
-      <div className="legend">
-        {traces.map((tr) => (
-          <span key={tr.carId}>
-            <span className="swatch" style={{ background: tr.color }} />
-            {tr.name} · lap {tr.lap} · {formatLapTime(tr.time)} · top {kmh(Math.max(...tr.speed))} km/h
-          </span>
-        ))}
-      </div>
+      </>
+    ),
+  };
+
+  const picker = (
+    <div className="analysis__picker">
+      {profiles.map((p) => {
+        const entry = model.entries.get(p.id);
+        return entry ? (
+          <button
+            type="button"
+            key={p.id}
+            className="gp-btn gp-btn--secondary analysis__pick"
+            aria-pressed={ids.includes(p.id)}
+            onClick={() => toggle(p.id)}
+            title={entry.name}
+          >
+            <EntryChip entry={entry} />
+          </button>
+        ) : null;
+      })}
     </div>
+  );
+
+  if (sheet)
+    return (
+      <section className="analysis-sheet" aria-label="Analysis">
+        <div className="analysis__head">
+          <h2 className="gp-x">Analysis</h2>
+          <span className="gp-flex" />
+          <IconButton icon="cross" label="Close" size="touch" iconSize={20} onClick={onClose} />
+        </div>
+        <SegmentedControl<Part>
+          size="touch"
+          label="Chart"
+          value={part}
+          onChange={setPart}
+          options={[
+            { value: "speed", label: "Speed" },
+            { value: "delta", label: "Delta" },
+            { value: "sectors", label: "Sectors" },
+          ]}
+        />
+        {picker}
+        {charts[part]}
+      </section>
+    );
+
+  return (
+    <section className="gp-panel gp-panel--solid analysis" aria-label="Analysis">
+      <div className="analysis__main">
+        <div className="analysis__head">
+          <h2 className="gp-x">Analysis</h2>
+          <span className="gp-faint analysis__sub">Best laps · {model.replay.track.name} · reference</span>
+          <EntryChip entry={refEntry} />
+          <span className="gp-flex" />
+          <IconButton icon="cross" label="Close analysis (A)" onClick={onClose} />
+        </div>
+        {picker}
+        {charts.speed}
+        {charts.delta}
+        {charts.inputs}
+      </div>
+      <div className="analysis__side">{charts.sectors}</div>
+    </section>
   );
 }

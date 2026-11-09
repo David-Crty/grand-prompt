@@ -1,9 +1,10 @@
 import type { Replay } from "@bench/sim";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RaceList } from "./components/RaceList.js";
-import { decodeReplay, fetchReplay } from "./lib/load.js";
+import { decodeReplay, fetchEventResults, fetchReplay } from "./lib/load.js";
 import { buildModel } from "./lib/model.js";
 import { eventOf, paramsForReplay, parseParams } from "./lib/params.js";
+import type { EventResults } from "./lib/results.js";
 import { Viewer } from "./Viewer.js";
 
 export function App() {
@@ -14,6 +15,7 @@ export function App() {
   const [drag, setDrag] = useState(false);
   const [gen, setGen] = useState(0);
   const [fromUrl, setFromUrl] = useState(false);
+  const [results, setResults] = useState<EventResults | null>(null);
   // StrictMode runs effects twice in development; fetch the URL's replay once (issue 8).
   const requested = useRef<string | null>(null);
 
@@ -22,6 +24,7 @@ export function App() {
     requested.current = url;
     setLoading(url);
     setError(null);
+    fetchEventResults(url).then(setResults);
     fetchReplay(url)
       .then((r) => {
         setReplay(r);
@@ -56,6 +59,7 @@ export function App() {
         .then(decodeReplay)
         .then((r) => {
           setReplay(r);
+          setResults(null);
           setFromUrl(false);
           setGen((g) => g + 1);
         })
@@ -83,6 +87,7 @@ export function App() {
           backHref={window.location.pathname}
           backLabel={(fromUrl && eventOf(params.replay)) || "All races"}
           params={paramsForReplay(params, fromUrl)}
+          results={fromUrl ? results : null}
         />
       ) : null}
       {!model && !params.replay && !drag ? <RaceList error={error} loading={loading} /> : null}

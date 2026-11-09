@@ -2176,3 +2176,72 @@ fieldset.gp-seg {
 .gp-map__pin {
   cursor: pointer;
 }
+.gp-table__wrap {
+  overflow-x: auto;
+}
+.gp-lapno {
+  font-size: 11px;
+}
+.gp-outtext {
+  font-size: 12px;
+}
+.gp-fastest {
+  color: var(--timing-fastest);
+}
+.gp-sector--key {
+  min-width: 0;
+  margin-left: 10px;
+}
+.gp-sector--key:first-child {
+  margin-left: 0;
+}
+.gp-chart__line {
+  fill: none;
+  stroke-width: 1.4;
+  stroke-opacity: 0.85;
+  stroke-linejoin: round;
+}
+.gp-chart__line.is-focus {
+  stroke-width: 2.4;
+  stroke-opacity: 1;
+}
+.gp-chart__code {
+  font-size: 10px;
+  font-weight: 800;
+  fill: var(--on-chalk);
+  font-variation-settings: "wdth" 75;
+  font-family: var(--font-sans);
+}
+.gp-chart__ahead {
+  fill: var(--delta-ahead);
+  fill-opacity: 0.06;
+}
+.gp-chart__behind {
+  fill: var(--delta-behind);
+  fill-opacity: 0.06;
+}
+.gp-chart__ahead-label {
+  fill: var(--delta-ahead);
+}
+.gp-chart__end {
+  font-weight: 700;
+}
+.gp-chart__lane {
+  fill: var(--surface-300);
+}
+.gp-chart__fill {
+  fill-opacity: 0.85;
+}
+.gp-chart__fill.thr {
+  fill: var(--telemetry-throttle);
+}
+.gp-chart__fill.brk {
+  fill: var(--telemetry-brake);
+}
+.gp-chart__ref {
+  fill: none;
+  stroke: var(--text-100);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+  stroke-opacity: 0.7;
+}
