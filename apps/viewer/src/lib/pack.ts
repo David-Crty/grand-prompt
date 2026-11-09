@@ -33,7 +33,11 @@ export const SAME_DISTANCE = 0.05;
 export function findPacks(cars: PackCar[], packDistance: number, sameDistance = SAME_DISTANCE): Pack[] {
   const live = cars.filter((c) => !c.ended).sort((a, b) => b.progress - a.progress);
   const group = live.map((_, k) => k);
-  const root = (k: number): number => (group[k] === k ? k : (group[k] = root(group[k]!)));
+  const root = (k: number): number => {
+    let r = k;
+    while (group[r] !== r) r = group[r]!;
+    return r;
+  };
   for (let a = 0; a < live.length; a++)
     for (let b = a + 1; b < live.length; b++)
       if (Math.hypot(live[a]!.x - live[b]!.x, live[a]!.y - live[b]!.y) < packDistance)
