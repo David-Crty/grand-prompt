@@ -2104,3 +2104,75 @@ fieldset.gp-seg {
 .gp-launch__title {
   color: var(--text-100);
 }
+.gp-incident__where {
+  font-weight: 700;
+}
+.gp-incident__what {
+  margin: 0;
+}
+.gp-incident__close {
+  border: 0;
+  background: none;
+  color: inherit;
+  padding: 0;
+  margin-left: 6px;
+  cursor: pointer;
+  display: inline-flex;
+}
+.gp-incident--sheet {
+  width: 100%;
+}
+.gp-incident--sheet .gp-incident__band {
+  border-radius: 0;
+}
+.gp-incident__facts .gp-stat__v {
+  white-space: normal;
+}
+.gp-incident__facts > div:last-child .gp-stat__v {
+  font-size: 13px;
+  line-height: 16px;
+}
+.gp-trace__grid {
+  stroke: var(--chart-grid);
+  stroke-width: 1;
+}
+.gp-trace__axis {
+  fill: var(--text-300);
+  font-size: 9px;
+  font-family: var(--font-sans);
+}
+.gp-trace__speed {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.gp-trace__thr {
+  fill: var(--telemetry-throttle);
+}
+.gp-trace__mark {
+  stroke: var(--status-warn);
+  stroke-dasharray: 2 3;
+}
+.gp-trace__marklabel {
+  fill: var(--status-warn);
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-sans);
+}
+.gp-ibanner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px 6px 12px;
+}
+.gp-ibanner__text {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.gp-ibanner__exit {
+  height: 28px;
+}
+.gp-map__pin {
+  cursor: pointer;
+}

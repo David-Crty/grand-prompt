@@ -3,6 +3,7 @@ import type { Entry, TimelineMarker } from "@bench/ui";
 import { type Corner, detectCorners } from "./corners.js";
 import { eventEntries, recolorReplay } from "./entries.js";
 import { type CarIndex, indexReplay } from "./frames.js";
+import { analyseIncidents, type Incident } from "./incidents.js";
 import { bestLapTraces, type LapTrace } from "./laps.js";
 import { type RaceMessage, raceMessages } from "./messages.js";
 import { lapTicks, timelineMarkers } from "./timeline.js";
@@ -33,6 +34,8 @@ export interface ViewerModel {
   /** Every car ran alone and the runs are overlaid (the only mode until wheel-to-wheel racing exists). */
   ghost: boolean;
   markers: TimelineMarker[];
+  /** Why each retired car went out, in time order. */
+  incidents: Incident[];
   laps: { t: number; label: string }[];
   traces: LapTrace[];
   grandstands: Grandstand[];
@@ -61,6 +64,7 @@ export function buildModel(source: Replay, treeCount = 1400): ViewerModel {
     corners,
     ghost,
     markers: timelineMarkers(messages, entries),
+    incidents: analyseIncidents(cars, replay.track, corners),
     laps: lapTicks(cars, winner),
     traces: bestLapTraces(cars),
     grandstands,

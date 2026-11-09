@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   entryVar,
   gapLabel,
+  incidentTrace,
   lapCell,
   lapOrDash,
   mergeMarkers,
@@ -100,5 +101,25 @@ describe("timeline markers", () => {
     expect(stepMarker(marks, 48, -1)?.t).toBe(47);
     expect(stepMarker(marks, 0, -1)).toBeNull();
     expect(stepMarker(marks, 300, 1)).toBeNull();
+  });
+});
+
+describe("incident trace", () => {
+  it("maps speed and throttle onto the box and keeps marks inside it", () => {
+    const g = incidentTrace({ t: [10, 11, 12], speedKmh: [220, 110, 0], throttle: [1, 0.5, 0] }, 200, 72, [
+      { t: 10.5, label: "SPIN" },
+      { t: 11.9, label: "SPIN 2" },
+      { t: 30, label: "late" },
+    ]);
+    expect(g.speed).toBe("M0.0 8.0 L100.0 29.0 L200.0 50.0");
+    expect(g.y100).toBeCloseTo(50 - (100 / 220) * 42, 6);
+    expect(g.throttle.map((c) => c.opacity)).toEqual([1, 0.575, 0.15]);
+    expect(g.throttle[0]!.x).toBe(0);
+    expect(g.marks).toEqual([
+      { x: 50, label: "SPIN", anchor: "start" },
+      { x: expect.closeTo(190, 6), label: "SPIN 2", anchor: "end" },
+    ]);
+    const flat = incidentTrace({ t: [], speedKmh: [], throttle: [] }, 100, 50);
+    expect(flat.speed).toBe("");
   });
 });

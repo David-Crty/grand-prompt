@@ -318,6 +318,14 @@ export function Timeline({
     () => mergeMarkers(markers, duration, width, size === "touch" ? 18 : 12),
     [markers, duration, width, size],
   );
+  // The active marker may have merged with others: take the nearest within the merge distance.
+  const tol = ((size === "touch" ? 18 : 12) / Math.max(1, width)) * duration + 0.5;
+  const active =
+    activeT == null
+      ? null
+      : (merged
+          .filter((m) => Math.abs(m.t - activeT) <= tol)
+          .sort((a, b) => Math.abs(a.t - activeT) - Math.abs(b.t - activeT))[0] ?? null);
   const at = (x: number) => `${(Math.min(1, Math.max(0, x / Math.max(1e-9, duration))) * 100).toFixed(3)}%`;
   const seekFrom = (e: React.PointerEvent<HTMLDivElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
@@ -358,11 +366,7 @@ export function Timeline({
         <button
           type="button"
           key={`${m.kind}-${m.t}`}
-          className={cx(
-            "gp-mark",
-            `gp-mark--${m.kind}`,
-            activeT != null && Math.abs(activeT - m.t) < 0.5 && "is-active",
-          )}
+          className={cx("gp-mark", `gp-mark--${m.kind}`, m === active && "is-active")}
           style={{ left: at(m.t) }}
           aria-label={m.label}
           onPointerDown={(e) => e.stopPropagation()}
@@ -376,11 +380,14 @@ export function Timeline({
         </button>
       ))}
       <span className="gp-timeline__head" style={{ left: at(t) }} />
-      {hover ? (
-        <span className="gp-tip" style={{ left: at(hover.t), top: -4 }}>
-          {hover.label}
-        </span>
-      ) : null}
+      {(() => {
+        const tip = hover ?? active;
+        return tip ? (
+          <span className="gp-tip" style={{ left: at(tip.t), top: -4 }}>
+            {tip.label}
+          </span>
+        ) : null;
+      })()}
     </div>
   );
 }
@@ -582,6 +589,7 @@ export function MiniMap({
   pins = [],
   stroke = 7,
   onFocus,
+  onPin,
 }: {
   width: number;
   height: number;
@@ -594,6 +602,8 @@ export function MiniMap({
   pins?: { id: string; x: number; y: number; label: string }[];
   stroke?: number;
   onFocus?: (id: string) => void;
+  /** A retired car's pin: open its incident. */
+  onPin?: (id: string) => void;
 }) {
   return (
     <svg
@@ -608,10 +618,12 @@ export function MiniMap({
       <path className="ribbon" d={path} strokeWidth={stroke} />
       <line className="start" x1={start[0]} y1={start[1]} x2={start[2]} y2={start[3]} />
       {pins.map((p) => (
+        // biome-ignore lint/a11y/noStaticElementInteractions: the race messages' "Why" opens the same incident
         <g
           key={`pin-${p.id}`}
           transform={`translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`}
           className="gp-map__pin"
+          onClick={() => onPin?.(p.id)}
         >
           <title>{p.label}</title>
           <rect x={-8} y={-24} width={16} height={16} rx={2} />

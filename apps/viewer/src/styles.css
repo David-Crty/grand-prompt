@@ -70,6 +70,7 @@ button {
 /* HUD layout (desktop): tower top-left, session and messages top-right, followed car bottom-left, transport. */
 .hud-tower,
 .hud-start,
+.hud-banner,
 .hud-topright,
 .hud-focus,
 .hud-transport {
@@ -104,6 +105,12 @@ button {
 .hud-start {
   left: 388px;
   top: 24px;
+}
+
+.hud-banner {
+  left: 50%;
+  top: 24px;
+  transform: translateX(-50%);
 }
 
 .hud-topright {

@@ -9,6 +9,7 @@ import {
   Focus,
   Help,
   type HudSnapshot,
+  IncidentMode,
   Labels,
   Start,
   TopRight,
@@ -18,6 +19,7 @@ import {
 import { clampZoom, stepZoom } from "./lib/camera.js";
 import { lapInfoAt, overallBestAt } from "./lib/frames.js";
 import { justOut } from "./lib/hud.js";
+import type { Incident } from "./lib/incidents.js";
 import { visibleToasts } from "./lib/messages.js";
 import type { ViewerModel } from "./lib/model.js";
 import { launchBoard, startBoardVisible } from "./lib/pack.js";
@@ -26,6 +28,7 @@ import { PlaybackClock } from "./lib/playback.js";
 import { MARKER_LEAD } from "./lib/timeline.js";
 import { Cars } from "./scene/Cars.js";
 import { Driver } from "./scene/Driver.js";
+import { IncidentRing } from "./scene/IncidentRing.js";
 import type { LiveState } from "./scene/live.js";
 import { World } from "./scene/World.js";
 
@@ -90,6 +93,8 @@ export function Viewer({
   // null: shown on its own while the start board is up; true or false once the viewer has toggled it.
   const [ghostOpen, setGhostOpen] = useState<boolean | null>(null);
   const [classif, setClassif] = useState(false);
+  // Incident replay: the card, the banner, slow motion and the ring on the ground, until Exit.
+  const [incident, setIncident] = useState<Incident | null>(null);
   const autoShown = useRef(false);
   const [snap, setSnap] = useState<HudSnapshot | null>(null);
 
@@ -254,6 +259,7 @@ export function Viewer({
           setHelp((v) => !v);
           break;
         case "Escape":
+          setIncident(null);
           setHelp(false);
           setClassif(false);
           setAnalysis(false);
@@ -297,15 +303,29 @@ export function Viewer({
     },
     [toggleTrails],
   );
-  // Until incident cards exist (plan phase 4), "Why" follows the car and replays its last seconds.
+  const replayIncident = useCallback(
+    (inc: Incident) => {
+      const c = live.current.clock;
+      focusCar(inc.carId);
+      c.seek(inc.replayFrom);
+      c.speed = 0.5;
+      c.playing = true;
+    },
+    [focusCar],
+  );
   const onWhy = useCallback(
     (carId: string) => {
-      const m = model.markers.find((k) => k.kind === "dnf" && k.carIds.includes(carId));
-      focusCar(carId);
-      if (m) live.current.clock.seek(Math.max(0, m.t - 10));
+      const inc = model.incidents.find((i) => i.carId === carId);
+      if (!inc) return;
+      setIncident(inc);
+      replayIncident(inc);
     },
-    [model, focusCar],
+    [model, replayIncident],
   );
+  const exitIncident = useCallback(() => {
+    setIncident(null);
+    live.current.clock.speed = 1;
+  }, []);
 
   return (
     <div className="viewer gp">
@@ -318,13 +338,24 @@ export function Viewer({
         <World model={model} lightRef={lightRef} />
         <Cars model={model} live={live} />
         <Driver model={model} live={live} lightRef={lightRef} />
+        {incident ? <IncidentRing x={incident.x} y={incident.y} /> : null}
       </Canvas>
       {snap ? (
         <Labels model={model} snap={snap} mode={mode} register={registerLabel} registerPack={registerPack} />
       ) : null}
       {snap && hud ? (
         <>
-          <Tower model={model} snap={snap} mode={gapMode} onMode={setGapMode} onFocus={focusCar} />
+          <Tower
+            model={model}
+            snap={snap}
+            mode={gapMode}
+            onMode={setGapMode}
+            onFocus={focusCar}
+            onPin={onWhy}
+          />
+          {incident ? (
+            <IncidentMode model={model} snap={snap} incident={incident} onExit={exitIncident} />
+          ) : null}
           <TopRight
             model={model}
             snap={snap}
@@ -334,6 +365,10 @@ export function Viewer({
             ghostOpen={ghostShown}
             onGhost={() => setGhostOpen(!ghostShown)}
             onWhy={onWhy}
+            incident={incident}
+            onReplay={replayIncident}
+            onMap={() => setMode("map")}
+            onCloseIncident={exitIncident}
           />
           <Focus model={model} snap={snap} />
           {snap.launch ? <Start model={model} snap={snap} /> : null}
@@ -342,6 +377,7 @@ export function Viewer({
             snap={snap}
             mode={mode}
             toggles={{ trails, analysis, classification: classif }}
+            activeT={incident?.t ?? null}
             onToggle={() => live.current.clock.toggle()}
             onSeek={onSeek}
             onMarker={seekMarker}

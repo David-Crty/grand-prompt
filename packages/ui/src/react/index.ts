@@ -4,5 +4,6 @@
 export * from "./ghost.js";
 export * from "./hud.js";
 export * from "./icons.js";
+export * from "./incident.js";
 export * from "./primitives.js";
 export * from "./timing.js";

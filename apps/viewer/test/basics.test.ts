@@ -134,7 +134,8 @@ describe("params", () => {
     expect(stepSpeed(16, 1)).toBe(32);
     expect(stepSpeed(32, 1)).toBe(32);
     expect(stepSpeed(2, -1)).toBe(1);
-    expect(stepSpeed(1, -1)).toBe(1);
+    expect(stepSpeed(1, -1)).toBe(0.5);
+    expect(stepSpeed(0.25, -1)).toBe(0.25);
     expect(stepSpeed(3, 1)).toBe(4);
   });
 });

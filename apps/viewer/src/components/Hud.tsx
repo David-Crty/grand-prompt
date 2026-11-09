@@ -1,11 +1,15 @@
 import type { GapMode, TimelineMarker } from "@bench/ui";
 import {
+  Button,
   CAMERA_LABEL,
   type CameraMode,
   CarLabel,
   FocusCard,
   GhostNote,
+  IncidentBanner,
+  IncidentCard,
   IncidentPin,
+  IncidentTrace,
   MiniMap,
   PackLabel,
   RaceToast,
@@ -17,8 +21,10 @@ import {
   type TransportFlag,
 } from "@bench/ui/react";
 import { useMemo } from "react";
+import { formatClock } from "../lib/format.js";
 import type { CarSample, LapInfo } from "../lib/frames.js";
 import { mapCars, mapPins } from "../lib/hud.js";
+import { type Incident, incidentTitle } from "../lib/incidents.js";
 import { type RaceMessage, TOAST_KIND } from "../lib/messages.js";
 import { buildMinimap } from "../lib/minimap.js";
 import type { ViewerModel } from "../lib/model.js";
@@ -57,12 +63,14 @@ export function Tower({
   mode,
   onMode,
   onFocus,
+  onPin,
 }: {
   model: ViewerModel;
   snap: HudSnapshot;
   mode: GapMode;
   onMode: (m: GapMode) => void;
   onFocus: (id: string) => void;
+  onPin: (id: string) => void;
 }) {
   const map = useMemo(() => buildMinimap(model.layout, MAP_W, MAP_H), [model]);
   return (
@@ -87,6 +95,7 @@ export function Tower({
             cars={mapCars(model, snap.rows, snap.samples, snap.focusId, map.project)}
             pins={mapPins(model, snap.t, map.project)}
             onFocus={onFocus}
+            onPin={onPin}
           />
         </div>
       </TimingTower>
@@ -103,6 +112,10 @@ export function TopRight({
   ghostOpen,
   onGhost,
   onWhy,
+  incident,
+  onReplay,
+  onMap,
+  onCloseIncident,
 }: {
   model: ViewerModel;
   snap: HudSnapshot;
@@ -112,6 +125,10 @@ export function TopRight({
   ghostOpen: boolean;
   onGhost: () => void;
   onWhy: (carId: string) => void;
+  incident: Incident | null;
+  onReplay: (inc: Incident) => void;
+  onMap: () => void;
+  onCloseIncident: () => void;
 }) {
   const s = model.replay.header.session;
   const sub = `${s.type === "race" ? "Race" : "Qualifying"} · ${model.totalLaps} ${model.totalLaps === 1 ? "lap" : "laps"} · ${CAMERA_LABEL[mode]}`;
@@ -129,7 +146,15 @@ export function TopRight({
         onGhost={onGhost}
       />
       {ghostOpen ? <GhostNote count={model.cars.length} onClose={onGhost} /> : null}
-      {snap.toasts.length ? (
+      {incident ? (
+        <IncidentPanel
+          model={model}
+          incident={incident}
+          onReplay={onReplay}
+          onMap={onMap}
+          onClose={onCloseIncident}
+        />
+      ) : snap.toasts.length ? (
         <ToastStack>
           {snap.toasts.map((m) => {
             const kind = TOAST_KIND[m.kind];
@@ -146,6 +171,75 @@ export function TopRight({
           })}
         </ToastStack>
       ) : null}
+    </div>
+  );
+}
+
+export function IncidentPanel({
+  model,
+  incident,
+  onReplay,
+  onMap,
+  onClose,
+  layout = "card",
+}: {
+  layout?: "card" | "sheet";
+  model: ViewerModel;
+  incident: Incident;
+  onReplay: (inc: Incident) => void;
+  onMap: () => void;
+  onClose: () => void;
+}) {
+  const entry = model.entries.get(incident.carId);
+  if (!entry) return null;
+  const marks = incident.spins.map((s, k) => ({ t: s.t, label: k ? "SPIN 2" : "SPIN" }));
+  return (
+    <IncidentCard
+      title={incidentTitle(incident)}
+      where={incident.where}
+      entry={entry}
+      sentence={incident.error ? `${incident.sentence} ${incident.error}` : incident.sentence}
+      trace={<IncidentTrace window={incident.window} marks={marks} entry={entry} />}
+      facts={[
+        { k: "Out at", v: formatClock(incident.t) },
+        { k: "Impact", v: incident.impactKmh !== null ? `${incident.impactKmh} km/h` : "–" },
+        { k: "Cause", v: incident.cause },
+      ]}
+      actions={
+        <>
+          <Button variant="primary" icon="back5" onClick={() => onReplay(incident)}>
+            Replay from {formatClock(incident.replayFrom)}
+          </Button>
+          <Button icon="map" onClick={onMap}>
+            Map
+          </Button>
+        </>
+      }
+      onClose={layout === "sheet" ? onClose : undefined}
+      layout={layout}
+    />
+  );
+}
+
+/** Top centre during an incident replay: whose incident, and how long until it ends. */
+export function IncidentMode({
+  model,
+  snap,
+  incident,
+  onExit,
+}: {
+  model: ViewerModel;
+  snap: HudSnapshot;
+  incident: Incident;
+  onExit: () => void;
+}) {
+  const name = model.entries.get(incident.carId)?.name ?? incident.carId;
+  const dt = incident.t - snap.t;
+  const what = incident.impactKmh !== null ? "impact" : "retirement";
+  const text = `${name} · ${dt > 0 ? `${dt.toFixed(1)} s to ${what}` : `${what} ${(-dt).toFixed(1)} s ago`}`;
+  return (
+    <div className="hud-banner">
+      <IncidentBanner text={text} onExit={onExit} />
     </div>
   );
 }
@@ -179,6 +273,7 @@ export function Transport({
   snap,
   mode,
   toggles,
+  activeT,
   onToggle,
   onSeek,
   onMarker,
@@ -190,6 +285,7 @@ export function Transport({
   snap: HudSnapshot;
   mode: CameraMode;
   toggles: { trails: boolean; analysis: boolean; classification: boolean };
+  activeT: number | null;
   onToggle: () => void;
   onSeek: (t: number) => void;
   onMarker: (m: TimelineMarker) => void;
@@ -208,6 +304,7 @@ export function Transport({
         canFaster={snap.speed < SPEEDS[SPEEDS.length - 1]!}
         camera={mode}
         markers={model.markers}
+        activeT={activeT}
         laps={model.laps}
         toggles={toggles}
         onToggle={onToggle}

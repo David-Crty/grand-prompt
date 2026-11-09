@@ -1,6 +1,7 @@
 export const CAMERA_MODES = ["tv", "chase", "onboard", "map"] as const;
 export type CameraMode = (typeof CAMERA_MODES)[number];
-export const SPEEDS = [1, 2, 4, 8, 16, 32] as const;
+/** Playback speeds; below 1x is slow motion (incident replays start at 0.5x). */
+export const SPEEDS = [0.25, 0.5, 1, 2, 4, 8, 16, 32] as const;
 
 export interface ViewerParams {
   replay: string | null;
