@@ -1,7 +1,7 @@
 # F1 LLM Bench (working title)
 
-LLMs each write a driving program once, then all programs race the same car on the same circuit
-in a deterministic simulator, and the race is replayed in 3D. `PLAN.md` holds the goals and
+LLMs each write a driving program once, then all programs drive one flying lap in the same car on
+the same circuit in a deterministic simulator, and the laps are replayed in 3D together. `PLAN.md` holds the goals and
 phases (sections 1, 3 and 12 are firm; change them only with the owner's agreement). Read
 `docs/DECISIONS.md` before changing behaviour, and add an entry for every significant choice
 or deviation.
@@ -14,14 +14,18 @@ or deviation.
   crash elsewhere and that the house driver is far off the pace.
 - Current format (D18 to D21): models from `models.json` build through their own CLIs in a
   bubblewrap sandbox at `medium` effort, practise on monaco, silverstone and portimao (10 shared
-  runs, 30 min, deadline in the prompt) and race on `barcelona`, which they never see.
-- `gp-1` (8 models) is built but not raced; it ran before effort was set (D21). No OpenRouter: the
+  runs, 30 min, deadline in the prompt) and are timed on `barcelona`, which they never see.
+- Every session is one flying lap (D26): a 3 s run-up placed by the sim, all cars crossing the line
+  together at a launch speed computed from the track, then one timed lap; off-track deletes it.
+  Practice is the same session. There is no race, no `--laps` and no `bench race`.
+- `gp-1` (8 models) was built before effort was set (D21) and for the old standing-start format;
+  its drivers still load and run. No OpenRouter: the
   owner has no account; `bench oneshot` exists but is unused.
 - **Not done:** a build at a fixed effort, a house driver fast enough to be a meaningful
   reference (it crashes on the real circuits), Gemini model ids in `models.json` (the Gemini CLI
   is not installed), and freezing the API for a season (PLAN 6.5). Ask before freezing.
-- Open viewer issue: ghost cars all start at s = 0 and overlap for about 11 s. A visual offset
-  would diverge from what was timed, so that is the owner's call.
+- Ghost cars share the same run-up and line, so they overlap until they diverge after the line;
+  that is intended (D26).
 - Phase 4: Remotion video and the mobile viewer are not started. Phase 5 (wheel-to-wheel) is not
   started.
 
@@ -47,11 +51,11 @@ or deviation.
 - `docs/`: PHYSICS, REPLAY_FORMAT, TRACK_FORMAT, DECISIONS.
 
 ## Commands
-`make` lists shortcuts over all of these (`make gates`, `make build NAME=…`, `make race NAME=… TRACK=…`).
+`make` lists shortcuts over all of these (`make gates`, `make build NAME=…`, `make qualify NAME=… TRACK=…`).
 ```bash
 pnpm bench --help
-pnpm bench race ddk/baseline-driver.js --reference --laps 3   # -> results/race/proto-ring-NNN/
-pnpm bench event run <event>                                  # qualifying + race of drivers/<event>/*
+pnpm bench qualify ddk/baseline-driver.js --reference   # -> results/qualify/proto-ring-NNN/
+pnpm bench event run <event>                            # flying lap of drivers/<event>/* -> results/<event>/qualify/
 pnpm bench tracks                                             # ids for --track (monaco, silverstone, …)
 pnpm --filter @bench/viewer dev   # http://localhost:5173/ lists every replay under results/; ?replay=<url> opens one
 pnpm tsx scripts/demo-replay.ts   # regenerates results/demo (4-car demo)

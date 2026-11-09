@@ -16,7 +16,7 @@ describe("ddk/driver.d.ts matches the sim", () => {
     protoRing(),
     protoCar(),
     { id: "x", name: "x", runtime: fnDriver(() => null) },
-    { type: "practice", laps: 1, seed: 1 },
+    { seed: 1 },
   );
   it("Telemetry", () => expect(fields("Telemetry")).toEqual(Object.keys(sim.telemetryNow()).sort()));
   it("TrackInfo and TrackSample", () => {

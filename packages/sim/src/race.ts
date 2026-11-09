@@ -1,4 +1,4 @@
-import { clamp, Hasher, loopDelta, Prng, wrapAngle } from "./math.js";
+import { clamp, Hasher, loopDelta, Prng, wrapAngle, wrapS } from "./math.js";
 import type { Track } from "./track/track.js";
 import type { CarConfig, Controls, DriverRuntime, Surface, SurfaceOrBarrier, Telemetry } from "./types.js";
 import { carSpec, initialState, SURFACES, speedOf, VehicleModel, type VehicleState } from "./vehicle.js";
@@ -12,11 +12,18 @@ export const MAX_STRIKES = 3;
 export const STALL_SPEED = 1;
 export const STALL_TIME = 10;
 export const CRASH_SPEED = 12;
-export const FREE_WARNINGS = 3;
-export const TRACK_LIMIT_PENALTY = 5;
 const LIMIT_HYSTERESIS = 0.3;
 
-export type SessionType = "practice" | "qualify" | "race";
+/** Seconds of run-up before the line: the car is placed on the centreline, the driver takes over at s = 0. */
+export const LAUNCH_TIME = 3;
+export const LAUNCH_TICKS = LAUNCH_TIME * CONTROL_HZ;
+export const LAUNCH_MAX_SPEED = 250 / 3.6;
+/** The run-up accelerates steadily at this rate (m/s²) onto the line. */
+export const LAUNCH_ACCEL = 6;
+/** Lateral acceleration (m/s²) the run-up and the first second after the line are held to. */
+export const LAUNCH_LATERAL = 15;
+/** Seconds allowed for the lap once the car is over the line. */
+export const LAP_TIME_LIMIT = 300;
 export type CarStatus =
   | "RUNNING"
   | "FINISHED"
@@ -27,12 +34,10 @@ export type CarStatus =
 
 export const SURFACE_CODES: SurfaceOrBarrier[] = ["track", "kerb", "grass", "gravel", "barrier"];
 
+/** Every session is one flying lap: a run-up of LAUNCH_TIME seconds, then one timed lap from the line. */
 export interface SessionConfig {
-  type: SessionType;
-  /** practice/race: laps to run. qualify: flying laps after the out lap. */
-  laps: number;
   seed: number;
-  /** Session time limit in seconds (default depends on laps). */
+  /** Seconds the car may run after the line before TIME UP (default LAP_TIME_LIMIT). */
   timeLimit?: number;
   infoLevel?: "A" | "B";
   /** Standard deviations of sensor noise (0 = off). */
@@ -47,16 +52,7 @@ export interface LapRecord {
   valid: boolean;
 }
 
-export type EventType =
-  | "lap"
-  | "sector"
-  | "offTrack"
-  | "warning"
-  | "penalty"
-  | "impact"
-  | "crash"
-  | "strike"
-  | "status";
+export type EventType = "lap" | "sector" | "offTrack" | "impact" | "crash" | "strike" | "status";
 
 export interface SimEvent {
   t: number;
@@ -70,17 +66,11 @@ export interface CarResult {
   id: string;
   name: string;
   status: CarStatus;
-  lapsCompleted: number;
-  laps: LapRecord[];
-  bestLap: number | null;
-  bestLapNumber: number | null;
-  /** Time at which the last required lap was completed (or session end). */
-  finishTime: number | null;
-  penalties: number;
-  /** finishTime + penalties, race only. */
-  totalTime: number | null;
+  /** The completed lap, valid or not. */
+  lap: LapRecord | null;
+  /** The score: the lap time if the lap was completed and valid, else null. */
+  lapTime: number | null;
   offTracks: number;
-  warnings: number;
   strikes: number;
   maxSpeed: number;
   distance: number;
@@ -104,7 +94,6 @@ export interface CarFrames {
 
 export interface TelemetryLog {
   t: number[];
-  lap: number[];
   s: number[];
   n: number[];
   speed: number[];
@@ -129,9 +118,29 @@ export interface CarEntry {
   runtime: DriverRuntime;
 }
 
-export function defaultTimeLimit(cfg: SessionConfig): number {
-  const laps = cfg.type === "qualify" ? cfg.laps + 1 : cfg.laps;
-  return 60 + laps * 240;
+/** Run-up position (m, negative before the line) and speed `before` seconds ahead of the line. */
+export function launchPoint(v0: number, before: number): { s: number; v: number } {
+  return { s: -(v0 * before - (LAUNCH_ACCEL * before * before) / 2), v: v0 - LAUNCH_ACCEL * before };
+}
+
+/**
+ * Speed at which every car crosses the line: the largest speed, capped at LAUNCH_MAX_SPEED, for which
+ * the run-up and the first second after the line stay within LAUNCH_LATERAL.
+ */
+export function launchSpeed(track: Track): number {
+  const fits = (s: number, v: number) =>
+    v * v * Math.abs(track.curvature[track.indexAt(s)]!) <= LAUNCH_LATERAL;
+  const ok = (v0: number) => {
+    for (let i = 0; i <= LAUNCH_TICKS; i++) {
+      const p = launchPoint(v0, i * CONTROL_DT);
+      if (!fits(p.s, p.v)) return false;
+    }
+    for (let s = 0; s <= v0; s += track.spacing) if (!fits(s, v0)) return false;
+    return true;
+  };
+  let v = LAUNCH_MAX_SPEED;
+  while (v > LAUNCH_ACCEL * LAUNCH_TIME && !ok(v)) v -= 0.25;
+  return v;
 }
 
 function isNum(v: unknown): v is number {
@@ -145,7 +154,6 @@ export class CarSim {
   t = 0;
   status: CarStatus = "RUNNING";
   private readonly halfWidth: number;
-  private readonly lapsTarget: number;
   private readonly timeLimit: number;
   private readonly prng: Prng;
   private readonly hasher = new Hasher();
@@ -158,8 +166,6 @@ export class CarSim {
   private frontIdx: number;
   private rearIdx: number;
   private progress = 0;
-  private lapsCompleted = 0;
-  private lapStart = 0;
   private sectorsDone = 0;
   private sectorTimes: number[] = [];
   private lapValid = true;
@@ -167,7 +173,7 @@ export class CarSim {
   private stallTime = 0;
   private lastCmd: Controls = { throttle: 0, brake: 0, steer: 0 };
 
-  readonly laps: LapRecord[] = [];
+  lap: LapRecord | null = null;
   readonly events: SimEvent[] = [];
   readonly frames: CarFrames = {
     x: [],
@@ -183,11 +189,8 @@ export class CarSim {
   };
   readonly telemetry?: TelemetryLog;
   private offTracks = 0;
-  private warnings = 0;
-  private penalties = 0;
   private strikes = 0;
   private maxSpeed = 0;
-  private finishTime: number | null = null;
   private readonly errors: string[] = [];
 
   constructor(
@@ -198,11 +201,15 @@ export class CarSim {
   ) {
     this.model = new VehicleModel(car);
     this.halfWidth = car.public.width / 2;
-    this.lapsTarget = cfg.type === "qualify" ? cfg.laps + 1 : cfg.laps;
-    this.timeLimit = cfg.timeLimit ?? defaultTimeLimit(cfg);
+    this.timeLimit = LAUNCH_TIME + (cfg.timeLimit ?? LAP_TIME_LIMIT);
     this.prng = new Prng(cfg.seed ^ 0x5eed);
+    const v0 = launchSpeed(track);
+    this.maxSpeed = v0;
     const start = track.toWorld(0, 0);
     this.state = initialState(start.x, start.y, start.heading);
+    this.state.vx = v0;
+    this.state.yawRate = track.curvature[0]! * v0;
+    this.state.throttle = 1;
     const p = track.project(start.x, start.y);
     this.segIndex = p.index;
     this.s = p.s;
@@ -212,7 +219,6 @@ export class CarSim {
     if (cfg.recordTelemetry) {
       this.telemetry = {
         t: [],
-        lap: [],
         s: [],
         n: [],
         speed: [],
@@ -224,10 +230,32 @@ export class CarSim {
         surface: [],
       };
     }
+    this.recordLaunch(v0);
+    this.t = LAUNCH_TIME;
+  }
+
+  /** The run-up frames: the same for every car, along the centreline, accelerating onto the line. */
+  private recordLaunch(v0: number): void {
+    const f = this.frames;
+    for (let i = 0; i < LAUNCH_TICKS; i++) {
+      const { s, v } = launchPoint(v0, LAUNCH_TIME - i * CONTROL_DT);
+      const w = this.track.toWorld(s, 0);
+      f.x.push(w.x);
+      f.y.push(w.y);
+      f.yaw.push(w.heading);
+      f.speed.push(v);
+      f.steer.push(0);
+      f.throttle.push(1);
+      f.brake.push(0);
+      f.surface.push(0);
+      f.lap.push(0);
+      f.s.push(wrapS(s, this.track.length));
+      this.hasher.number(w.x).number(w.y).number(w.heading).number(v);
+    }
   }
 
   private event(type: EventType, value?: number, detail?: string): void {
-    const e: SimEvent = { t: this.t, type, lap: this.lapsCompleted + 1 };
+    const e: SimEvent = { t: this.t, type, lap: 1 };
     if (value !== undefined) e.value = value;
     if (detail !== undefined) e.detail = detail;
     this.events.push(e);
@@ -266,8 +294,8 @@ export class CarSim {
     const surf: Surface = this.surface === "barrier" ? "gravel" : this.surface;
     return {
       t: this.t,
-      lap: this.lapsCompleted + 1,
-      lapTime: this.t - this.lapStart,
+      lap: 1,
+      lapTime: this.t - LAUNCH_TIME,
       sector: this.sectorsDone + 1,
       s: this.s,
       n: this.n + np(),
@@ -285,7 +313,7 @@ export class CarSim {
       throttle: st.throttle,
       brake: st.brake,
       surface: surf,
-      offTrackWarnings: this.warnings,
+      offTrackWarnings: this.offTracks,
     };
   }
 
@@ -322,7 +350,7 @@ export class CarSim {
     f.throttle.push(st.throttle);
     f.brake.push(st.brake);
     f.surface.push(SURFACE_CODES.indexOf(this.surface));
-    f.lap.push(this.lapsCompleted + 1);
+    f.lap.push(this.lap ? 2 : 1);
     f.s.push(this.s);
     const h = this.hasher;
     h.number(st.x).number(st.y).number(st.yaw).number(st.vx).number(st.vy).number(st.yawRate);
@@ -333,7 +361,6 @@ export class CarSim {
     const l = this.telemetry;
     if (!l) return;
     l.t.push(tel.t);
-    l.lap.push(tel.lap);
     l.s.push(tel.s);
     l.n.push(tel.n);
     l.speed.push(tel.speed);
@@ -408,36 +435,20 @@ export class CarSim {
       const f = (target - prevProgress) / (this.progress - prevProgress);
       return tPrev + PHYSICS_DT * clamp(f, 0, 1);
     };
-    const lapBase = this.lapsCompleted * L;
-    while (this.sectorsDone < 2 && this.progress >= lapBase + this.track.sectors[this.sectorsDone]!) {
-      const tc = cross(lapBase + this.track.sectors[this.sectorsDone]!);
+    while (this.sectorsDone < 2 && this.progress >= this.track.sectors[this.sectorsDone]!) {
+      const tc = cross(this.track.sectors[this.sectorsDone]!);
       const prevSum = this.sectorTimes.reduce((a, b) => a + b, 0);
-      this.sectorTimes.push(tc - this.lapStart - prevSum);
+      this.sectorTimes.push(tc - LAUNCH_TIME - prevSum);
       this.sectorsDone++;
       this.event("sector", this.sectorsDone);
     }
-    if (this.sectorsDone === 2 && this.progress >= lapBase + L) {
-      const tc = cross(lapBase + L);
-      const time = tc - this.lapStart;
+    if (this.sectorsDone === 2 && this.progress >= L) {
+      const time = cross(L) - LAUNCH_TIME;
       const prevSum = this.sectorTimes.reduce((a, b) => a + b, 0);
       this.sectorTimes.push(time - prevSum);
-      const lap: LapRecord = {
-        lap: this.lapsCompleted + 1,
-        time,
-        sectors: this.sectorTimes,
-        valid: this.lapValid,
-      };
-      this.laps.push(lap);
-      this.event("lap", time, lap.valid ? undefined : "invalid");
-      this.lapsCompleted++;
-      this.lapStart = tc;
-      this.sectorTimes = [];
-      this.sectorsDone = 0;
-      this.lapValid = !this.offTrack;
-      if (this.lapsCompleted >= this.lapsTarget) {
-        this.finishTime = tc;
-        this.setStatus("FINISHED");
-      }
+      this.lap = { lap: 1, time, sectors: this.sectorTimes, valid: this.lapValid };
+      this.event("lap", time, this.lapValid ? undefined : "invalid");
+      this.setStatus("FINISHED");
     }
   }
 
@@ -448,15 +459,6 @@ export class CarSim {
       this.offTracks++;
       this.lapValid = false;
       this.event("offTrack", Math.round(over * 100) / 100);
-      if (this.cfg.type === "race") {
-        if (this.warnings < FREE_WARNINGS) {
-          this.warnings++;
-          this.event("warning", this.warnings);
-        } else {
-          this.penalties += TRACK_LIMIT_PENALTY;
-          this.event("penalty", TRACK_LIMIT_PENALTY, "track limits");
-        }
-      }
     } else if (this.offTrack && over < this.halfWidth - LIMIT_HYSTERESIS) {
       this.offTrack = false;
     }
@@ -502,26 +504,14 @@ export class CarSim {
 
   finish(): CarRun {
     for (const e of this.events) this.hasher.string(`${e.type}:${e.t}:${e.value ?? ""}`);
-    // Qualifying times only flying laps; practice prefers flying laps but falls back to the standing one.
-    let pool = this.laps.filter((l) => l.valid);
-    if (this.cfg.type === "qualify" || (this.cfg.type === "practice" && pool.some((l) => l.lap > 1)))
-      pool = pool.filter((l) => l.lap > 1);
-    let best: LapRecord | null = null;
-    for (const l of pool) if (!best || l.time < best.time) best = l;
-    const finished = this.status === "FINISHED";
+    const lap = this.lap;
     const result: CarResult = {
       id: this.entry.id,
       name: this.entry.name,
       status: this.status,
-      lapsCompleted: this.lapsCompleted,
-      laps: this.laps,
-      bestLap: best?.time ?? null,
-      bestLapNumber: best?.lap ?? null,
-      finishTime: this.finishTime,
-      penalties: this.penalties,
-      totalTime: finished && this.cfg.type === "race" ? this.finishTime! + this.penalties : null,
+      lap,
+      lapTime: lap?.valid ? lap.time : null,
       offTracks: this.offTracks,
-      warnings: this.warnings,
       strikes: this.strikes,
       maxSpeed: this.maxSpeed,
       distance: this.progress,

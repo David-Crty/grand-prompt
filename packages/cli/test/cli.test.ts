@@ -95,7 +95,7 @@ describe("validate", () => {
       "validate",
       file(
         "bad/step.js",
-        "export function step(t) { log('hi', t.t); if (t.t > 1) throw new Error('late'); return {throttle:0.3,brake:0,steer:0}; }",
+        "export function step(t) { log('hi', t.t); if (t.lapTime > 1) throw new Error('late'); return {throttle:0.3,brake:0,steer:0}; }",
       ),
     );
     expect(step.code).toBe(2);
@@ -109,8 +109,8 @@ describe("validate", () => {
 describe("practice", () => {
   it("writes telemetry, summaries, logs and a replay", async () => {
     const out = join(root, "results/p");
-    const r = await cli("practice", join(root, "ddk/baseline-driver.js"), "--laps", "1", "--out", out);
-    expect(r.out).toMatch(/PRACTICE on proto-ring/);
+    const r = await cli("practice", join(root, "ddk/baseline-driver.js"), "--out", out);
+    expect(r.out).toMatch(/FLYING LAP on proto-ring/);
     expect(r.out).toMatch(/budget: init \d+ units/);
     for (const f of [
       "telemetry.csv",
@@ -124,31 +124,29 @@ describe("practice", () => {
     const s = JSON.parse(readFileSync(join(out, "summary.json"), "utf8"));
     expect(s.result.status).toBe("FINISHED");
     expect(s.budgetUsage.steps).toBeGreaterThan(1000);
-    expect(readFileSync(join(out, "telemetry.csv"), "utf8").split("\n")[0]).toMatch(/^t,lap,s,speed/);
+    expect(readFileSync(join(out, "telemetry.csv"), "utf8").split("\n")[0]).toMatch(/^t,s,speed/);
     // default output directory numbering
-    const auto = await cli("practice", join(root, "ddk/baseline-driver.js"), "--laps", "1");
+    const auto = await cli("practice", join(root, "ddk/baseline-driver.js"));
     expect(auto.out).toMatch(/baseline-driver-001/);
   });
 });
 
-describe("qualify and race", () => {
-  it("runs a race with the reference and writes a replay", async () => {
-    const out = join(root, "results/race1");
+describe("qualify", () => {
+  it("runs a session with the reference and writes a replay", async () => {
+    const out = join(root, "results/q0");
     const a = file("drivers/adhoc/alpha/driver.js", slower);
     file("drivers/adhoc/alpha/manifest.json", JSON.stringify({ model: "alpha-model" }));
     const r = await cli(
-      "race",
+      "qualify",
       a,
       join(root, "ddk/baseline-driver.js"),
-      "--laps",
-      "1",
       "--reference",
       "--out",
       out,
       "--seed",
       "9",
     );
-    expect(r.out).toMatch(/RACE on proto-ring/);
+    expect(r.out).toMatch(/FLYING LAP on proto-ring/);
     expect(r.out).toMatch(/P1 Reference \(house\)/);
     expect(r.out).toMatch(/gap to reference/);
     expect(r.out).toMatch(/alpha-model: \+\d/);
@@ -156,28 +154,19 @@ describe("qualify and race", () => {
     expect(replay.cars).toHaveLength(3);
     expect(replay.header.referenceLap).toBeGreaterThan(60);
     expect(replay.header.seed).toBe(9);
-    expect(replayInfo(join(out, "replay.json.gz")).text).toMatch(/race on proto-ring, 3 cars/);
+    expect(replayInfo(join(out, "replay.json.gz")).text).toMatch(/flying lap on proto-ring, 3 cars/);
     writeFileSync(join(out, "plain.json"), JSON.stringify(replay));
     expect(readReplay(join(out, "plain.json")).header.stateHash).toBe(replay.header.stateHash);
     expect((await cli("replay", join(out, "replay.json.gz"))).out).toMatch(/hash/);
   });
-  it("lists the circuits and races on one picked by id", async () => {
+  it("lists the circuits and runs on one picked by id", async () => {
     const list = (await cli("tracks")).out;
     for (const id of ["monaco", "portimao", "proto-ring", "silverstone"])
       expect(list).toMatch(new RegExp(`^${id} `, "m"));
     expect(list).toMatch(/Monaco\s+3\.\d{3} km/);
     const out = join(root, "results/monaco");
-    const r = await cli(
-      "race",
-      join(root, "ddk/baseline-driver.js"),
-      "--track",
-      "monaco",
-      "--laps",
-      "1",
-      "--out",
-      out,
-    );
-    expect(r.out).toMatch(/RACE on monaco/);
+    const r = await cli("qualify", join(root, "ddk/baseline-driver.js"), "--track", "monaco", "--out", out);
+    expect(r.out).toMatch(/FLYING LAP on monaco/);
     expect(r.out).toMatch(/\[FINISHED\]/);
     expect(readReplay(join(out, "replay.json.gz")).header.trackId).toBe("monaco");
   });
@@ -189,9 +178,9 @@ describe("qualify and race", () => {
       "--out",
       join(root, "results/q1"),
     );
-    expect(r.out).toMatch(/QUALIFY/);
+    expect(r.out).toMatch(/FLYING LAP/);
     expect(r.out).toMatch(/baseline-driver #2/);
-    const auto = await cli("race", join(root, "ddk/baseline-driver.js"), "--laps", "1");
+    const auto = await cli("qualify", join(root, "ddk/baseline-driver.js"));
     expect(auto.out).toMatch(/proto-ring-001/);
   });
 });
@@ -205,8 +194,6 @@ describe("events: run, reproduce, leaderboard", () => {
         id: ev,
         name: "Test GP",
         track: "proto-ring",
-        qualifyAttempts: 1,
-        raceLaps: 1,
         seed: 4,
         infoLevel: "B",
       }),
@@ -234,13 +221,13 @@ describe("events: run, reproduce, leaderboard", () => {
       readFileSync(join(root, `results/${ev}/event-results.json`), "utf8"),
     ) as EventResults;
     expect(res.rows.map((x) => x.slug)).toEqual(["model-a", "model-b", "model-c"]);
-    expect(res.rows[2]!.raceStatus).toBe("DNF: ECU FAILURE");
+    expect(res.rows[2]!.status).toBe("DNF: ECU FAILURE");
     expect(res.reference).toBe(false);
     expect(res.referenceLap).toBeNull();
     expect(res.rows[0]!.gapToReference).toBeNull();
     expect(r.out).not.toMatch(/Gap to ref|reference lap|Reference/);
     const m = JSON.parse(readFileSync(join(root, `results/${ev}/model-a/manifest.json`), "utf8"));
-    expect(m.results.raceHash).toBe(res.rows[0]!.raceHash);
+    expect(m.results.stateHash).toBe(res.rows[0]!.stateHash);
     expect(m.driverHash).toBe(res.rows[0]!.driverHash);
     const mb = JSON.parse(readFileSync(join(root, `results/${ev}/model-b/manifest.json`), "utf8"));
     expect(mb.driverHash).toBe(res.rows[1]!.driverHash);
@@ -249,13 +236,13 @@ describe("events: run, reproduce, leaderboard", () => {
     expect(rep.code).toBe(0);
     expect(rep.out).toMatch(/REPRODUCED/);
 
-    res.raceStateHash = "0000";
+    res.stateHash = "0000";
     res.simVersion = "0.0.0";
     delete res.reference;
     writeFileSync(join(root, `results/${ev}/event-results.json`), JSON.stringify(res));
     const bad = await cli("event", "reproduce", ev);
     expect(bad.code).toBe(3);
-    expect(bad.out).toMatch(/DIFF race/);
+    expect(bad.out).toMatch(/DIFF session/);
     expect(bad.out).toMatch(/note: stored sim 0.0.0/);
 
     const lb = await cli("leaderboard", join(root, "results"));
@@ -306,8 +293,8 @@ describe("agentic workspace and practice service", () => {
       );
       const v = await node(["validate", "driver.js"]);
       expect(v.stdout).toMatch(/PASS/);
-      const p = await node(["practice", "driver.js", "--laps", "1", "--track", "monaco"]);
-      expect(p.stdout).toMatch(/PRACTICE on monaco/);
+      const p = await node(["practice", "driver.js", "--track", "monaco"]);
+      expect(p.stdout).toMatch(/FLYING LAP on monaco/);
       expect(p.stdout).toMatch(/runs\/001/);
       expect(p.stdout).toMatch(/practice runs left: 1/);
       expect(existsSync(join(ws, "runs/001/telemetry.csv"))).toBe(true);

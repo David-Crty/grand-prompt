@@ -10,7 +10,7 @@ import {
   statusAt,
   timeAtProgress,
 } from "../src/lib/frames.js";
-import { leaderLap, liveStandings, timeGap } from "../src/lib/timing.js";
+import { liveStandings, timeGap } from "../src/lib/timing.js";
 import { makeCar, makeReplay, stadiumTrack } from "./fixtures.js";
 
 const track = stadiumTrack();
@@ -98,29 +98,26 @@ describe("liveStandings", () => {
   );
 
   it("orders running cars by distance with time gaps", () => {
-    const rows = liveStandings(cars, 4, 2);
+    const rows = liveStandings(cars, 4);
     expect(rows.map((r) => r.id)).toEqual(["fast", "dnf", "mid", "slow", "crawl"]);
     expect(rows[0]!.gapText).toBe("LEADER");
     expect(rows[0]!.intervalText).toBe("INTERVAL");
     expect(rows[2]!.gap).toBeCloseTo(4 - (48 * 4) / 50, 1);
     expect(rows[2]!.gapText).toMatch(/^\+0\.1/);
-    expect(rows[1]!.lap).toBe(1);
   });
 
   it("puts retirements last and finished cars first", () => {
     const t = (2 * L) / 48 + 0.5;
-    const rows = liveStandings(cars, t, 2);
+    const rows = liveStandings(cars, t);
     expect(rows.map((r) => r.id)).toEqual(["fast", "mid", "slow", "crawl", "dnf"]);
-    expect(rows[0]!.gapText).toBe("WINNER");
-    expect(rows[0]!.intervalText).toBe("WINNER");
+    expect(rows[0]!.gapText).toBe("POLE");
+    expect(rows[0]!.intervalText).toBe("POLE");
     expect(rows[1]!.finished).toBe(true);
     expect(rows[1]!.gap).toBeCloseTo((2 * L) / 48 - (2 * L) / 50, 2);
     expect(rows[4]!.out).toBe(true);
     expect(rows[4]!.gapText).toBe("OUT");
     expect(rows[3]!.lapsDown).toBe(1);
     expect(rows[3]!.gapText).toBe("+1 LAP");
-    expect(leaderLap(rows, 2)).toBe(2);
-    expect(leaderLap([], 2)).toBe(0);
   });
 
   it("uses the gap to leader as interval behind a retired car", () => {
@@ -134,9 +131,28 @@ describe("liveStandings", () => {
         track,
       ),
     );
-    const rows = liveStandings(only, 3, 2);
+    const rows = liveStandings(only, 3);
     expect(rows.map((r) => r.id)).toEqual(["a", "b", "x"]);
-    expect(leaderLap(rows, 2)).toBe(1);
+  });
+
+  it("puts a finished car whose lap was deleted after the running cars, without a time", () => {
+    const mixed = indexReplay(
+      makeReplay(
+        [
+          makeCar(track, { id: "deleted", speed: 50, invalidLaps: [1, 2] }),
+          makeCar(track, { id: "timed", speed: 48 }),
+          makeCar(track, { id: "running", speed: 20 }),
+          makeCar(track, { id: "out", speed: 49, dnfAt: 1 }),
+        ],
+        track,
+      ),
+    );
+    expect(mixed[0]!.lapValid).toBe(false);
+    const rows = liveStandings(mixed, (2 * L) / 48 + 0.5);
+    expect(rows.map((r) => r.id)).toEqual(["timed", "running", "deleted", "out"]);
+    expect(rows[2]!.gapText).toBe("NO TIME");
+    expect(rows[2]!.finished).toBe(true);
+    expect(rows[3]!.intervalText).toBe("OUT");
   });
 
   it("reports interval laps and unreachable distances", () => {

@@ -8,8 +8,6 @@ export interface StandingRow {
   name: string;
   color: string;
   progress: number;
-  /** Lap shown on the tower, capped to the race distance. */
-  lap: number;
   status: string;
   finished: boolean;
   out: boolean;
@@ -22,9 +20,10 @@ export interface StandingRow {
   intervalText: string;
 }
 
-function group(status: string): number {
-  if (status === "FINISHED") return 0;
-  if (status.startsWith("DNF")) return 2;
+/** 0 timed, 1 still running (or out of time), 2 finished on a deleted lap, 3 retired. */
+function group(c: CarIndex, status: string): number {
+  if (status === "FINISHED") return c.lapValid ? 0 : 2;
+  if (status.startsWith("DNF")) return 3;
   return 1;
 }
 
@@ -46,31 +45,35 @@ export function timeGap(
   return { gap: Math.max(0, t - ta), lapsDown: 0 };
 }
 
-/** Live running order: finished cars by finish time, then running cars by distance, then retirements. */
-export function liveStandings(cars: CarIndex[], t: number, totalLaps: number): StandingRow[] {
+/**
+ * Live order: timed cars by finish time (every car crosses the line at the same instant, so that is lap
+ * time order), then running cars by distance, then deleted laps, then retirements.
+ */
+export function liveStandings(cars: CarIndex[], t: number): StandingRow[] {
   const items = cars.map((c) => {
     const status = statusAt(c, t);
-    return { c, status, g: group(status), p: progressAt(c, t) };
+    return { c, status, g: group(c, status), p: progressAt(c, t) };
   });
   items.sort((a, b) => {
     if (a.g !== b.g) return a.g - b.g;
-    if (a.g === 0) return a.c.finishTime! - b.c.finishTime!;
+    if (a.g === 0 || a.g === 2) return a.c.finishTime! - b.c.finishTime!;
     return b.p - a.p;
   });
   const rows: StandingRow[] = [];
   const leader = items[0]!;
   items.forEach((it, k) => {
-    const L = it.c.trackLength;
-    const lap = Math.max(1, Math.min(totalLaps, Math.floor(it.p / L) + 1));
-    const out = it.g === 2;
+    const out = it.g === 3;
     let gap: number | null = null;
     let interval: number | null = null;
     let lapsDown = 0;
     let gapText = "";
     let intervalText = "";
-    if (k === 0) {
-      gapText = it.g === 0 ? "WINNER" : "LEADER";
-      intervalText = gapText === "WINNER" ? "WINNER" : "INTERVAL";
+    if (it.g === 2) {
+      gapText = "NO TIME";
+      intervalText = "NO TIME";
+    } else if (k === 0) {
+      gapText = it.g === 0 ? "POLE" : "LEADER";
+      intervalText = gapText === "POLE" ? "POLE" : "INTERVAL";
     } else if (out) {
       gapText = "OUT";
       intervalText = "OUT";
@@ -80,7 +83,7 @@ export function liveStandings(cars: CarIndex[], t: number, totalLaps: number): S
       lapsDown = lg.lapsDown;
       gapText = lapsDown > 0 ? formatLapsDown(lapsDown) : formatGap(gap);
       const ahead = items[k - 1]!;
-      if (ahead.g === 2) {
+      if (ahead.g >= 2) {
         intervalText = gapText;
       } else {
         const ig = timeGap(ahead.c, it.c, t);
@@ -95,9 +98,8 @@ export function liveStandings(cars: CarIndex[], t: number, totalLaps: number): S
       name: it.c.car.name,
       color: it.c.car.color,
       progress: it.p,
-      lap,
       status: it.status,
-      finished: it.g === 0,
+      finished: it.g === 0 || it.g === 2,
       out,
       gap,
       interval,
@@ -107,11 +109,4 @@ export function liveStandings(cars: CarIndex[], t: number, totalLaps: number): S
     });
   });
   return rows;
-}
-
-/** Leader's lap for the session header, e.g. 2 of 3; caps at the race distance. */
-export function leaderLap(rows: StandingRow[], totalLaps: number): number {
-  const first = rows[0];
-  if (!first) return 0;
-  return first.finished ? totalLaps : first.lap;
 }

@@ -136,7 +136,7 @@ describe("practice runs", () => {
     const run = (n: string, status: string, offTracks: number, driver: string) => {
       mkdirSync(join(ws, "runs", n), { recursive: true });
       writeFileSync(join(ws, "runs", n, "driver.js"), driver);
-      const result = { status, offTracks, strikes: 0, bestLap: 90.5 };
+      const result = { status, offTracks, strikes: 0, lapTime: 90.5 };
       writeFileSync(join(ws, "runs", n, "summary.json"), JSON.stringify({ track: "monaco", result }));
     };
     run("001", "FINISHED", 0, "a");

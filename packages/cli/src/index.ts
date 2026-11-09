@@ -5,10 +5,10 @@ import {
   leaderboard,
   listTracks,
   practice,
+  qualify,
   replayInfo,
   reproduceEvent,
   runEvent,
-  session,
   validate,
 } from "./commands.js";
 import { readJson } from "./load.js";
@@ -25,10 +25,9 @@ export * from "./workspace.js";
 export const USAGE = `bench <command> [options]
 
   validate <driver>                        load, init and run 10 s; report errors and timings
-  practice <driver> [--laps N]             practice session: lap/sector times, telemetry.csv, summary.json
-  qualify <driver...> [--attempts K]       out lap + K flying laps per driver (default K=1)
-  race <driver...> --laps N [--seed S]     race (ghost mode); writes replay.json.gz and results.json
-  event run <event-id> [--reference]       qualifying + race for drivers/<event-id>/*/driver.js
+  practice <driver>                        one flying lap: lap/sector times, telemetry.csv, summary.json
+  qualify <driver...> [--seed S]           one flying lap per driver (ghost mode); replay.json.gz, results.json
+  event run <event-id> [--reference]       the flying lap of drivers/<event-id>/*/driver.js
   event reproduce <event-id>               re-run an event and verify every state hash
   oneshot <event-id> --model <id> [--slug s] [--prompt-only]
                                            one-shot submission via OpenRouter (OPENROUTER_API_KEY)
@@ -45,7 +44,7 @@ common options:
   --seed <n>           seed (default 1)
   --info <A|B>         information level (default B: hidden constants not passed to drivers)
   --out <dir>          output directory
-  --reference          add the house reference driver to qualify/race/event run (off by default)
+  --reference          add the house reference driver to qualify/event run (off by default)
 `;
 
 export async function run(argv: string[], out: (s: string) => void): Promise<number> {
@@ -58,8 +57,6 @@ export async function run(argv: string[], out: (s: string) => void): Promise<num
       seed: { type: "string" },
       info: { type: "string" },
       out: { type: "string" },
-      laps: { type: "string" },
-      attempts: { type: "string" },
       reference: { type: "boolean", default: false },
       port: { type: "string" },
       budget: { type: "string" },
@@ -97,32 +94,12 @@ export async function run(argv: string[], out: (s: string) => void): Promise<num
     }
     case "practice": {
       need(1, "<driver>");
-      out((await practice(rest[0]!, { ...common, laps: Number(values.laps ?? 3) })).text);
+      out((await practice(rest[0]!, common)).text);
       return 0;
     }
     case "qualify":
       need(1, "<driver...>");
-      out(
-        (
-          await session("qualify", rest, {
-            ...common,
-            laps: Number(values.attempts ?? 1),
-            reference: values.reference,
-          })
-        ).text,
-      );
-      return 0;
-    case "race":
-      need(1, "<driver...>");
-      out(
-        (
-          await session("race", rest, {
-            ...common,
-            laps: Number(values.laps ?? 5),
-            reference: values.reference,
-          })
-        ).text,
-      );
+      out((await qualify(rest, { ...common, reference: values.reference })).text);
       return 0;
     case "event": {
       need(2, "run|reproduce <event-id>");

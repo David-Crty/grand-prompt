@@ -5,6 +5,8 @@ import {
   type CarRun,
   CarSim,
   CONTROL_HZ,
+  LAUNCH_TIME,
+  launchSpeed,
   type SessionConfig,
 } from "./race.js";
 import type { Replay, ReplayCar } from "./replay.js";
@@ -44,6 +46,8 @@ export interface SessionResults {
   trackId: string;
   trackHash: string;
   carHash: string;
+  /** Speed at the line, m/s, the same for every car. */
+  launchSpeed: number;
   stateHash: string;
   classification: ClassifiedResult[];
 }
@@ -67,20 +71,13 @@ const RANK: Record<string, number> = {
   "DNF: ECU FAILURE": 3,
 };
 
-/** Rank cars: race by laps then total time; practice/qualify by best lap. */
-export function classify(type: SessionConfig["type"], results: CarResult[]): CarResult[] {
-  const byBest = (a: CarResult, b: CarResult) =>
-    (a.bestLap ?? Number.POSITIVE_INFINITY) - (b.bestLap ?? Number.POSITIVE_INFINITY);
-  return [...results].sort((a, b) => {
-    if (type !== "race")
-      return byBest(a, b) || b.lapsCompleted - a.lapsCompleted || RANK[a.status]! - RANK[b.status]!;
-    const ra = RANK[a.status]! === 0 ? 0 : 1;
-    const rb = RANK[b.status]! === 0 ? 0 : 1;
-    if (ra !== rb) return ra - rb;
-    if (b.lapsCompleted !== a.lapsCompleted) return b.lapsCompleted - a.lapsCompleted;
-    if (a.totalTime !== null && b.totalTime !== null) return a.totalTime - b.totalTime;
-    return b.distance - a.distance;
-  });
+/** Rank cars by valid lap time; cars without one by status, then by distance covered. */
+export function classify(results: CarResult[]): CarResult[] {
+  const inf = Number.POSITIVE_INFINITY;
+  return [...results].sort(
+    (a, b) =>
+      (a.lapTime ?? inf) - (b.lapTime ?? inf) || RANK[a.status]! - RANK[b.status]! || b.distance - a.distance,
+  );
 }
 
 /** Run a session in ghost mode: every car alone in its own world, overlaid in the replay. */
@@ -102,18 +99,11 @@ export function runSession(
 
   const colors = new Map(entries.map((e, i) => [e.id, e.color ?? CAR_COLORS[i % CAR_COLORS.length]!]));
   const hashes = new Map(entries.map((e) => [e.id, e.driverHash ?? "unknown"]));
-  const ordered = classify(
-    cfg.type,
-    runs.map((r) => r.result),
-  );
+  const ordered = classify(runs.map((r) => r.result));
   const leader = ordered[0];
   const classification: ClassifiedResult[] = ordered.map((r, i) => {
-    let gap: number | null = null;
-    if (leader && i > 0) {
-      if (cfg.type === "race") {
-        if (r.totalTime !== null && leader.totalTime !== null) gap = r.totalTime - leader.totalTime;
-      } else if (r.bestLap !== null && leader.bestLap !== null) gap = r.bestLap - leader.bestLap;
-    }
+    const gap =
+      leader && i > 0 && r.lapTime !== null && leader.lapTime !== null ? r.lapTime - leader.lapTime : null;
     return { ...r, position: i + 1, gap, color: colors.get(r.id)!, driverHash: hashes.get(r.id)! };
   });
 
@@ -128,6 +118,7 @@ export function runSession(
     trackId: track.id,
     trackHash: track.hash,
     carHash,
+    launchSpeed: launchSpeed(track),
     stateHash: h.digest(),
     classification,
   };
@@ -155,6 +146,7 @@ export function runSession(
       seed: cfg.seed,
       session: cfg,
       frameRate: CONTROL_HZ,
+      launch: { time: LAUNCH_TIME, speed: results.launchSpeed },
       stateHash: results.stateHash,
       car: { length: car.public.length, width: car.public.width, wheelbase: car.public.wheelbase },
     },

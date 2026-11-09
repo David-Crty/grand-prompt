@@ -29,6 +29,13 @@ export function createReferenceDriver(opts: Partial<ReferenceOptions> = {}) {
   let py = new Float64Array(0);
   let vProfile = new Float64Array(0);
   let aProfile = new Float64Array(0);
+  /** Unit left normals of the centreline and the racing line's offset along them. */
+  let nxs = new Float64Array(0);
+  let nys = new Float64Array(0);
+  let lineN = new Float64Array(0);
+  /** Offset between the car and the racing line when it took over at the line, faded out over BLEND m. */
+  let startGap: number | null = null;
+  const BLEND = 400;
   let spec!: CarSpec;
   let h!: CarHidden;
   let lf = 0;
@@ -121,6 +128,10 @@ export function createReferenceDriver(opts: Partial<ReferenceOptions> = {}) {
       }
     }
     update();
+    nxs = nx;
+    nys = ny;
+    lineN = n;
+    startGap = null;
 
     // Line curvature (circumcircle over +-k points) and segment lengths.
     const kappa = new Float64Array(N);
@@ -184,14 +195,26 @@ export function createReferenceDriver(opts: Partial<ReferenceOptions> = {}) {
     const rx = t.x - Math.cos(t.yaw) * lr;
     const ry = t.y - Math.sin(t.yaw) * lr;
     const ld = Math.min(40, Math.max(7, 0.28 * v + 4));
+    startGap ??= t.n - lineN[i]!;
+    const here = t.s > (N * ds) / 2 ? t.s - N * ds : t.s;
+    const gapAt = (j: number) => {
+      if (t.lapTime > 20) return 0;
+      const sj = here + ((j - i + N) % N) * ds;
+      return sj < BLEND ? startGap! * (1 - Math.max(0, sj) / BLEND) : 0;
+    };
     let j = i;
     let dist = 0;
+    let tx = 0;
+    let ty = 0;
     for (let k = 0; k < N; k++) {
       j = (i + k) % N;
-      dist = Math.hypot(px[j]! - rx, py[j]! - ry);
+      const g = gapAt(j);
+      tx = px[j]! + nxs[j]! * g;
+      ty = py[j]! + nys[j]! * g;
+      dist = Math.hypot(tx - rx, ty - ry);
       if (dist >= ld) break;
     }
-    const alpha = Math.atan2(py[j]! - ry, px[j]! - rx) - t.yaw;
+    const alpha = Math.atan2(ty - ry, tx - rx) - t.yaw;
     const steerAngle = Math.atan2(2 * L * Math.sin(alpha), dist);
     const steer = Math.max(-1, Math.min(1, steerAngle / spec.maxSteer));
 

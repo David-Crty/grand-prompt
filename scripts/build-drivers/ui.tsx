@@ -75,7 +75,7 @@ function Line({ width, children, ...props }: { width: number; children: ReactNod
 function lastRun(m: ModelView): string {
   const r = m.runs[m.runs.length - 1];
   if (!r) return "";
-  return `${r.track.slice(0, 11)} ${r.clean && r.bestLap !== null ? lapTime(r.bestLap) : r.status.toLowerCase()}`;
+  return `${r.track.slice(0, 11)} ${r.clean && r.lapTime !== null ? lapTime(r.lapTime) : r.status.toLowerCase()}`;
 }
 
 function detail(m: ModelView): string {

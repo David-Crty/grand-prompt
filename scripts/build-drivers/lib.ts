@@ -15,7 +15,6 @@ export const USAGE = `usage: pnpm build-drivers <name> [options]
 
   --practice-tracks <a,b,c>   circuits the models may practise on (default monaco,silverstone,portimao)
   --event-track <id>  circuit of the event, never shown in practice (default barcelona)
-  --laps <n>          race laps written to the event config (default 5)
   --budget <n>        practice runs per model, shared across circuits (default: bench workspace default)
   --jobs <n>          models built in parallel (default 0: all at once)
   --timeout <min>     wall-time limit per model in minutes, told to the model (default 30)
@@ -35,7 +34,6 @@ export interface Options {
   name: string;
   practice: string[];
   eventTrack: string;
-  laps: number;
   budget: number | undefined;
   jobs: number;
   timeout: number;
@@ -51,7 +49,6 @@ export interface Options {
 const VALUE_FLAGS = [
   "--practice-tracks",
   "--event-track",
-  "--laps",
   "--budget",
   "--jobs",
   "--timeout",
@@ -77,7 +74,6 @@ export function parseArgs(argv: string[], defaultModels: string): Options | "hel
     name,
     practice: ["monaco", "silverstone", "portimao"],
     eventTrack: "barcelona",
-    laps: 5,
     budget: undefined,
     jobs: 0,
     timeout: 30,
@@ -99,7 +95,6 @@ export function parseArgs(argv: string[], defaultModels: string): Options | "hel
       if (v === undefined) throw new UsageError(`${flag} needs a value`);
       if (flag === "--practice-tracks") o.practice = v.split(",").filter(Boolean);
       else if (flag === "--event-track") o.eventTrack = v;
-      else if (flag === "--laps") o.laps = count(flag, v, 1);
       else if (flag === "--budget") o.budget = count(flag, v, 1);
       else if (flag === "--jobs") o.jobs = count(flag, v, 0);
       else if (flag === "--timeout") o.timeout = count(flag, v, 1);
@@ -408,7 +403,7 @@ export interface RunInfo {
   dir: string;
   track: string;
   status: string;
-  bestLap: number | null;
+  lapTime: number | null;
   clean: boolean;
 }
 
@@ -425,7 +420,7 @@ export function readRuns(ws: string): RunInfo[] {
         dir: d,
         track: s.track ?? "?",
         status: r.status ?? "?",
-        bestLap: typeof r.bestLap === "number" ? r.bestLap : null,
+        lapTime: typeof r.lapTime === "number" ? r.lapTime : null,
         clean:
           r.status === "FINISHED" &&
           r.offTracks === 0 &&

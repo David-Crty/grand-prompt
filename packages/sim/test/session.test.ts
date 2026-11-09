@@ -19,11 +19,7 @@ const car = protoCar();
 describe("determinism", () => {
   it("same inputs give bit-identical state hashes and replays", () => {
     const run = () =>
-      runSession(protoRing(), car, [{ id: "b", name: "baseline", runtime: baseline }], {
-        type: "race",
-        laps: 1,
-        seed: 7,
-      });
+      runSession(protoRing(), car, [{ id: "b", name: "baseline", runtime: baseline }], { seed: 7 });
     const a = run();
     const b = run();
     expect(a.results.stateHash).toBe(b.results.stateHash);
@@ -33,11 +29,8 @@ describe("determinism", () => {
   it("the hash changes when the driver changes", () => {
     const track = Track.fromFile(circleFile(60));
     const h = (speed: number) =>
-      runSession(track, car, [{ id: "f", name: "f", runtime: follower({ speed }) }], {
-        type: "practice",
-        laps: 1,
-        seed: 1,
-      }).results.stateHash;
+      runSession(track, car, [{ id: "f", name: "f", runtime: follower({ speed }) }], { seed: 1 }).results
+        .stateHash;
     expect(h(14)).toBe(h(14));
     expect(h(14)).not.toBe(h(14.001));
   });
@@ -53,10 +46,10 @@ describe("runSession (ghost mode)", () => {
       { id: "fast", name: "Fast", runtime: follower({ speed: 16 }), color: "#123456" },
       { id: "dnf", name: "Broken", runtime: fnDriver(() => null) },
     ],
-    { type: "race", laps: 2, seed: 3 },
+    { seed: 3 },
   );
 
-  it("classifies finishers by time, DNFs last, with gaps", () => {
+  it("classifies by lap time, DNFs last, with gaps", () => {
     const c = out.results.classification;
     expect(c.map((r) => r.id)).toEqual(["fast", "slow", "dnf"]);
     expect(c[0]!.position).toBe(1);
@@ -87,8 +80,8 @@ describe("runSession (ghost mode)", () => {
 
   it("summarizes for humans and LLMs", () => {
     const s = summarizeSession(out.results, out.runs);
-    expect(s).toMatch(/^RACE on circle/);
-    expect(s).toMatch(/P1 Fast \[FINISHED\] total/);
+    expect(s).toMatch(/^FLYING LAP on circle \| launch \d+ km\/h/);
+    expect(s).toMatch(/P1 Fast \[FINISHED\] lap \d/);
     expect(s).toMatch(/P3 Broken \[DNF: ECU FAILURE\]/);
     expect(s).toMatch(/error: /);
     expect(s).toMatch(/gap \+\d/);
@@ -100,38 +93,26 @@ describe("classify", () => {
     id: "",
     name: "",
     status: "FINISHED",
-    lapsCompleted: 3,
-    laps: [],
-    bestLap: null,
-    bestLapNumber: null,
-    finishTime: null,
-    penalties: 0,
-    totalTime: null,
+    lap: null,
+    lapTime: null,
     offTracks: 0,
-    warnings: 0,
     strikes: 0,
     maxSpeed: 0,
     distance: 0,
     stateHash: "",
     errors: [],
   };
-  it("practice/qualify by best lap, no-time last", () => {
+  it("valid lap times first, then deleted laps, then retirements by distance", () => {
     const rs = [
-      { ...base, id: "a", bestLap: 80 },
-      { ...base, id: "b", bestLap: null, lapsCompleted: 1 },
-      { ...base, id: "c", bestLap: 75 },
+      { ...base, id: "dnf2", status: "DNF: CRASHED" as const, distance: 900 },
+      { ...base, id: "ecu", status: "DNF: ECU FAILURE" as const, distance: 3000 },
+      { ...base, id: "dnf1", status: "DNF: STALLED" as const, distance: 950 },
+      { ...base, id: "a", lapTime: 80 },
+      { ...base, id: "deleted" },
+      { ...base, id: "c", lapTime: 75 },
+      { ...base, id: "out", status: "TIME UP" as const },
     ];
-    expect(classify("qualify", rs).map((r) => r.id)).toEqual(["c", "a", "b"]);
-  });
-  it("race: finishers, then laps completed, then distance", () => {
-    const rs = [
-      { ...base, id: "dnf2", status: "DNF: CRASHED" as const, lapsCompleted: 2, distance: 9000 },
-      { ...base, id: "dnf1", status: "DNF: CRASHED" as const, lapsCompleted: 2, distance: 9500 },
-      { ...base, id: "fin", totalTime: 300 },
-      { ...base, id: "fin2", totalTime: 290 },
-      { ...base, id: "dnf0", status: "DNF: STALLED" as const, lapsCompleted: 0 },
-    ];
-    expect(classify("race", rs).map((r) => r.id)).toEqual(["fin2", "fin", "dnf1", "dnf2", "dnf0"]);
+    expect(classify(rs).map((r) => r.id)).toEqual(["c", "a", "deleted", "out", "dnf1", "dnf2", "ecu"]);
   });
 });
 
@@ -176,12 +157,12 @@ describe("telemetry output", () => {
       Track.fromFile(circleFile(60)),
       car,
       [{ id: "f", name: "f", runtime: follower({ speed: 12 }) }],
-      { type: "practice", laps: 1, seed: 1, recordTelemetry: true },
+      { seed: 1, recordTelemetry: true },
     );
     const csv = telemetryCsv(out.runs[0]!.telemetry!);
     const lines = csv.trim().split("\n");
-    expect(lines[0]).toBe("t,lap,s,speed,throttle,brake,steer,n,surface,ax,ay");
-    expect(lines[1]!.split(",")).toHaveLength(11);
+    expect(lines[0]).toBe("t,s,speed,throttle,brake,steer,n,surface,ax,ay");
+    expect(lines[1]!.split(",")).toHaveLength(10);
     expect(lines[1]).toMatch(/,track,/);
     expect(lines.length).toBe(out.runs[0]!.telemetry!.t.length + 1);
   });

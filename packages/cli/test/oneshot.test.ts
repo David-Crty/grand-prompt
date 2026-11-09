@@ -18,8 +18,6 @@ const ev = {
   id: "os",
   name: "OS",
   track: "proto-ring",
-  qualifyAttempts: 1,
-  raceLaps: 3,
   seed: 1,
   infoLevel: "B" as const,
 };
@@ -45,7 +43,7 @@ describe("one-shot protocol", () => {
     expect(p).not.toMatch(/\{\{\w+\}\}/);
     expect(p).not.toMatch(/<!--/);
     expect(p).toMatch(/Prototype Ring/);
-    expect(p).toMatch(/3-lap race/);
+    expect(p).toMatch(/one flying lap/);
     expect(p).toMatch(/export declare function step/);
     expect(p).toMatch(/LATERAL_ACCEL/);
   });

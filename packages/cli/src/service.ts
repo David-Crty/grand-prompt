@@ -19,8 +19,7 @@ export interface TokenRecord {
   runs: {
     at: string;
     track?: string;
-    laps: number;
-    bestLap: number | null;
+    lapTime: number | null;
     status: string;
     driverHash: string;
   }[];
@@ -56,7 +55,6 @@ export function registerToken(model: string, budget: number, token?: string, tra
   return tok;
 }
 
-const MAX_LAPS = 5;
 const MAX_BODY = 2 * 1024 * 1024;
 
 async function body(req: IncomingMessage): Promise<Record<string, unknown>> {
@@ -121,7 +119,6 @@ export async function serve(opts: { port: number; host?: string }): Promise<{
       }
       if (rec.used >= rec.budget)
         return send(429, { error: `practice budget exhausted (${rec.budget} runs)` });
-      const laps = Math.max(1, Math.min(MAX_LAPS, Number(b.laps ?? 3) || 3));
       rec.used++;
       writeTokens(tokens);
       let d: Awaited<ReturnType<typeof loadDriverSource>>;
@@ -142,14 +139,13 @@ export async function serve(opts: { port: number; host?: string }): Promise<{
         rec.model,
         `practice-${String(rec.used).padStart(3, "0")}`,
       );
-      const r = await practiceWith(d, filename, { track, laps, out });
+      const r = await practiceWith(d, filename, { track, out });
       const c = r.results!.classification[0]!;
       const fresh = readTokens();
       fresh[String(b.token)]!.runs.push({
         at: new Date().toISOString(),
         track,
-        laps,
-        bestLap: c.bestLap,
+        lapTime: c.lapTime,
         status: c.status,
         driverHash: d.hash,
       });

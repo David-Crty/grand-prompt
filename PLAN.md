@@ -313,9 +313,8 @@ Output is designed to be read by both humans and LLMs: a short text summary on s
 | Command | Purpose |
 |---|---|
 | `bench validate <driver>` | Load, run `init`, a few seconds of `step`, report errors and timings |
-| `bench practice --driver <f> --track <id> [--laps N]` | Lap/sector times, events, `telemetry.csv` (s, speed, throttle, brake, steer, n, surface, ax, ay), `summary.json`; counts against the practice budget |
-| `bench qualify --drivers <list> --track <id>` | One flying lap per driver (or best of K attempts) |
-| `bench race --drivers <list> --track <id> --laps N --seed S` | Produces `replay.json.gz`, `results.json` |
+| `bench practice --driver <f> --track <id>` | One flying lap (the event's session): lap/sector times, events, `telemetry.csv` (s, speed, throttle, brake, steer, n, surface, ax, ay), `summary.json`; counts against the practice budget |
+| `bench qualify --drivers <list> --track <id> --seed S` | One flying lap per driver, all from the same flying start; produces `replay.json.gz`, `results.json` (see D26) |
 | `bench leaderboard <results-dir>` | Aggregated table across events |
 
 Optional: `bench plot` producing a PNG speed/throttle/brake trace per lap, useful for models with vision.
@@ -349,10 +348,11 @@ The agent builds a strong **house driver** (racing line optimization + forward/b
 
 ### 9.4 Weekend format
 
+Since D26 every session, practice included, is the same: one flying lap after a 3 s run-up placed
+by the sim, every car crossing the line at the same speed; off-track deletes the lap.
+
 1. **Practice** (agentic mode only): iterate within the budget.
-2. **Qualifying**: one flying lap.
-3. **Race**: N laps (ghost mode until phase 5).
-4. **Mystery GP** (optional): the same final drivers on a hidden track, to measure generalization.
+2. **Event**: one flying lap on a circuit the models never practised on (ghost mode until phase 5).
 
 ### 9.5 Run manifest and metrics
 

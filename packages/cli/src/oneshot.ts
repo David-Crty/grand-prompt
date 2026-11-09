@@ -4,7 +4,7 @@ import { DDK_VERSION, SIM_VERSION } from "@bench/sim";
 import { type EventConfig, eventPaths, type Manifest, validate } from "./commands.js";
 import { loadTrack, readJson, repoRoot } from "./load.js";
 
-export const ONESHOT_PROMPT_VERSION = "oneshot-0.1";
+export const ONESHOT_PROMPT_VERSION = "oneshot-0.2";
 
 /** Fill PROMPT_ONESHOT.md with the DDK contents. */
 export function buildOneshotPrompt(ev: EventConfig): string {
@@ -14,7 +14,6 @@ export function buildOneshotPrompt(ev: EventConfig): string {
   const fill: Record<string, string> = {
     TRACK_NAME: track.name,
     TRACK_LENGTH: track.length.toFixed(0),
-    RACE_LAPS: String(ev.raceLaps),
     DRIVER_SPEC: read("DRIVER_SPEC.md"),
     DRIVER_DTS: read("driver.d.ts"),
     CAR_PUBLIC: read("car-public.json"),

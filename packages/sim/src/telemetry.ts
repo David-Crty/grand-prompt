@@ -3,7 +3,6 @@ import type { SessionResults } from "./session.js";
 
 const COLUMNS: (keyof TelemetryLog)[] = [
   "t",
-  "lap",
   "s",
   "speed",
   "throttle",
@@ -22,7 +21,6 @@ export function telemetryCsv(log: TelemetryLog): string {
       COLUMNS.map((c) => {
         const v = log[c][i]!;
         if (typeof v === "string") return v;
-        if (c === "lap") return String(v);
         return (Math.round(v * 1000) / 1000).toString();
       }).join(","),
     );
@@ -42,31 +40,28 @@ export function summarizeSession(res: SessionResults, runs: CarRun[]): string {
   const lines: string[] = [];
   const s = res.session;
   lines.push(
-    `${s.type.toUpperCase()} on ${res.trackId} | laps=${s.laps} seed=${s.seed} | sim ${res.simVersion} api ${res.apiVersion}`,
+    `FLYING LAP on ${res.trackId} | launch ${(res.launchSpeed * 3.6).toFixed(0)} km/h at the line | seed=${s.seed} | sim ${res.simVersion} api ${res.apiVersion}`,
   );
   for (const r of res.classification) {
     const run = runs.find((x) => x.result.id === r.id);
     lines.push("");
-    const main =
-      s.type === "race"
-        ? `total ${fmtTime(r.totalTime)}${r.penalties ? ` (incl. +${r.penalties}s penalties)` : ""}`
-        : `best ${fmtTime(r.bestLap)}${r.bestLapNumber ? ` (lap ${r.bestLapNumber})` : ""}`;
     const gap = r.gap !== null ? ` gap +${r.gap.toFixed(3)}` : "";
-    lines.push(`P${r.position} ${r.name} [${r.status}] ${main}${gap}`);
+    lines.push(`P${r.position} ${r.name} [${r.status}] lap ${fmtTime(r.lapTime)}${gap}`);
     lines.push(
-      `   laps ${r.lapsCompleted}, off-tracks ${r.offTracks}, warnings ${r.warnings}, strikes ${r.strikes}, top speed ${(r.maxSpeed * 3.6).toFixed(1)} km/h`,
+      `   off-tracks ${r.offTracks}, strikes ${r.strikes}, top speed ${(r.maxSpeed * 3.6).toFixed(1)} km/h`,
     );
-    for (const l of r.laps) {
+    const l = r.lap;
+    if (l) {
       lines.push(
-        `   lap ${l.lap}: ${fmtTime(l.time)}  [${l.sectors.map((x) => x.toFixed(3)).join(" | ")}]${l.valid ? "" : "  INVALID (track limits)"}`,
+        `   lap: ${fmtTime(l.time)}  [${l.sectors.map((x) => x.toFixed(3)).join(" | ")}]${l.valid ? "" : "  INVALID (track limits), no time"}`,
       );
     }
     const notable = (run?.events ?? []).filter((e) =>
-      ["offTrack", "penalty", "impact", "crash", "strike", "status"].includes(e.type),
+      ["offTrack", "impact", "crash", "strike", "status"].includes(e.type),
     );
     for (const e of notable.slice(0, 25)) {
       lines.push(
-        `   t=${e.t.toFixed(2)} lap ${e.lap} ${e.type}${e.value !== undefined ? ` ${e.value}` : ""}${e.detail ? ` ${e.detail}` : ""}`,
+        `   t=${e.t.toFixed(2)} ${e.type}${e.value !== undefined ? ` ${e.value}` : ""}${e.detail ? ` ${e.detail}` : ""}`,
       );
     }
     if (notable.length > 25) lines.push(`   ... ${notable.length - 25} more events`);

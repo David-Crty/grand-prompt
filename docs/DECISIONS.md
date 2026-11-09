@@ -71,7 +71,7 @@ One entry per significant choice or deviation from PLAN.md: context, choice, con
 - Consequence: a sandboxed lap of the house driver takes about 0.5 s (plus 2 s for init), which
   is well inside the performance target. isolated-vm was not needed.
 
-## D10. Ghost-mode race start (2026-11-09)
+## D10. Ghost-mode race start (2026-11-09, superseded by D26)
 - Choice: every car starts from standstill on the line (s = 0) at t = 0. Lap 1 is the standing
   lap. Qualifying is an out lap plus K flying laps (default 1); practice reports flying laps.
 
@@ -314,3 +314,45 @@ qualifying and the 5-lap race, and `event reproduce` matches. Opus qualified on 
 - The pure parts (arguments, plan, sandbox and CLI command lines, usage and activity parsing,
   run selection, manifest) are in `lib.ts` with tests in `lib.test.ts`. The script is outside
   the coverage gate, like the other scripts.
+
+## D26. One flying lap is the only session (2026-11-09)
+
+- Context: the owner wants every generated session, and the replay, to be one qualifying lap
+  with a flying start, all cars on the same line, and the same conditions in practice as in the
+  event. Multi-lap races and standing starts added code (race penalties, out laps, attempts,
+  `--laps`) that the benchmark did not use, and the standing start was the part of the lap where
+  driver programs differed least in interest and most in luck.
+- Choice: a session is a run-up of `LAUNCH_TIME` = 3 s, then one timed lap from the line.
+  - The run-up is placed by the sim, not driven: every car follows the centreline, accelerating
+    steadily (6 m/s²) onto the line, with identical frames. The driver's first `step` is at the
+    line (t = 3 s, `lapTime` 0) on the centreline, pointing along the track, at full throttle.
+  - The launch speed is computed from the track geometry on the fly, with no stored data: the
+    highest speed up to 250 km/h for which the run-up and the first second after the line stay
+    within 15 m/s² of lateral acceleration on the centreline. Proto Ring 248 km/h, Barcelona and
+    Portimão 250, Monaco 183, Silverstone 155 (Club is just before the line).
+  - Scoring is qualifying: any off-track deletes the lap, so the score is a valid lap time or
+    nothing. Classification: valid times, then deleted laps and time-ups, then retirements by
+    distance. Warnings and +5 s penalties are gone.
+  - Every car crosses the line at the same instant in the same state, so the order of arrival in
+    the replay is the lap-time order, and the viewer needs no time alignment. Cars overlap during
+    the run-up, by design (same line).
+  - Practice (`bench practice`, the practice service) runs exactly this session; `--laps` and
+    `--attempts` are gone. `bench race` is removed and `bench qualify` is the multi-driver
+    command; an event is one session written to `results/<event>/qualify/`, and `event.json`
+    loses `qualifyAttempts` and `raceLaps`.
+  - `timeLimit` counts from the line (default 300 s).
+- API: the `Telemetry` shape is unchanged (API 0.1), so built drivers still load. `lap` is always
+  1, `lapTime` starts at 0 at the line, `t` starts at 3, and `offTrackWarnings` now counts
+  off-tracks. `CarResult` replaces `laps`, `bestLap`, `bestLapNumber`, `finishTime`, `penalties`,
+  `totalTime`, `warnings` and `lapsCompleted` with `lap` and `lapTime`. The replay header gains
+  `launch: { time, speed }`; run-up frames have `lap` = 0. SIM 0.2.0, DDK 0.2.0, prompts
+  agentic-0.4 and oneshot-0.2. The viewer lists only results in this format.
+- House driver: pure pursuit from the centreline onto its racing line at 250 km/h spun it, so for
+  the first 400 m it now aims at a line that fades from its offset at the line into the racing
+  line. Proto Ring 1:10.95 (flying), Silverstone valid; it still fails on Monaco, Portimão and
+  Barcelona, as before.
+- Deviation from PLAN: 9.4's weekend (qualifying + N-lap race) and the CLI table in 8 are
+  replaced. Phase 1's "the baseline completes 3 laps without DNF" (section 12, firm) is now
+  checked as one valid flying lap on the Proto Ring and on each real circuit; the owner agreed to
+  the format, but the section text itself is unchanged.
+

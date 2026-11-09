@@ -100,8 +100,6 @@ export async function validate(
   const track = loadTrack(opts.track);
   const car = loadCar(opts.car);
   const cfg: SessionConfig = {
-    type: "practice",
-    laps: 1,
     seed: opts.seed ?? 1,
     timeLimit: 10,
     infoLevel: opts.infoLevel ?? "B",
@@ -144,10 +142,7 @@ export async function validate(
 
 // ---- practice -------------------------------------------------------------------------------------
 
-export async function practice(
-  driverPath: string,
-  opts: CommonOpts & { laps: number },
-): Promise<CommandOutput> {
+export async function practice(driverPath: string, opts: CommonOpts): Promise<CommandOutput> {
   const d = await loadDriver(driverPath, { ...opts.sandbox, logging: true, seed: opts.seed ?? 1 });
   return practiceWith(d, driverPath, opts);
 }
@@ -155,13 +150,11 @@ export async function practice(
 export async function practiceWith(
   d: LoadedDriver,
   driverPath: string,
-  opts: CommonOpts & { laps: number },
+  opts: CommonOpts,
 ): Promise<CommandOutput> {
   const track = loadTrack(opts.track);
   const car = loadCar(opts.car);
   const cfg: SessionConfig = {
-    type: "practice",
-    laps: opts.laps,
     seed: opts.seed ?? 1,
     infoLevel: opts.infoLevel ?? "B",
     recordTelemetry: true,
@@ -195,15 +188,14 @@ export async function practiceWith(
     "",
     `budget: init ${usage.init} units, step max ${usage.stepMax} units`,
     `files: ${[...files, join(dir, "telemetry.csv"), join(dir, "summary.json"), join(dir, "log.txt")].map(rel).join(", ")}`,
-    "telemetry.csv columns: t, lap, s, speed, throttle, brake, steer, n, surface, ax, ay (one row per 20 ms step)",
+    "telemetry.csv columns: t, s, speed, throttle, brake, steer, n, surface, ax, ay (one row per 20 ms step)",
   ].join("\n");
   return { text: `${text}\n`, outDir: dir, results: out.results };
 }
 
-// ---- qualify / race -------------------------------------------------------------------------------
+// ---- qualify ----------------------------------------------------------------------------------------
 
 export interface SessionOpts extends CommonOpts {
-  laps: number;
   reference?: boolean;
 }
 
@@ -237,29 +229,26 @@ export function runWithDrivers(
   }));
   const out = runSession(track, car, entries, cfg);
   const ref = out.results.classification.find((c) => c.id === "reference");
-  if (ref?.bestLap) out.replay.header.referenceLap = ref.bestLap;
-  return { ...out, referenceLap: ref?.bestLap ?? undefined };
+  if (ref?.lapTime) out.replay.header.referenceLap = ref.lapTime;
+  return { ...out, referenceLap: ref?.lapTime ?? undefined };
 }
 
-export async function session(
-  type: "qualify" | "race",
-  driverPaths: string[],
-  opts: SessionOpts,
-): Promise<CommandOutput> {
+/** One flying lap per driver, rendered together. */
+export async function qualify(driverPaths: string[], opts: SessionOpts): Promise<CommandOutput> {
   const track = loadTrack(opts.track);
   const car = loadCar(opts.car);
   const seed = opts.seed ?? 1;
   const drivers = await loadEntries(driverPaths, { ...opts.sandbox, seed }, opts.reference ?? false);
-  const cfg: SessionConfig = { type, laps: opts.laps, seed, infoLevel: opts.infoLevel ?? "B" };
+  const cfg: SessionConfig = { seed, infoLevel: opts.infoLevel ?? "B" };
   const out = runWithDrivers(track, car, drivers, cfg);
-  const dir = opts.out ? resolve(opts.out) : nextDir(join(repoRoot(), "results", type), track.id);
+  const dir = opts.out ? resolve(opts.out) : nextDir(join(repoRoot(), "results", "qualify"), track.id);
   const files = writeSession(dir, out, out.referenceLap ? { referenceLap: out.referenceLap } : {});
   let text = summarizeSession(out.results, out.runs);
   if (out.referenceLap) {
     text += `\nreference lap ${fmtTime(out.referenceLap)}; gap to reference:\n`;
     for (const c of out.results.classification)
       if (c.id !== "reference")
-        text += `   ${c.name}: ${c.bestLap ? `+${(c.bestLap - out.referenceLap).toFixed(3)} s` : "-"}\n`;
+        text += `   ${c.name}: ${c.lapTime ? `+${(c.lapTime - out.referenceLap).toFixed(3)} s` : "-"}\n`;
   }
   text += `\nfiles: ${files.map(rel).join(", ")}\n`;
   return { text, outDir: dir, results: out.results };
@@ -272,8 +261,6 @@ export interface EventConfig {
   name: string;
   track: string;
   car?: string;
-  qualifyAttempts: number;
-  raceLaps: number;
   seed: number;
   infoLevel: "A" | "B";
 }
@@ -297,10 +284,8 @@ export interface Manifest {
   transcript?: string;
   /** Filled by `bench event run`. */
   results?: {
-    qualifyHash: string;
-    raceHash: string;
-    qualifyTime: number | null;
-    raceTime: number | null;
+    stateHash: string;
+    lapTime: number | null;
     status: string;
   };
 }
@@ -309,16 +294,11 @@ export interface EventResultRow {
   slug: string;
   name: string;
   driverHash: string;
-  qualifyTime: number | null;
-  qualifyPosition: number;
-  raceTime: number | null;
-  racePosition: number;
-  raceStatus: string;
-  bestRaceLap: number | null;
-  penalties: number;
+  position: number;
+  lapTime: number | null;
+  status: string;
   gapToReference: number | null;
-  qualifyHash: string;
-  raceHash: string;
+  stateHash: string;
   manifest: Manifest | null;
 }
 
@@ -331,8 +311,7 @@ export interface EventResults {
   /** Whether the house driver ran; absent in results from before it became opt-in (it ran). */
   reference?: boolean;
   referenceLap: number | null;
-  qualifyStateHash: string;
-  raceStateHash: string;
+  stateHash: string;
   rows: EventResultRow[];
 }
 
@@ -386,60 +365,44 @@ async function runEventSessions(eventId: string, reference: boolean) {
     });
     return ds;
   };
-  const base = { seed: ev.seed, infoLevel: ev.infoLevel };
-  const q = runWithDrivers(track, car, await load(), { ...base, type: "qualify", laps: ev.qualifyAttempts });
-  const r = runWithDrivers(track, car, await load(), { ...base, type: "race", laps: ev.raceLaps });
-  return { ev, p, list, manifests, q, r, track, car };
+  const q = runWithDrivers(track, car, await load(), { seed: ev.seed, infoLevel: ev.infoLevel });
+  return { ev, p, list, manifests, q };
 }
 
-/** Qualifying and race of an event. The house driver joins only with `reference`. */
+/** An event's flying lap. The house driver joins only with `reference`. */
 export async function runEvent(eventId: string, opts: { reference?: boolean } = {}): Promise<CommandOutput> {
   const reference = opts.reference ?? false;
-  const { ev, p, list, manifests, q, r } = await runEventSessions(eventId, reference);
+  const { ev, p, list, manifests, q } = await runEventSessions(eventId, reference);
   writeSession(join(p.results, "qualify"), q);
-  writeSession(join(p.results, "race"), r);
   const ref = q.referenceLap ?? null;
   const rows: EventResultRow[] = list.map((d) => {
-    const qc = q.results.classification.find((c) => c.id === d.slug)!;
-    const rc = r.results.classification.find((c) => c.id === d.slug)!;
-    const bestRace = rc.bestLap;
+    const c = q.results.classification.find((x) => x.id === d.slug)!;
     return {
       slug: d.slug,
-      name: qc.name,
-      driverHash: qc.driverHash,
-      qualifyTime: qc.bestLap,
-      qualifyPosition: qc.position,
-      raceTime: rc.totalTime,
-      racePosition: rc.position,
-      raceStatus: rc.status,
-      bestRaceLap: bestRace,
-      penalties: rc.penalties,
-      gapToReference: ref !== null && qc.bestLap !== null ? qc.bestLap - ref : null,
-      qualifyHash: qc.stateHash,
-      raceHash: rc.stateHash,
+      name: c.name,
+      driverHash: c.driverHash,
+      position: c.position,
+      lapTime: c.lapTime,
+      status: c.status,
+      gapToReference: ref !== null && c.lapTime !== null ? c.lapTime - ref : null,
+      stateHash: c.stateHash,
       manifest: manifests.get(d.slug) ?? null,
     };
   });
   // Positions rank the models only; the house reference car is shown but not classified.
-  [...rows]
-    .sort((a, b) => a.qualifyPosition - b.qualifyPosition)
-    .forEach((row, i) => {
-      row.qualifyPosition = i + 1;
-    });
-  rows.sort((a, b) => a.racePosition - b.racePosition);
+  rows.sort((a, b) => a.position - b.position);
   rows.forEach((row, i) => {
-    row.racePosition = i + 1;
+    row.position = i + 1;
   });
   const res: EventResults = {
     event: ev,
-    simVersion: r.results.simVersion,
-    apiVersion: r.results.apiVersion,
-    trackHash: r.results.trackHash,
-    carHash: r.results.carHash,
+    simVersion: q.results.simVersion,
+    apiVersion: q.results.apiVersion,
+    trackHash: q.results.trackHash,
+    carHash: q.results.carHash,
     reference,
     referenceLap: ref,
-    qualifyStateHash: q.results.stateHash,
-    raceStateHash: r.results.stateHash,
+    stateHash: q.results.stateHash,
     rows,
   };
   writeFileSync(join(p.results, "event-results.json"), `${JSON.stringify(res, null, 2)}\n`);
@@ -447,18 +410,12 @@ export async function runEvent(eventId: string, opts: { reference?: boolean } = 
     const m = row.manifest;
     if (!m) continue;
     m.driverHash = row.driverHash;
-    m.results = {
-      qualifyHash: row.qualifyHash,
-      raceHash: row.raceHash,
-      qualifyTime: row.qualifyTime,
-      raceTime: row.raceTime,
-      status: row.raceStatus,
-    };
+    m.results = { stateHash: row.stateHash, lapTime: row.lapTime, status: row.status };
     mkdirSync(join(p.results, row.slug), { recursive: true });
     writeFileSync(join(p.results, row.slug, "manifest.json"), `${JSON.stringify(m, null, 2)}\n`);
   }
   return {
-    text: `${eventTable(res)}\nfiles: ${rel(join(p.results, "event-results.json"))}, ${rel(join(p.results, "race", "replay.json.gz"))}\n`,
+    text: `${eventTable(res)}\nfiles: ${rel(join(p.results, "event-results.json"))}, ${rel(join(p.results, "qualify", "replay.json.gz"))}\n`,
     outDir: p.results,
   };
 }
@@ -467,7 +424,7 @@ export async function runEvent(eventId: string, opts: { reference?: boolean } = 
 export async function reproduceEvent(eventId: string): Promise<CommandOutput & { ok: boolean }> {
   const p = eventPaths(eventId);
   const stored = readJson<EventResults>(join(p.results, "event-results.json"));
-  const { q, r } = await runEventSessions(eventId, stored.reference ?? true);
+  const { q } = await runEventSessions(eventId, stored.reference ?? true);
   const lines: string[] = [`reproduce ${eventId}`];
   let ok = true;
   const check = (label: string, a: string, b: string) => {
@@ -475,15 +432,13 @@ export async function reproduceEvent(eventId: string): Promise<CommandOutput & {
     ok &&= same;
     lines.push(`${same ? "ok  " : "DIFF"} ${label}: ${b}${same ? "" : ` (stored ${a})`}`);
   };
-  if (stored.simVersion !== r.results.simVersion)
-    lines.push(`note: stored sim ${stored.simVersion}, running ${r.results.simVersion}`);
-  check("qualify", stored.qualifyStateHash, q.results.stateHash);
-  check("race", stored.raceStateHash, r.results.stateHash);
+  if (stored.simVersion !== q.results.simVersion)
+    lines.push(`note: stored sim ${stored.simVersion}, running ${q.results.simVersion}`);
+  check("session", stored.stateHash, q.results.stateHash);
   for (const row of stored.rows) {
-    const qc = q.results.classification.find((c) => c.id === row.slug);
-    const rc = r.results.classification.find((c) => c.id === row.slug);
-    check(`${row.slug} driver`, row.driverHash, qc?.driverHash ?? "missing");
-    check(`${row.slug} race`, row.raceHash, rc?.stateHash ?? "missing");
+    const c = q.results.classification.find((x) => x.id === row.slug);
+    check(`${row.slug} driver`, row.driverHash, c?.driverHash ?? "missing");
+    check(`${row.slug} lap`, row.stateHash, c?.stateHash ?? "missing");
   }
   lines.push(ok ? "REPRODUCED" : "MISMATCH");
   return { ok, text: `${lines.join("\n")}\n` };
@@ -501,34 +456,21 @@ function tokens(m: Manifest | null): string {
 }
 
 export function eventTable(res: EventResults): string {
-  const head = `${res.event.name} (${res.event.id}) on ${res.event.track}, ${res.event.raceLaps} laps, seed ${res.event.seed}, info level ${res.event.infoLevel}`;
+  const head = `${res.event.name} (${res.event.id}) on ${res.event.track}, flying lap, seed ${res.event.seed}, info level ${res.event.infoLevel}`;
   const withRef = res.reference ?? true;
   const rows = [
-    [
-      "Pos",
-      "Model",
-      "Mode",
-      "Quali",
-      ...(withRef ? ["Gap to ref"] : []),
-      "Race",
-      "Status",
-      "Pen.",
-      "Cost",
-      "Tokens",
-    ],
+    ["Pos", "Model", "Mode", "Lap", ...(withRef ? ["Gap to ref"] : []), "Status", "Cost", "Tokens"],
   ];
   for (const r of res.rows) {
     const gap =
       r.gapToReference === null ? "-" : `${r.gapToReference >= 0 ? "+" : ""}${r.gapToReference.toFixed(3)}`;
     rows.push([
-      String(r.racePosition),
+      String(r.position),
       r.name,
       r.manifest?.mode ?? "-",
-      fmtTime(r.qualifyTime),
+      fmtTime(r.lapTime),
       ...(withRef ? [gap] : []),
-      fmtTime(r.raceTime),
-      r.raceStatus,
-      r.penalties ? `+${r.penalties}s` : "",
+      r.status,
       cost(r.manifest),
       tokens(r.manifest),
     ]);
@@ -567,10 +509,11 @@ export function leaderboard(dir: string): CommandOutput {
   for (const ev of events) {
     for (const r of ev.rows) {
       const t = totals.get(r.name) ?? { points: 0, events: 0, wins: 0, cost: 0, dnf: 0 };
-      if (r.raceStatus === "FINISHED") t.points += POINTS[r.racePosition - 1] ?? 0;
+      const timed = r.lapTime !== null;
+      if (timed) t.points += POINTS[r.position - 1] ?? 0;
       else t.dnf++;
       t.events++;
-      if (r.racePosition === 1 && r.raceStatus === "FINISHED") t.wins++;
+      if (r.position === 1 && timed) t.wins++;
       t.cost += r.manifest?.usage?.costUsd ?? 0;
       totals.set(r.name, t);
     }
@@ -578,7 +521,7 @@ export function leaderboard(dir: string): CommandOutput {
   const standings = [...totals.entries()].sort(
     (a, b) => b[1].points - a[1].points || a[0].localeCompare(b[0]),
   );
-  const rows = [["Pos", "Model", "Points", "Events", "Wins", "DNF", "Total cost"]];
+  const rows = [["Pos", "Model", "Points", "Events", "Wins", "No time", "Total cost"]];
   standings.forEach(([name, t], i) => {
     rows.push([
       String(i + 1),
@@ -593,7 +536,7 @@ export function leaderboard(dir: string): CommandOutput {
   const parts = [
     "# Leaderboard",
     "",
-    `Standings (points ${POINTS.join("-")}, finishers only)`,
+    `Standings (points ${POINTS.join("-")}, valid laps only)`,
     "",
     table(rows),
   ];
@@ -607,9 +550,9 @@ export function replayInfo(path: string): CommandOutput {
   const r = readReplay(path);
   const dur = Math.max(...r.cars.map((c) => c.frames.x.length)) / CONTROL_HZ;
   const lines = [
-    `${basename(path)}: ${r.header.session.type} on ${r.header.trackId}, ${r.cars.length} cars, ${dur.toFixed(1)} s`,
+    `${basename(path)}: flying lap on ${r.header.trackId}, ${r.cars.length} cars, ${dur.toFixed(1)} s`,
     `sim ${r.header.simVersion} api ${r.header.apiVersion} seed ${r.header.seed} hash ${r.header.stateHash}`,
-    ...r.classification.map((c) => `P${c.position} ${c.name} ${c.status} best ${fmtTime(c.bestLap)}`),
+    ...r.classification.map((c) => `P${c.position} ${c.name} ${c.status} lap ${fmtTime(c.lapTime)}`),
   ];
   return { text: `${lines.join("\n")}\n` };
 }

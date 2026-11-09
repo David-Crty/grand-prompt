@@ -249,14 +249,9 @@ describe("bundling", () => {
 describe("feature: sandboxed drivers in the sim", () => {
   it("a budget overrun in step is a strike, three are an ECU failure", async () => {
     const d = await SandboxedDriver.create(
-      `export function step(t) { if (t.t > 1) for(;;){} return { throttle: 0.4, brake: 0, steer: 0 }; }`,
+      `export function step(t) { if (t.lapTime > 1) for(;;){} return { throttle: 0.4, brake: 0, steer: 0 }; }`,
     );
-    const run = new CarSim(
-      protoRing(),
-      protoCar(),
-      { id: "x", name: "x", runtime: d },
-      { type: "practice", laps: 1, seed: 1 },
-    ).run();
+    const run = new CarSim(protoRing(), protoCar(), { id: "x", name: "x", runtime: d }, { seed: 1 }).run();
     expect(run.result.status).toBe("DNF: ECU FAILURE");
     expect(run.result.errors[0]).toMatch(/compute budget/);
   });
@@ -265,11 +260,7 @@ describe("feature: sandboxed drivers in the sim", () => {
     const src = bundleDriverFile(new URL("../../../ddk/baseline-driver.js", import.meta.url).pathname);
     const hash = async () => {
       const d = await SandboxedDriver.create(src);
-      return runSession(protoRing(), protoCar(), [{ id: "b", name: "b", runtime: d }], {
-        type: "practice",
-        laps: 1,
-        seed: 1,
-      }).results;
+      return runSession(protoRing(), protoCar(), [{ id: "b", name: "b", runtime: d }], { seed: 1 }).results;
     };
     const a = await hash();
     const b = await hash();

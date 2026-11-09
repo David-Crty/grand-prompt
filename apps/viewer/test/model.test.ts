@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { indexReplay } from "../src/lib/frames.js";
-import { bestLapNumber, bestLapTraces, lapTrace, tracePath } from "../src/lib/laps.js";
+import { bestLapTraces, lapTrace, tracePath } from "../src/lib/laps.js";
 import { raceMessages, recentMessages } from "../src/lib/messages.js";
 import { buildModel } from "../src/lib/model.js";
 import { makeCar, makeReplay, stadiumTrack } from "./fixtures.js";
@@ -12,17 +12,12 @@ describe("laps", () => {
     makeReplay(
       [
         makeCar(track, { id: "a", speed: 50 }),
-        makeCar(track, { id: "b", speed: 45, bestLapNumber: null, invalidLaps: [2] }),
-        makeCar(track, { id: "c", speed: 45, bestLapNumber: null, invalidLaps: [1, 2] }),
+        makeCar(track, { id: "b", speed: 45, invalidLaps: [2] }),
+        makeCar(track, { id: "c", speed: 45, invalidLaps: [1, 2] }),
       ],
       track,
     ),
   );
-  it("picks the best lap from the result or the events", () => {
-    expect(bestLapNumber(cars[0]!)).toBe(2);
-    expect(bestLapNumber(cars[1]!)).toBe(1);
-    expect(bestLapNumber(cars[2]!)).toBeNull();
-  });
   it("bins speed against distance", () => {
     const tr = lapTrace(cars[0]!, 1, 10)!;
     expect(tr.s[0]).toBe(5);
@@ -45,10 +40,6 @@ describe("messages", () => {
     speed: 50,
     invalidLaps: [2],
     extraEvents: [
-      { t: 1, type: "penalty", lap: 1, value: 5, detail: "track limits" },
-      { t: 2, type: "penalty", lap: 1 },
-      { t: 3, type: "warning", lap: 1, value: 2 },
-      { t: 3.5, type: "warning", lap: 1 },
       { t: 4, type: "crash", lap: 1, value: 30 },
       { t: 4.2, type: "crash", lap: 1 },
       { t: 5, type: "impact", lap: 1, value: 5 },
@@ -64,10 +55,6 @@ describe("messages", () => {
   const msgs = raceMessages(indexReplay(makeReplay([car, dnf], track)));
   it("turns events into race-control messages", () => {
     const texts = msgs.map((m) => m.text);
-    expect(texts).toContain("5s penalty: track limits");
-    expect(texts).toContain("0s penalty");
-    expect(texts).toContain("Track limits warning 2");
-    expect(texts).toContain("Track limits warning");
     expect(texts).toContain("Crash at 108 km/h");
     expect(texts).toContain("Crash at 0 km/h");
     expect(texts).toContain("Barrier contact at 18 km/h");
@@ -75,7 +62,7 @@ describe("messages", () => {
     expect(texts).toContain("Driver code fault: TypeError");
     expect(texts).toContain("Driver code fault");
     expect(texts).toContain("DNF: CRASHED (barrier)");
-    expect(texts).toContain("Lap 2 deleted: track limits");
+    expect(texts).toContain("Lap deleted: track limits");
     expect(texts).toContain("Chequered flag");
     expect(msgs.filter((m) => m.kind === "fastest")).toHaveLength(1);
     for (let k = 1; k < msgs.length; k++) expect(msgs[k]!.t).toBeGreaterThanOrEqual(msgs[k - 1]!.t);
@@ -97,7 +84,6 @@ describe("buildModel", () => {
     const m = buildModel(r, 100);
     expect(m.cars).toHaveLength(2);
     expect(m.duration).toBeCloseTo((2 * track.length) / 48, 0);
-    expect(m.totalLaps).toBe(2);
     expect(m.trees).toHaveLength(100);
     expect(m.traces).toHaveLength(2);
     expect(m.messages.length).toBeGreaterThan(0);

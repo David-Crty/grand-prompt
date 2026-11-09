@@ -38,14 +38,12 @@ export function TimingTower({
   showInterval: boolean;
   onFocus: (id: string) => void;
 }) {
-  const leader = snap.rows[0];
-  const lap = leader ? (leader.finished ? model.totalLaps : leader.lap) : 1;
   const allDone = snap.rows.every((r) => r.finished || r.out);
   return (
     <div className="tower panel">
       <div className="tower-head">
         <span className="brand">GRAND PROMPT</span>
-        <span className="tower-lap">{allDone ? "FINAL" : `LAP ${lap}/${model.totalLaps}`}</span>
+        <span className="tower-lap">{allDone ? "FINAL" : "FLYING LAP"}</span>
       </div>
       {snap.rows.map((r) => {
         const st = statusShort(r.status);
@@ -72,9 +70,7 @@ export function TimingTower({
                 <Chequer />
               ) : st ? (
                 <span className={`badge b-${st.toLowerCase()}`}>{st}</span>
-              ) : (
-                `L${r.lap}`
-              )}
+              ) : null}
             </span>
           </button>
         );
@@ -164,7 +160,7 @@ export function SessionInfo({
       ) : null}
       <div className="session-track">{model.replay.track.name}</div>
       <div className="session-row">
-        <span className="session-type">{model.replay.header.session.type.toUpperCase()}</span>
+        <span className="session-type">QUALIFYING</span>
         <span className="clock">{formatClock(snap.t)}</span>
         <span className={`speed-badge${snap.speed !== 1 ? " fast" : ""}`}>{snap.speed}×</span>
       </div>
@@ -179,7 +175,8 @@ export function Telemetry({ model, snap }: { model: ViewerModel; snap: HudSnapsh
   const car = model.cars.find((c) => c.car.id === snap.focusId)?.car;
   if (!f || !row || !car) return null;
   const lap = snap.lap;
-  const cur = lap && !row.finished && !row.out ? snap.t - lap.currentLapStart : null;
+  const cur =
+    lap && !row.finished && !row.out && snap.t >= lap.currentLapStart ? snap.t - lap.currentLapStart : null;
   const off = f.surface >= 2 && !f.ended;
   return (
     <div className="telemetry panel">
@@ -211,12 +208,12 @@ export function Telemetry({ model, snap }: { model: ViewerModel; snap: HudSnapsh
           </span>
         </div>
         <div>
-          <span className="k">LAST</span>
-          <span className={`v${lap?.lastValid === false ? " invalid" : ""}`}>{formatLapTime(lap?.last)}</span>
-        </div>
-        <div>
-          <span className="k">BEST</span>
-          <span className={`v${snap.fastestId === car.id ? " purple" : ""}`}>{formatLapTime(lap?.best)}</span>
+          <span className="k">TIME</span>
+          <span
+            className={`v${lap?.lastValid === false ? " invalid" : snap.fastestId === car.id ? " purple" : ""}`}
+          >
+            {formatLapTime(lap?.last)}
+          </span>
         </div>
       </div>
       {off ? <div className="tel-off">{["", "", "GRASS", "GRAVEL", "BARRIER"][f.surface]}</div> : null}

@@ -11,17 +11,6 @@ export interface LapTrace {
   speed: number[];
 }
 
-/** Best valid lap number from the result, falling back to the lap events. */
-export function bestLapNumber(c: CarIndex): number | null {
-  if (c.car.result.bestLapNumber != null) return c.car.result.bestLapNumber;
-  let best: { lap: number; time: number } | null = null;
-  for (const e of c.laps) {
-    if (e.detail === "invalid" || e.value == null) continue;
-    if (!best || e.value < best.time) best = { lap: e.lap, time: e.value };
-  }
-  return best ? best.lap : null;
-}
-
 /** Speed against distance for one lap, averaged into bins of `bin` metres. */
 export function lapTrace(c: CarIndex, lap: number, bin = 5): LapTrace | null {
   const f = c.car.frames;
@@ -51,9 +40,8 @@ export function lapTrace(c: CarIndex, lap: number, bin = 5): LapTrace | null {
 export function bestLapTraces(cars: CarIndex[], bin = 5): LapTrace[] {
   const out: LapTrace[] = [];
   for (const c of cars) {
-    const lap = bestLapNumber(c);
-    if (lap === null) continue;
-    const tr = lapTrace(c, lap, bin);
+    if (c.car.result.lapTime == null) continue;
+    const tr = lapTrace(c, 1, bin);
     if (tr) out.push(tr);
   }
   return out;

@@ -86,7 +86,7 @@ the grass while the other is on track.
 | 4–5 g fast corners | 4.24 g at 306 km/h (3.5 g at 252 km/h) |
 | 0–100 km/h 2.5–3 s | 2.56 s |
 
-On the Prototype Ring, the house reference driver laps in 1:10.6, and the DDK baseline in 1:31.9.
+On the Prototype Ring, the house reference driver sets a 1:10.9 flying lap, and the DDK baseline a 1:31.9.
 
 ## Known simplifications
 

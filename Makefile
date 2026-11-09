@@ -1,11 +1,10 @@
 # Shortcuts for the dev loop. Every target wraps a pnpm script;
-# `make` alone lists them. Variables: NAME (event / build name), TRACK, LAPS, ONLY, JOBS, TIMEOUT.
+# `make` alone lists them. Variables: NAME (event / build name), TRACK, ONLY, JOBS, TIMEOUT.
 SHELL := bash
 .DEFAULT_GOAL := help
 
 NAME    ?=
 TRACK   ?= barcelona
-LAPS    ?= 5
 ONLY    ?=
 JOBS    ?=
 TIMEOUT ?=
@@ -14,7 +13,7 @@ BUILD_OPTS := $(if $(ONLY),--only $(ONLY)) $(if $(JOBS),--jobs $(JOBS)) $(if $(T
 need-name = @[[ -n "$(NAME)" ]] || { echo "set NAME=<name>, e.g. make $@ NAME=gp-1"; exit 2; }
 
 .PHONY: help install dev lint format typecheck test coverage determinism viewer-build gates \
-	tracks golden plausibility demo serve build-check build event reproduce race leaderboard clean
+	tracks golden plausibility demo serve build-check build event reproduce qualify leaderboard clean
 
 help: ## list the targets
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | sed -E 's/:.*## /\t/' | expand -t 16
@@ -42,7 +41,7 @@ test: ## vitest, no coverage
 coverage: ## vitest with the 90% coverage thresholds
 	pnpm coverage
 
-determinism: ## same race in two processes, same hash
+determinism: ## same session in two processes, same hash
 	pnpm determinism
 
 viewer-build: ## production build of the viewer
@@ -75,7 +74,7 @@ build: ## one driver per models.json entry -> drivers/NAME/ (NAME= [ONLY= JOBS= 
 	$(need-name)
 	pnpm -s build-drivers $(NAME) $(BUILD_OPTS)
 
-event: ## qualifying + race of drivers/NAME/ on its event circuit (NAME=)
+event: ## flying lap of drivers/NAME/ on its event circuit (NAME=)
 	$(need-name)
 	pnpm bench event run $(NAME)
 
@@ -83,10 +82,10 @@ reproduce: ## re-run an event and check every state hash (NAME=)
 	$(need-name)
 	pnpm bench event reproduce $(NAME)
 
-race: ## race drivers/NAME/* on any circuit (NAME= [TRACK= LAPS=])
+qualify: ## flying lap of drivers/NAME/* on any circuit (NAME= [TRACK=])
 	$(need-name)
-	pnpm bench race drivers/$(NAME)/*/driver.js --track $(TRACK) --laps $(LAPS) \
-		--out results/race/$(NAME)-$(TRACK)
+	pnpm bench qualify drivers/$(NAME)/*/driver.js --track $(TRACK) \
+		--out results/qualify/$(NAME)-$(TRACK)
 
 leaderboard: ## aggregate every event under results/
 	pnpm bench leaderboard results

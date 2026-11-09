@@ -18,7 +18,6 @@ export interface ViewerModel {
   cars: CarIndex[];
   layout: TrackLayout;
   duration: number;
-  totalLaps: number;
   bounds: { minX: number; maxX: number; minY: number; maxY: number };
   messages: RaceMessage[];
   traces: LapTrace[];
@@ -35,7 +34,6 @@ export function buildModel(replay: Replay, treeCount = 1400): ViewerModel {
     cars,
     layout,
     duration: replayDuration(replay),
-    totalLaps: replay.header.session.laps,
     bounds: trackBounds(layout),
     messages: raceMessages(cars),
     traces: bestLapTraces(cars),

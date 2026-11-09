@@ -20,8 +20,12 @@ export interface CarIndex {
   runMax: Float64Array;
   /** Time of the last frame. */
   endTime: number;
+  /** Time the car crossed the line at the end of the run-up (first frame of lap 1). */
+  startTime: number;
   /** Time the FINISHED status was given, or null. */
   finishTime: number | null;
+  /** False once the lap event says the lap was deleted. */
+  lapValid: boolean;
   statuses: { t: number; status: string }[];
   laps: SimEvent[];
 }
@@ -36,7 +40,9 @@ export function indexCar(car: ReplayCar, index: number, frameRate: number, track
   const progress = new Float64Array(n);
   const runMax = new Float64Array(n);
   let max = Number.NEGATIVE_INFINITY;
+  let start = -1;
   for (let k = 0; k < n; k++) {
+    if (start < 0 && f.lap[k]! >= 1) start = k;
     const p = (f.lap[k]! - 1) * trackLength + f.s[k]!;
     progress[k] = p;
     max = Math.max(max, p);
@@ -63,7 +69,9 @@ export function indexCar(car: ReplayCar, index: number, frameRate: number, track
     progress,
     runMax,
     endTime,
+    startTime: Math.max(0, start) / frameRate,
     finishTime: fin ? fin.t : null,
+    lapValid: !laps.some((e) => e.detail === "invalid"),
     statuses,
     laps,
   };
@@ -132,7 +140,7 @@ export function lapInfoAt(c: CarIndex, t: number): LapInfo {
   let last: number | null = null;
   let lastValid = true;
   let best: number | null = null;
-  let currentLapStart = 0;
+  let currentLapStart = c.startTime;
   for (const e of c.laps) {
     if (e.t > t + 1e-9) break;
     completed++;

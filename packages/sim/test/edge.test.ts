@@ -13,10 +13,14 @@ describe("edge cases", () => {
         {
           id: "r",
           name: "Righty",
-          runtime: fnDriver((t) => ({ throttle: t.speed < 6 ? 0.2 : 0, brake: 0, steer: -0.5 })),
+          runtime: fnDriver((t) =>
+            t.speed > 6 && t.t < 10
+              ? { throttle: 0, brake: 1, steer: 0 }
+              : { throttle: t.speed < 6 ? 0.2 : 0, brake: 0, steer: -0.5 },
+          ),
         },
       ],
-      { type: "race", laps: 1, seed: 1, timeLimit: 120 },
+      { seed: 1, timeLimit: 120 },
     );
     const run = out.runs[0]!;
     const impacts = run.events.filter((e) => e.type === "impact");
@@ -27,18 +31,14 @@ describe("edge cases", () => {
     expect(summarizeSession(out.results, [])).toMatch(/P1 Righty/);
   });
 
-  it("race summary shows penalties and invalid laps", () => {
+  it("the summary shows a deleted lap", () => {
     const track = Track.fromFile(circleFile(60));
     const wide = follower({ speed: 14, offset: (s) => (s > 100 && s < 140 ? -9 : 0) });
-    const out = runSession(track, car, [{ id: "w", name: "Wide", runtime: wide }], {
-      type: "race",
-      laps: 5,
-      seed: 1,
-    });
+    const out = runSession(track, car, [{ id: "w", name: "Wide", runtime: wide }], { seed: 1 });
     const text = summarizeSession(out.results, out.runs);
-    expect(text).toMatch(/incl\. \+10s penalties/);
-    expect(text).toMatch(/INVALID \(track limits\)/);
-    expect(text).toMatch(/penalty 5 track limits/);
+    expect(text).toMatch(/P1 Wide \[FINISHED\] lap -/);
+    expect(text).toMatch(/INVALID \(track limits\), no time/);
+    expect(text).toMatch(/offTrack/);
   });
 
   it("a driver returning null every step is an ECU failure without exceptions", () => {
@@ -46,7 +46,7 @@ describe("edge cases", () => {
       protoRing(),
       car,
       { id: "n", name: "n", runtime: fnDriver(() => null) },
-      { type: "race", laps: 1, seed: 1 },
+      { seed: 1 },
     ).run();
     expect(run.result.status).toBe("DNF: ECU FAILURE");
     expect(run.result.errors).toHaveLength(3);

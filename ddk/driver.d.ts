@@ -66,11 +66,11 @@ export interface CarSpec {
 }
 
 export interface Telemetry {
-  /** Session time, s. */
+  /** Session time, s. The run-up takes the first 3 s, so your first step is at t = 3. */
   t: number;
-  /** Lap currently being driven, 1-based. Lap 1 starts from standstill at s = 0. */
+  /** Always 1: a session is one flying lap. */
   lap: number;
-  /** Time since this lap started, s. */
+  /** Time since the car crossed the line, s (0 at your first step). */
   lapTime: number;
   /** 1, 2 or 3. */
   sector: number;
@@ -99,7 +99,7 @@ export interface Telemetry {
   brake: number;
   /** Surface under the car's centre. */
   surface: "track" | "kerb" | "grass" | "gravel";
-  /** Track-limit warnings received so far (race only). */
+  /** Times the car has left the track so far. Any one of them deletes the lap. */
   offTrackWarnings: number;
 }
 

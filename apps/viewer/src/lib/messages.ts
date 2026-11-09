@@ -1,16 +1,7 @@
 import { formatLapTime, kmh } from "./format.js";
 import type { CarIndex } from "./frames.js";
 
-export type MessageKind =
-  | "fastest"
-  | "deleted"
-  | "penalty"
-  | "warning"
-  | "crash"
-  | "impact"
-  | "finish"
-  | "dnf"
-  | "strike";
+export type MessageKind = "fastest" | "deleted" | "crash" | "impact" | "finish" | "dnf" | "strike";
 
 export interface RaceMessage {
   t: number;
@@ -31,22 +22,11 @@ export function raceMessages(cars: CarIndex[]): RaceMessage[] {
     const base = { t: e.t, carId: c.car.id, name: c.car.name, color: c.car.color };
     switch (e.type) {
       case "lap":
-        if (e.detail === "invalid")
-          out.push({ ...base, kind: "deleted", text: `Lap ${e.lap} deleted: track limits` });
+        if (e.detail === "invalid") out.push({ ...base, kind: "deleted", text: "Lap deleted: track limits" });
         else if (e.value != null && e.value < fastest) {
           fastest = e.value;
           out.push({ ...base, kind: "fastest", text: `Fastest lap ${formatLapTime(e.value)}` });
         }
-        break;
-      case "penalty":
-        out.push({
-          ...base,
-          kind: "penalty",
-          text: `${e.value ?? 0}s penalty${e.detail ? `: ${e.detail}` : ""}`,
-        });
-        break;
-      case "warning":
-        out.push({ ...base, kind: "warning", text: `Track limits warning ${e.value ?? ""}`.trim() });
         break;
       case "crash":
         out.push({ ...base, kind: "crash", text: `Crash at ${kmh(e.value ?? 0)} km/h` });

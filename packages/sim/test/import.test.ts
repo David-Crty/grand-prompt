@@ -222,15 +222,10 @@ describe("imported circuits (feature)", () => {
       expect(file.source).toBeTruthy();
       const track = Track.fromFile(file);
       expect(Math.abs(track.length - c.official) / c.official).toBeLessThan(0.015);
-      const run = new CarSim(
-        track,
-        protoCar(),
-        { id: "b", name: "b", runtime: baseline },
-        { type: "practice", laps: 1, seed: 1 },
-      ).run();
+      const run = new CarSim(track, protoCar(), { id: "b", name: "b", runtime: baseline }, { seed: 1 }).run();
       expect(run.result.status).toBe("FINISHED");
       expect(run.result.offTracks).toBe(0);
-      expect(run.result.bestLap).toBeGreaterThan(60);
+      expect(run.result.lapTime).toBeGreaterThan(60);
     });
   }
 });

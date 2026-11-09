@@ -12,11 +12,7 @@ const file = new URL("./golden.json", import.meta.url);
 describe("golden replay hashes", () => {
   it("match the recorded values for this sim version", () => {
     const run = (runtime: typeof baseline) =>
-      runSession(protoRing(), protoCar(), [{ id: "x", name: "x", runtime }], {
-        type: "race",
-        laps: 1,
-        seed: 11,
-      }).results.stateHash;
+      runSession(protoRing(), protoCar(), [{ id: "x", name: "x", runtime }], { seed: 11 }).results.stateHash;
     const now = {
       simVersion: SIM_VERSION,
       trackHash: protoRing().hash,

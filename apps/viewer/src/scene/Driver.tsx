@@ -60,7 +60,7 @@ export function Driver({
     model.cars.forEach((c, k) => {
       L.samples[k] = sampleCar(c, t);
     });
-    L.rows = liveStandings(model.cars, t, model.totalLaps);
+    L.rows = liveStandings(model.cars, t);
     const mapMode = L.mode === "map";
 
     model.cars.forEach((c, k) => {

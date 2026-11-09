@@ -24,7 +24,8 @@ function isSource(v: unknown): v is RaceSource {
     r !== null &&
     typeof r.trackId === "string" &&
     typeof r.session === "object" &&
-    Array.isArray(r.classification)
+    Array.isArray(r.classification) &&
+    r.classification.every((c) => "lapTime" in c)
   );
 }
 

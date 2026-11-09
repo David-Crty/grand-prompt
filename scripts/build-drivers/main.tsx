@@ -5,7 +5,7 @@
  *   pnpm build-drivers <name> [options]
  *
  * Output: drivers/<name>/<model-slug>/{driver.js,manifest.json}, plus results/<name>/event.json
- * so that `pnpm bench event run <name>` races them, on a circuit none of them practised on.
+ * so that `pnpm bench event run <name>` times them, on a circuit none of them practised on.
  * Logs go to results/<name>/<slug>/build/.
  */
 import { type ChildProcess, spawn, spawnSync } from "node:child_process";
@@ -205,8 +205,6 @@ async function main(): Promise<number> {
         id: opts.name,
         name: opts.name,
         track: opts.eventTrack,
-        qualifyAttempts: 1,
-        raceLaps: opts.laps,
       };
       writeFileSync(event, `${JSON.stringify({ ...cfg, seed: 2026, infoLevel: "B" }, null, 2)}\n`);
     }
@@ -292,7 +290,7 @@ async function main(): Promise<number> {
 
   console.log(`\ndrivers in drivers/${opts.name}/:`);
   for (const d of readdirSync(out, { withFileTypes: true })) if (d.isDirectory()) console.log(`  ${d.name}`);
-  console.log(`race them: pnpm bench event run ${opts.name}`);
+  console.log(`time them: pnpm bench event run ${opts.name}`);
   return 0;
 }
 

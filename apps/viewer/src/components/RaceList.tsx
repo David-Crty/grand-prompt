@@ -1,13 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { formatLapTime } from "../lib/format.js";
-import {
-  filterRaces,
-  formatDate,
-  type RaceEntry,
-  type RaceIndex,
-  sessionLabel,
-  watchHref,
-} from "../lib/races.js";
+import { filterRaces, formatDate, type RaceEntry, type RaceIndex, watchHref } from "../lib/races.js";
 
 const INDEX_URL = "/results/index.json";
 
@@ -21,38 +14,25 @@ function Driver({ name, color }: { name: string; color: string }) {
 }
 
 function Row({ r }: { r: RaceEntry }) {
-  const dnf = r.cars - r.finished;
+  const untimed = r.cars - r.timed;
   return (
     <a className="rl-row" href={watchHref(r.replay)}>
       <div className="rl-main">
         <div className="rl-track">{r.trackName}</div>
         <div className="rl-sub">
-          {sessionLabel(r)}
-          {r.group !== r.type ? <span className="rl-group">{r.group}</span> : null}
+          Flying lap
+          <span className="rl-group">{r.group}</span>
           <span className="rl-id">{r.id}</span>
         </div>
       </div>
       <div className="rl-cell">
-        <div className="rl-label">{r.type === "race" ? "Winner" : "P1"}</div>
-        {r.winner ? (
+        <div className="rl-label">Pole</div>
+        {r.pole ? (
           <>
-            <Driver name={r.winner.name} color={r.winner.color} />
-            <div className="rl-time">
-              {r.winner.status === "FINISHED" || r.type !== "race"
-                ? formatLapTime(r.winner.time)
-                : r.winner.status}
+            <Driver name={r.pole.name} color={r.pole.color} />
+            <div className={`rl-time${r.pole.time != null ? " purple" : ""}`}>
+              {r.pole.time != null ? formatLapTime(r.pole.time) : r.pole.status}
             </div>
-          </>
-        ) : (
-          <div className="rl-time">--</div>
-        )}
-      </div>
-      <div className="rl-cell">
-        <div className="rl-label">Fastest lap</div>
-        {r.fastest ? (
-          <>
-            <Driver name={r.fastest.name} color={r.fastest.color} />
-            <div className="rl-time purple">{formatLapTime(r.fastest.time)}</div>
           </>
         ) : (
           <div className="rl-time">--</div>
@@ -67,7 +47,7 @@ function Row({ r }: { r: RaceEntry }) {
         </div>
         <div className="rl-time">
           {r.cars} {r.cars === 1 ? "car" : "cars"}
-          {dnf > 0 ? <span className="rl-dnf"> · {dnf} not classified</span> : null}
+          {untimed > 0 ? <span className="rl-dnf"> · {untimed} without a time</span> : null}
         </div>
       </div>
       <div className="rl-cell rl-meta">

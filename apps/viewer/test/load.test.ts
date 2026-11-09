@@ -15,7 +15,7 @@ async function gzip(bytes: Uint8Array): Promise<Uint8Array> {
 }
 
 const track = stadiumTrack();
-const replay = makeReplay([makeCar(track, { id: "a", speed: 50, laps: 1 })], track, 10, 1);
+const replay = makeReplay([makeCar(track, { id: "a", speed: 50, laps: 1 })], track, 10);
 const json = new TextEncoder().encode(JSON.stringify(replay));
 
 describe("load", () => {

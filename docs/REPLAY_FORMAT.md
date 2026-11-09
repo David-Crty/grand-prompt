@@ -9,14 +9,15 @@ The viewer only plays this file. It never runs physics.
   "format": "bench-replay",
   "formatVersion": 1,
   "header": {
-    "simVersion": "0.1.0", "apiVersion": "0.1", "ddkVersion": "0.1.0",
+    "simVersion": "0.2.0", "apiVersion": "0.1", "ddkVersion": "0.2.0",
     "trackId": "proto-ring", "trackHash": "…", "carId": "proto-ow", "carHash": "…",
     "seed": 42,
-    "session": { "type": "race", "laps": 3, "seed": 42, "infoLevel": "A" },
+    "session": { "seed": 42, "infoLevel": "A" },   // always one flying lap (D26)
     "frameRate": 50,                 // frames per second, per car
+    "launch": { "time": 3, "speed": 68.9 },  // run-up length (s) and speed at the line (m/s)
     "stateHash": "…",                // determinism hash over full-precision state
     "car": { "length": 5.6, "width": 2.0, "wheelbase": 3.6 },
-    "referenceLap": 70.6             // optional, house driver best lap
+    "referenceLap": 70.9             // optional, house driver lap time
   },
   "track": { /* TrackData, see below */ },
   "cars": [ /* ReplayCar */ ],
@@ -58,15 +59,15 @@ world as `center(s) + n * normal(s)`.
     "steer": [],         // -1..1 (fraction of maxSteer, positive = left)
     "throttle": [], "brake": [],  // 0..1, actual actuator positions
     "surface": [],       // 0 track, 1 kerb, 2 grass, 3 gravel, 4 barrier
-    "lap": [],           // lap currently being driven (1-based)
+    "lap": [],           // 0 during the run-up, 1 on the lap, 2 on the final frame after the line
     "s": []              // m along the centerline
   },
   "events": [ { "t": 12.3, "type": "lap", "lap": 1, "value": 75.7, "detail": "invalid" } ],
-  "result": { /* CarResult: status, laps[], bestLap, totalTime, penalties, … */ }
+  "result": { /* CarResult: status, lap (LapRecord or null), lapTime (valid time or null), … */ }
 }
 ```
 
-The frames stop when the car's session ends (finish or DNF). After that the car should stay at
+The first `launch.time * frameRate` frames are the run-up, identical for every car. The frames stop when the car's session ends (finish or DNF). After that the car should stay at
 its last frame, shown with its final status.
 
 ### Event types
@@ -76,8 +77,6 @@ its last frame, shown with its final status.
 | `lap` | lap time (s) | `"invalid"` if the lap was deleted for track limits |
 | `sector` | sector number completed (1, 2) | |
 | `offTrack` | metres beyond the limit | |
-| `warning` | warning count (race) | |
-| `penalty` | seconds added | reason |
 | `impact` | speed (m/s): low-speed barrier contact, car stopped and continues | |
 | `crash` | speed (m/s) | |
 | `strike` | strike count | error message (driver code fault) |
@@ -87,5 +86,5 @@ Statuses: `RUNNING`, `FINISHED`, `DNF: CRASHED`, `DNF: STALLED`, `DNF: ECU FAILU
 
 ## Size
 
-At 50 Hz, a 3-lap, 4-car race is about 2.4 MB of JSON and 0.6 MB gzipped. Values are rounded
+At 50 Hz, a 4-car flying lap is about 0.8 MB of JSON and 0.2 MB gzipped. Values are rounded
 (1 cm for positions, 1e-4 rad for yaw). The determinism hash is computed before rounding.

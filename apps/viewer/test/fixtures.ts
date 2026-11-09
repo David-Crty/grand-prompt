@@ -91,7 +91,6 @@ export interface CarOpts {
   dnfAt?: number;
   invalidLaps?: number[];
   color?: string;
-  bestLapNumber?: number | null;
   extraEvents?: SimEvent[];
   startS?: number;
 }
@@ -164,15 +163,9 @@ export function makeCar(track: TrackData, o: CarOpts): ReplayCar {
       id: o.id,
       name: `Car ${o.id}`,
       status: dnf ? "DNF: CRASHED" : "FINISHED",
-      lapsCompleted: valid.length,
-      laps: [],
-      bestLap: best?.value ?? null,
-      bestLapNumber: o.bestLapNumber !== undefined ? o.bestLapNumber : (best?.lap ?? null),
-      finishTime: dnf ? null : finishT,
-      penalties: 0,
-      totalTime: dnf ? null : finishT,
+      lap: null,
+      lapTime: best?.value ?? null,
       offTracks: 0,
-      warnings: 0,
       strikes: 0,
       maxSpeed: o.speed,
       distance: o.speed * endT,
@@ -182,7 +175,7 @@ export function makeCar(track: TrackData, o: CarOpts): ReplayCar {
   };
 }
 
-export function makeReplay(cars: ReplayCar[], track = stadiumTrack(), frameRate = 10, laps = 2): Replay {
+export function makeReplay(cars: ReplayCar[], track = stadiumTrack(), frameRate = 10): Replay {
   return {
     format: "bench-replay",
     formatVersion: 1,
@@ -195,8 +188,9 @@ export function makeReplay(cars: ReplayCar[], track = stadiumTrack(), frameRate 
       carId: "c",
       carHash: "c",
       seed: 3,
-      session: { type: "race", laps, seed: 3 },
+      session: { seed: 3 },
       frameRate,
+      launch: { time: 0, speed: 50 },
       stateHash: "x",
       car: { length: 5.6, width: 2, wheelbase: 3.6 },
       referenceLap: 20,

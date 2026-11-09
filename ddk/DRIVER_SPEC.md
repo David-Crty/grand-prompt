@@ -1,9 +1,9 @@
-# Driver Specification (DDK 0.1.0, API 0.1)
+# Driver Specification (DDK 0.2.0, API 0.1)
 
 You are writing the control program of an open-wheel race car. Your program is a single
 JavaScript ES module. It is called 50 times per second of simulated time, and it must drive the
 car around a circuit as fast as possible without crashing or leaving the track. Nothing runs
-during the race except your code. There are no pauses and no outside help.
+during the session except your code. There are no pauses and no outside help.
 
 Types are in `driver.d.ts`. A complete but slow working driver is in `baseline-driver.js`.
 
@@ -32,30 +32,32 @@ export function step(t) { return { throttle: 0..1, brake: 0..1, steer: -1..1 }; 
   sample is `(-sin(heading), cos(heading))`, so the point at `(s, n)` is `center + n * normal`.
 - The track is driven in the direction of increasing `s`.
 
-## 3. Sessions and rules
+## 3. The session: one flying lap
 
 Each car runs **alone on the circuit** (ghost mode). There are no opponents or collisions between
-cars. Every car gets the same conditions.
+cars. Every car gets the same conditions. Practice runs and the event are the same session: **one
+flying lap**, scored by its time.
 
-| Session    | Format                                        | Score                                                         |
-| ---------- | --------------------------------------------- | ------------------------------------------------------------- |
-| Practice   | N laps from a standing start at s = 0         | lap and sector times (lap 2+ are flying laps)                 |
-| Qualifying | standing out lap, then one flying lap (lap 2) | the flying lap time; an invalid lap scores nothing            |
-| Race       | N laps from a standing start                  | total time + penalties; finishers rank ahead of non-finishers |
-
-- **Laps** count only if the sector checkpoints are crossed in order. Cutting the circuit or
-  driving backwards does not count. Timing starts at t = 0 from standstill on the line.
+- **Flying start**: the car is already moving when your program takes over. It crosses the line
+  (s = 0) on the centerline (n = 0), pointing along the track, at full throttle and at a launch
+  speed that depends on the circuit (up to 250 km/h, lower where a corner is close to the line).
+  Your first `step` call is at that moment: read `t.speed` to know the launch speed. `init` runs
+  before that, as usual. The 3 s run-up before the line is the same for every car and you do not
+  drive it.
+- **Timing** starts at the line and stops when you cross it again. The lap counts only if the
+  sector checkpoints are crossed in order. Cutting the circuit or driving backwards does not count.
 - **Track limits**: you are off track when your car's centre is more than half the car width
-  (1.0 m) beyond the white line, i.e. `n > widthLeft + 1.0` or `n < -(widthRight + 1.0)`. A lap
-  with any off-track moment is invalid. In the race you get 3 warnings, then +5 s for every
-  further offence.
+  (1.0 m) beyond the white line, i.e. `n > widthLeft + 1.0` or `n < -(widthRight + 1.0)`. **Any
+  off-track moment deletes the lap**: it scores no time.
+- **Classification**: valid laps by time, then cars without a time (deleted laps first, then
+  retirements).
 - **Surfaces** beyond the white line: kerbs on the inside of most corners (1.2 m wide, slightly
   less grip), then grass (much less grip, extra drag) or gravel (very little grip, heavy drag),
   then a barrier.
 - **Barrier**: hitting it above 12 m/s (43 km/h) is a crash (`DNF: CRASHED`). Slower contact stops
   the car, which can then drive on.
 - **Stalled**: below 1 m/s for more than 10 s is `DNF: STALLED`.
-- **Session time limit**: 60 s + 240 s per lap, then `TIME UP`.
+- **Session time limit**: 300 s after the line, then `TIME UP`.
 
 ## 4. Error policy (the "ECU")
 
@@ -79,7 +81,7 @@ Your code runs in a QuickJS interpreter (ES2023, no JIT, roughly 20 to 50 times 
     call, not for re-optimizing the whole lap at every step.
   - Budget metering is deterministic: the same code gives the same result.
 - `log(...)` (and `console.log`) writes to `log.txt` in practice runs, up to 500 lines of 300
-  characters. It does nothing in qualifying and the race.
+  characters. It does nothing in the event.
 
 ## 6. The car (qualitative physics)
 
@@ -113,14 +115,16 @@ The public parameters are in `CarSpec` / `car-public.json`. Tire and aerodynamic
 
 - `bench validate driver.js`: loads the module, runs `init`, and drives 10 s. Reports errors,
   strikes and compute usage.
-- `bench practice driver.js --laps 3`: lap and sector times, events, `telemetry.csv` (one row per
-  step: t, lap, s, speed, throttle, brake, steer, n, surface, ax, ay), `summary.json` and `log.txt`.
+- `bench practice driver.js`: one flying lap, exactly as in the event. Lap and sector times,
+  events, `telemetry.csv` (one row per step: t, s, speed, throttle, brake, steer, n, surface, ax,
+  ay), `summary.json` and `log.txt`.
 
 ## 8. Hints
 
 - Precompute in `init`: a racing line within the track width, a curvature-based speed limit, and
   braking points (a backward pass over the lap). Track `s` from telemetry to index your arrays.
-- Remember that `s` wraps at the finish line, and so do your lookahead indices.
+- Remember that `s` wraps at the finish line, and so do your lookahead indices. The first corner
+  comes up at speed: your braking logic must work from the very first step.
 - Keep `step` cheap. Look up precomputed tables, then run a small controller.
 - Steering: geometric path tracking (pure pursuit, Stanley) works. At speed, the car needs some
   slip angle to corner.

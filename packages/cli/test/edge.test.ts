@@ -46,35 +46,32 @@ describe("loading", () => {
 });
 
 describe("tables", () => {
-  it("formats penalties, missing tokens and costs", () => {
+  it("formats lap times, missing tokens and costs", () => {
     const res = {
-      event: { id: "e", name: "E", track: "t", qualifyAttempts: 1, raceLaps: 2, seed: 1, infoLevel: "B" },
+      event: { id: "e", name: "E", track: "t", seed: 1, infoLevel: "B" },
       referenceLap: null,
       rows: [
         {
-          racePosition: 1,
+          position: 1,
           name: "A",
           manifest: { model: "A", usage: { costUsd: 1 } },
-          qualifyTime: 70,
+          lapTime: 70,
           gapToReference: -1.5,
-          raceTime: 150,
-          raceStatus: "FINISHED",
-          penalties: 5,
+          status: "FINISHED",
         },
         {
-          racePosition: 2,
+          position: 2,
           name: "B",
           manifest: { model: "B", usage: { outputTokens: 2000 } },
-          qualifyTime: null,
+          lapTime: null,
           gapToReference: null,
-          raceTime: null,
-          raceStatus: "DNF: CRASHED",
-          penalties: 0,
+          status: "DNF: CRASHED",
         },
       ],
     } as unknown as EventResults;
     const t = eventTable(res);
-    expect(t).toMatch(/\+5s/);
+    expect(t).toMatch(/flying lap/);
+    expect(t).toMatch(/\| 1:10\.000 /);
     expect(t).toMatch(/\| -1\.500 /);
     expect(t).toMatch(/\| 2k /);
     expect(t).toMatch(/\$1\.00/);
@@ -113,17 +110,16 @@ describe("practice service edge cases", () => {
         await post("/practice", {
           token: tok,
           source: readFileSync(join(repo, "ddk/baseline-driver.js"), "utf8"),
-          laps: 99,
         })
       ).json()) as Json;
       expect(p.ok).toBe(true);
-      expect(p.text).toMatch(/laps=5/);
+      expect(p.text).toMatch(/FLYING LAP on proto-ring/);
       const st = await (await fetch(`${svc.url}/status?token=${tok}`)).json();
       expect(st).toMatchObject({ model: "ts-model", used: 1, left: 2 });
       const limited = registerToken("limited", 1, undefined, ["monaco"]);
       const base = readFileSync(join(repo, "ddk/baseline-driver.js"), "utf8");
-      const lp = (await (await post("/practice", { token: limited, source: base, laps: 1 })).json()) as Json;
-      expect(lp.text).toMatch(/PRACTICE on monaco/);
+      const lp = (await (await post("/practice", { token: limited, source: base })).json()) as Json;
+      expect(lp.text).toMatch(/FLYING LAP on monaco/);
       expect((await post("/practice", { token: limited, source: base, track: "proto-ring" })).status).toBe(
         403,
       );
