@@ -8,7 +8,7 @@ or deviation.
 
 ## Status
 - Phases 0 to 3 are done: sandbox, DDK, house driver, events, leaderboard, practice service,
-  agentic workspaces and `scripts/build-drivers.sh`.
+  agentic workspaces and `pnpm build-drivers` (`scripts/build-drivers/`).
 - First agentic trial (D17): four Claude models on `proto-gp-1`. It is not a ranking (unequal
   budgets, isolation by instruction only), but it showed that drivers tuned to the event circuit
   crash elsewhere and that the house driver is far off the pace.
@@ -37,8 +37,8 @@ or deviation.
   `/results/index.json` (the race list, built per request by `server/results-index.ts`). The car
   mesh is `src/lib/car-model.gen.json`, generated from `cars/sources/*.stl` by
   `scripts/import-car.ts` (D24).
-- `models.json` + `scripts/build-drivers.sh`: agentic builds through the claude/codex/gemini CLIs,
-  each in a bubblewrap sandbox (D18). The launch prompt is `ddk/PROMPT_LAUNCH.md` (`{{TIME_LIMIT}}`
+- `models.json` + `scripts/build-drivers/` (`pnpm build-drivers`, an Ink live view, D25): agentic
+  builds through the claude/codex/gemini CLIs, each in a bubblewrap sandbox (D18). The launch prompt is `ddk/PROMPT_LAUNCH.md` (`{{TIME_LIMIT}}`
   and `{{DEADLINE}}` filled per model), the brief `ddk/PROMPT_AGENTIC.md` (copied as `TASK.md`).
 - `ddk/`: everything an LLM sees. `driver.d.ts` must match the sim's types; `sim/test/ddk.test.ts`
   checks this. Keep the hidden constants (aero, tires, brakes) out of it: information level B.
@@ -56,8 +56,8 @@ pnpm bench tracks                                             # ids for --track 
 pnpm --filter @bench/viewer dev   # http://localhost:5173/ lists every replay under results/; ?replay=<url> opens one
 pnpm tsx scripts/demo-replay.ts   # regenerates results/demo (4-car demo)
 pnpm tsx scripts/plausibility.ts  # vehicle targets: top speed, braking g, lateral g, 0-100
-scripts/build-drivers.sh <name> --check   # sandbox and CLIs, no model run
-scripts/build-drivers.sh <name>           # one driver per models.json entry -> drivers/<name>/
+pnpm build-drivers <name> --check   # sandbox and CLIs, no model run
+pnpm build-drivers <name>           # one driver per models.json entry -> drivers/<name>/, live view
 ```
 
 ## Quality gates (run all before calling work done, or `make gates`)
@@ -90,6 +90,5 @@ branches or merge requests unless the owner asks for one. Run the quality gates 
 - `drivers/` is excluded from Biome: submissions must stay byte-identical to their hashes.
 - Practice tokens live in one file, `results/agentic/tokens.json`, rewritten on each
   registration: never create workspaces concurrently.
-- Never edit `scripts/build-drivers.sh` while a build runs: bash reads it from disk as it goes.
 - Running the build needs agents with their own permissions off inside the sandbox; Claude Code's
   auto mode blocks launching them, so the owner runs builds, and tests use a stub CLI on `PATH`.

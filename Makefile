@@ -1,4 +1,4 @@
-# Shortcuts for the dev loop. Every target wraps a pnpm script or scripts/build-drivers.sh;
+# Shortcuts for the dev loop. Every target wraps a pnpm script;
 # `make` alone lists them. Variables: NAME (event / build name), TRACK, LAPS, ONLY, JOBS, TIMEOUT.
 SHELL := bash
 .DEFAULT_GOAL := help
@@ -69,11 +69,11 @@ serve: ## practice service on :8787 (build starts its own if none runs)
 
 build-check: ## check sandbox and CLIs without running a model (NAME=)
 	$(need-name)
-	scripts/build-drivers.sh $(NAME) --check $(BUILD_OPTS)
+	pnpm -s build-drivers $(NAME) --check $(BUILD_OPTS)
 
 build: ## one driver per models.json entry -> drivers/NAME/ (NAME= [ONLY= JOBS= TIMEOUT=])
 	$(need-name)
-	scripts/build-drivers.sh $(NAME) $(BUILD_OPTS)
+	pnpm -s build-drivers $(NAME) $(BUILD_OPTS)
 
 event: ## qualifying + race of drivers/NAME/ on its event circuit (NAME=)
 	$(need-name)

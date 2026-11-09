@@ -21,15 +21,15 @@ shortcuts for the common ones: `make gates`, `make dev`, `make build NAME=gp-1`,
 
 ## Building drivers with LLMs
 
-`scripts/build-drivers.sh <name>` builds one driver per model in [models.json](models.json), each
+`pnpm build-drivers <name>` builds one driver per model in [models.json](models.json), each
 written by that vendor's coding CLI running unattended (`claude -p`, `codex exec`, `gemini -p`)
 on your own subscription. No API key or OpenRouter account is needed.
 
 ```shellscript
-scripts/build-drivers.sh my-gp --check                   # sandbox, practice service, CLIs; no model runs
-scripts/build-drivers.sh my-gp                           # every model, in parallel
-scripts/build-drivers.sh my-gp --only claude-haiku-5-5   # one model (or a provider: --only codex)
-pnpm bench event run my-gp                               # qualifying + race on the event circuit
+pnpm build-drivers my-gp --check                   # sandbox, practice service, CLIs; no model runs
+pnpm build-drivers my-gp                           # every model, in parallel, with a live view
+pnpm build-drivers my-gp --only claude-haiku-5-5   # one model (or a provider: --only codex)
+pnpm bench event run my-gp                         # qualifying + race on the event circuit
 ```
 
 - Each model practises on Monaco, Silverstone and Portimão with 10 runs shared across them. The
@@ -69,7 +69,7 @@ pnpm bench leaderboard results
 | `packages/reference-driver`         | internal house driver; never in the DDK                                                 |
 | `apps/viewer`                       | 3D replay viewer (Vite + React Three Fiber)                                             |
 | `ddk/`                              | Driver Development Kit: what an LLM receives (spec, types, baseline, prompts, client)  |
-| `models.json`, `scripts/build-drivers.sh` | the models to build and the build script                                          |
+| `models.json`, `scripts/build-drivers/` | the models to build and the build script (`pnpm build-drivers`)                   |
 | `tracks/`, `cars/`                  | circuits (`proto-ring` generated, the real ones imported from `tracks/sources/`) and car |
 | `drivers/<event>/<model>/`          | submissions: `driver.js` and `manifest.json`                                            |
 | `results/<event>/`                  | `event.json` (committed), replays, `event-results.json`, build logs (not committed)     |

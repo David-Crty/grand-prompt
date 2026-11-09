@@ -1,0 +1,308 @@
+/**
+ * Build one driver per model listed in models.json, each written by the model's own coding CLI
+ * (claude, codex, gemini) running unattended in a bubblewrap sandbox that only sees its workspace.
+ *
+ *   pnpm build-drivers <name> [options]
+ *
+ * Output: drivers/<name>/<model-slug>/{driver.js,manifest.json}, plus results/<name>/event.json
+ * so that `pnpm bench event run <name>` races them, on a circuit none of them practised on.
+ * Logs go to results/<name>/<slug>/build/.
+ */
+import { type ChildProcess, spawn, spawnSync } from "node:child_process";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { homedir, tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { DDK_VERSION, SIM_VERSION } from "@bench/sim";
+import { render } from "ink";
+import {
+  cliCmd,
+  type Options,
+  PROVIDERS,
+  parseArgs,
+  planBuilds,
+  promptVersion,
+  sandboxArgs,
+  USAGE,
+  UsageError,
+} from "./lib.js";
+import {
+  buildAll,
+  type Context,
+  children,
+  Fatal,
+  makeWorkspace,
+  practiceStatus,
+  Store,
+  stopAll,
+} from "./run.js";
+import { App } from "./ui.js";
+
+const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+const HOME = homedir();
+
+const has = (cmd: string) => spawnSync("sh", ["-c", `command -v ${cmd}`], { stdio: "ignore" }).status === 0;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function serviceUp(url: string, ms: number): Promise<boolean> {
+  try {
+    await fetch(`${url}/status`, { signal: AbortSignal.timeout(ms) });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function plainLog(text: string) {
+  const d = new Date();
+  const t = [d.getHours(), d.getMinutes(), d.getSeconds()].map((n) => String(n).padStart(2, "0")).join(":");
+  console.log(`[${t}] ${text}`);
+}
+
+let serve: ChildProcess | undefined;
+let wsRoot: string | undefined;
+
+function cleanup() {
+  stopAll();
+  if (serve?.pid) {
+    try {
+      process.kill(-serve.pid, "SIGTERM");
+    } catch {}
+  }
+  if (wsRoot) rmSync(wsRoot, { recursive: true, force: true });
+}
+
+async function startService(
+  opts: Options,
+  url: string,
+  logFile: string,
+  say: (s: string) => void,
+): Promise<string> {
+  if (await serviceUp(url, 2000)) {
+    say(`reusing the practice service on ${url}`);
+    return `practice service ${url} (reused)`;
+  }
+  const fd = openSync(logFile, "w");
+  serve = spawn("pnpm", ["-s", "bench", "serve", "--port", String(opts.port)], {
+    cwd: REPO,
+    detached: true,
+    stdio: ["ignore", fd, fd],
+  });
+  for (let i = 0; i < 60 && !(await serviceUp(url, 1000)); i++) await sleep(500);
+  if (!(await serviceUp(url, 2000))) {
+    const tail = readFileSync(logFile, "utf8").trim().split("\n").slice(-3).join("\n");
+    throw new Fatal(`practice service did not start: ${tail}`);
+  }
+  say(`practice service on ${url}`);
+  return `practice service ${url}`;
+}
+
+/** Checks the sandbox hides what it should and that each provider's CLI runs inside it. */
+async function check(
+  opts: Options,
+  plan: ReturnType<typeof planBuilds>["plan"],
+  url: string,
+): Promise<number> {
+  let fail = 0;
+  for (const p of [...new Set(plan.map((e) => e.provider))]) {
+    const ws = join(wsRoot!, `check-${p}`);
+    spawnSync(
+      "pnpm",
+      ["-s", "bench", "workspace", ws, "--model", `check-${p}`, "--track", opts.practice.join(",")].concat([
+        "--service-url",
+        url,
+        "--budget",
+        "1",
+      ]),
+      { cwd: REPO, stdio: "ignore" },
+    );
+    const cli = PROVIDERS[p].cli;
+    const probe = `
+      set -e
+      [[ -z "$(ls -A "$1" 2>/dev/null)" ]] || { echo "repo visible"; exit 1; }
+      [[ ! -s "$HOME/.claude/CLAUDE.md" ]] || { echo "user CLAUDE.md visible"; exit 1; }
+      [[ -z "$(ls -A "$HOME/.claude/projects" 2>/dev/null)" ]] || { echo "session history visible"; exit 1; }
+      ! touch "$HOME/.build-drivers-probe" 2>/dev/null || { rm -f "$HOME/.build-drivers-probe"; echo "home writable"; exit 1; }
+      [[ -f TASK.md ]] || { echo "workspace missing"; exit 1; }
+      node bench.mjs status >/dev/null || { echo "practice service unreachable"; exit 1; }
+      "$2" --version >/dev/null 2>&1 || { echo "$2 --version failed"; exit 1; }`;
+    const r = spawnSync("bwrap", [...sandboxArgs(ws, REPO, HOME), "bash", "-c", probe, "_", REPO, cli], {
+      encoding: "utf8",
+    });
+    if (r.status === 0) plainLog(`check ${p}: ok (repo hidden, practice service reachable, ${cli} runs)`);
+    else {
+      plainLog(`check ${p}: FAILED: ${`${r.stdout}${r.stderr}`.trim().split("\n").pop()}`);
+      fail = 1;
+    }
+  }
+  return fail;
+}
+
+async function main(): Promise<number> {
+  let opts: Options;
+  try {
+    const parsed = parseArgs(process.argv.slice(2), join(REPO, "models.json"));
+    if (parsed === "help") {
+      process.stdout.write(USAGE);
+      return 0;
+    }
+    opts = parsed;
+  } catch (e) {
+    if (!(e instanceof UsageError)) throw e;
+    process.stderr.write(`error: ${e.message}\n${USAGE}`);
+    return 2;
+  }
+  for (const t of [...opts.practice, opts.eventTrack])
+    if (!existsSync(join(REPO, "tracks", `${t}.json`)))
+      throw new Fatal(`unknown track '${t}' (see: pnpm bench tracks)`);
+  if (!existsSync(opts.models)) throw new Fatal(`no model list at ${opts.models}`);
+  for (const c of ["bwrap", "node", "pnpm"]) if (!has(c)) throw new Fatal(`${c} is required`);
+
+  const out = join(REPO, "drivers", opts.name);
+  const res = join(REPO, "results", opts.name);
+  const url = `http://127.0.0.1:${opts.port}`;
+  const { plan, skipped } = planBuilds(JSON.parse(readFileSync(opts.models, "utf8")), opts, has);
+  for (const s of skipped) console.log(`skipping ${s}`);
+  if (!plan.length) throw new Fatal("nothing to build");
+  if (!opts.check)
+    for (const e of plan)
+      if (existsSync(join(out, e.slug)))
+        throw new Fatal(`${join(out, e.slug)} already exists; pick another name or remove it`);
+
+  const jobs = opts.jobs || plan.length;
+  const live = !opts.plain && !opts.check && !opts.dryRun && process.stdout.isTTY === true;
+  if (!live) {
+    console.log(
+      `building ${plan.length} drivers into drivers/${opts.name}/ (practice on ${opts.practice.join(",")}, ` +
+        `event on ${opts.eventTrack}), ${jobs} at a time, ${opts.timeout} min each:`,
+    );
+    for (const e of plan) console.log(`  ${e.provider}  ${e.id}  ${e.name}  ${e.effort}`);
+  }
+  const promptTemplate = readFileSync(join(REPO, "ddk/PROMPT_LAUNCH.md"), "utf8").replace(/\n$/, "");
+  if (opts.dryRun) {
+    const e = plan[0]!;
+    const cmd = cliCmd(e.provider, e.id, e.effort, promptTemplate);
+    console.log("command for the first model, in its sandbox:");
+    console.log(cmd.map((c) => (c === promptTemplate ? "<prompt>" : JSON.stringify(c))).join(" "));
+    return 0;
+  }
+
+  if (!opts.check) {
+    mkdirSync(res, { recursive: true });
+    mkdirSync(out, { recursive: true });
+    const event = join(res, "event.json");
+    if (!existsSync(event)) {
+      const cfg = {
+        id: opts.name,
+        name: opts.name,
+        track: opts.eventTrack,
+        qualifyAttempts: 1,
+        raceLaps: opts.laps,
+      };
+      writeFileSync(event, `${JSON.stringify({ ...cfg, seed: 2026, infoLevel: "B" }, null, 2)}\n`);
+    }
+  }
+  wsRoot = mkdtempSync(join(tmpdir(), `bench-build-${opts.name}.`));
+
+  if (opts.check) {
+    await startService(opts, url, join(wsRoot, "serve.log"), plainLog);
+    return check(opts, plan, url);
+  }
+
+  const store = new Store(plan);
+  const ctx: Context = {
+    repo: REPO,
+    home: HOME,
+    opts,
+    wsRoot,
+    out,
+    res,
+    url,
+    promptTemplate,
+    promptVersion: promptVersion(readFileSync(join(REPO, "ddk/PROMPT_AGENTIC.md"), "utf8")),
+    simVersion: SIM_VERSION,
+    ddkVersion: DDK_VERSION,
+    baseline: join(REPO, "ddk/baseline-driver.js"),
+    store,
+  };
+
+  let interrupts = 0;
+  const abort = () => {
+    interrupts++;
+    if (interrupts > 1) stopAll("SIGKILL");
+    if (store.aborting) return;
+    store.aborting = true;
+    store.say("interrupted: stopping every model");
+    stopAll();
+  };
+  process.on("SIGINT", abort);
+  process.on("SIGTERM", abort);
+
+  let printed = 0;
+  const unsubscribe = live
+    ? () => {}
+    : store.subscribe(() => {
+        for (; printed < store.log.length; printed++) plainLog(store.log[printed]!.text);
+      });
+  const header = {
+    name: opts.name,
+    practice: opts.practice,
+    eventTrack: opts.eventTrack,
+    timeout: opts.timeout,
+    jobs,
+    effort: [...new Set(plan.map((e) => e.effort))].join("/"),
+  };
+  const ink = live
+    ? render(<App store={store} header={header} onAbort={abort} />, { exitOnCtrlC: false })
+    : undefined;
+
+  try {
+    store.service = await startService(opts, url, join(res, "serve.log"), (s) => store.say(s));
+    for (const e of plan) {
+      if (store.aborting) break;
+      makeWorkspace(ctx, e);
+    }
+    for (const e of plan) {
+      if (store.aborting) break;
+      const s = practiceStatus(join(wsRoot, e.slug));
+      if (!s) throw new Fatal(`${e.slug}: the practice service does not know its token`);
+      store.update(e.slug, { state: "queued", budget: s.budget });
+    }
+    if (!store.aborting) {
+      store.say(`${plan.length} workspaces ready`);
+      await buildAll(ctx, plan, jobs);
+    }
+  } finally {
+    store.finished = true;
+    store.changed();
+    ink?.unmount();
+    await ink?.waitUntilExit();
+    unsubscribe();
+  }
+  if (store.aborting) return 130;
+
+  console.log(`\ndrivers in drivers/${opts.name}/:`);
+  for (const d of readdirSync(out, { withFileTypes: true })) if (d.isDirectory()) console.log(`  ${d.name}`);
+  console.log(`race them: pnpm bench event run ${opts.name}`);
+  return 0;
+}
+
+main()
+  .catch((e) => {
+    process.stderr.write(`error: ${e instanceof Fatal ? e.message : (e?.stack ?? e)}\n`);
+    return 1;
+  })
+  .then((code) => {
+    cleanup();
+    if (children.size) setTimeout(() => process.exit(code), 1000);
+    else process.exit(code);
+  });

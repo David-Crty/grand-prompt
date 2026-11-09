@@ -12,6 +12,7 @@
     "lint": "biome check .",
     "format": "biome format --write .",
     "bench": "tsx packages/cli/src/main.ts",
+    "build-drivers": "tsx scripts/build-drivers/main.tsx",
     "determinism": "tsx scripts/determinism-check.ts",
     "coverage": "vitest run --coverage"
   },
@@ -21,9 +22,12 @@
     "@bench/sim": "workspace:*",
     "@biomejs/biome": "^2.6.6",
     "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
     "@vitest/coverage-v8": "^5.1.0",
     "esbuild": "^0.28.2",
+    "ink": "8.0.0",
     "meshoptimizer": "1.1.1",
+    "react": "^19.3.1",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vitest": "^5.1.0"

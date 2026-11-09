@@ -292,3 +292,25 @@ qualifying and the 5-lap race, and `event reproduce` matches. Opus qualified on 
   vertically so the suspension meets the hubs, which leaves it about 12% taller than a real car;
   the wing is raised by the same ratio so it sits level with the roll hoop. The sim's own car
   (`cars/proto.json`) is unchanged.
+
+## D25. The build script is TypeScript with a live terminal view (2026-11-09)
+
+- `scripts/build-drivers.sh` is now `scripts/build-drivers/` (`pnpm build-drivers <name>`, same
+  options plus `--plain`). The sandbox, prompts, fallback rule and manifest are unchanged. The
+  owner wanted to follow each model while it builds, which the bash log lines did not show.
+- The live view uses Ink (React for the terminal): one row per model with elapsed time against
+  the limit, each practice run as a clean/failed mark, the last run's circuit and lap, tool
+  calls so far and the model's latest action; tokens and cost once it finishes. Ink was picked
+  over blessed (unmaintained since 2015, untyped, full-screen) and listr2 (a task list with
+  little room for columns). The log lines still print above the table, and `--plain`, or a
+  stdout that is not a terminal, gives only those, as before.
+- Claude now runs with `--output-format stream-json --verbose` so its actions can be shown as
+  they happen; Codex already streamed JSON. Claude's `output.json` is therefore JSON lines whose
+  last `result` event holds what the single object held; usage is read from it. Gemini keeps
+  `json` (no live actions): its CLI is not installed here to check its stream format.
+- Each sandbox runs in its own process group and stops are sent to the group. Killing `bwrap`
+  alone, as `timeout` did, ends the CLI but not the commands it started, which keep running and
+  hold its output open. When the CLI exits, whatever it left behind in its group is killed.
+- The pure parts (arguments, plan, sandbox and CLI command lines, usage and activity parsing,
+  run selection, manifest) are in `lib.ts` with tests in `lib.test.ts`. The script is outside
+  the coverage gate, like the other scripts.
