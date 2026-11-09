@@ -118,3 +118,17 @@ One entry per significant choice or deviation from PLAN.md: context, choice, con
   and it spins on corner exits where the speed profile runs ahead of the car. The DDK baseline
   laps all three cleanly. Until the reference is fixed, `--reference` on these tracks gives a DNF
   instead of a reference lap.
+
+## D15. Viewer home page lists the races in `results/` (2026-11-09)
+- The viewer opens on a list of every replay under `results/` (newest first, filterable) instead
+  of auto-loading the demo. A row shows track, session and laps, winner and time (or P1's best
+  lap outside races), fastest lap, the field with how many were not classified, date, seed and sim
+  version, and links to `?replay=<url>`. The HUD gets an "All races" link back.
+- The list comes from `/results/index.json`, which the Vite dev/preview middleware rebuilds on
+  every request by walking `results/` (depth 4). It reads `results.json` next to each replay, and
+  falls back to the replay's header and classification (the demo has no `results.json`). Track
+  names come from `tracks/<id>.json`. Nothing is written to disk, so no index can go stale and the
+  CLI stays unaware of the viewer.
+- Consequence: a static `vite build` has no index, and the page then says it cannot list races;
+  `?replay=` and drag-and-drop still work. Publishing results statically would need the index
+  written as a file.

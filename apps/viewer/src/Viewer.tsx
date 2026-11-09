@@ -34,7 +34,15 @@ function shotLabel(live: LiveState, model: ViewerModel): string {
   return row && (row.finished || row.out) ? "finish" : "on track";
 }
 
-export function Viewer({ model, params }: { model: ViewerModel; params: ViewerParams }) {
+export function Viewer({
+  model,
+  params,
+  backHref,
+}: {
+  model: ViewerModel;
+  params: ViewerParams;
+  backHref?: string;
+}) {
   const lightRef = useRef<THREE.DirectionalLight>(null);
   const firstId = model.cars[0]!.car.id;
   const initialFocus = params.car && model.cars.some((c) => c.car.id === params.car) ? params.car : firstId;
@@ -254,7 +262,7 @@ export function Viewer({ model, params }: { model: ViewerModel; params: ViewerPa
       {snap && hud ? (
         <>
           <TimingTower model={model} snap={snap} showInterval={interval} onFocus={focusCar} />
-          <SessionInfo model={model} snap={snap} mode={mode} />
+          <SessionInfo model={model} snap={snap} mode={mode} backHref={backHref} />
           <Messages snap={snap} />
           <Telemetry model={model} snap={snap} />
           <Controls

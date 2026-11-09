@@ -98,13 +98,20 @@ export function SessionInfo({
   model,
   snap,
   mode,
+  backHref,
 }: {
   model: ViewerModel;
   snap: HudSnapshot;
   mode: CameraMode;
+  backHref?: string;
 }) {
   return (
     <div className="session panel">
+      {backHref ? (
+        <a className="session-back" href={backHref}>
+          ← All races
+        </a>
+      ) : null}
       <div className="session-track">{model.replay.track.name}</div>
       <div className="session-row">
         <span className="session-type">{model.replay.header.session.type.toUpperCase()}</span>

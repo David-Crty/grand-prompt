@@ -1,11 +1,10 @@
 import type { Replay } from "@bench/sim";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { RaceList } from "./components/RaceList.js";
 import { decodeReplay, fetchReplay } from "./lib/load.js";
 import { buildModel } from "./lib/model.js";
 import { parseParams } from "./lib/params.js";
 import { Viewer } from "./Viewer.js";
-
-const DEV_DEFAULT = "/results/demo/replay.json.gz";
 
 export function App() {
   const params = useMemo(() => parseParams(window.location.search), []);
@@ -28,8 +27,7 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    const url = params.replay ?? (import.meta.env.DEV ? DEV_DEFAULT : null);
-    if (url) loadUrl(url);
+    if (params.replay) loadUrl(params.replay);
   }, [params, loadUrl]);
 
   useEffect(() => {
@@ -75,10 +73,12 @@ export function App() {
         <Viewer
           key={gen}
           model={model}
+          backHref={window.location.pathname}
           params={gen > 1 ? { ...params, t: null, cam: null, car: null } : params}
         />
       ) : null}
-      {!model || drag || error || loading ? (
+      {!model && !params.replay && !drag ? <RaceList error={error} loading={loading} /> : null}
+      {(!model && (params.replay || drag)) || (model && (drag || error || loading)) ? (
         <div className={`dropzone${drag ? " drag" : ""}${model ? " over" : ""}`}>
           <div className="drop-card panel">
             <div className="brand">GRAND PROMPT</div>
@@ -89,6 +89,11 @@ export function App() {
               <p>Drop a replay.json or replay.json.gz here, or open with ?replay=&lt;url&gt;.</p>
             )}
             {error ? <p className="error">{error}</p> : null}
+            {params.replay ? (
+              <p>
+                <a href={window.location.pathname}>← All races</a>
+              </p>
+            ) : null}
           </div>
         </div>
       ) : null}
