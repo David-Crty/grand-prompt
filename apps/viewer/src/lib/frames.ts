@@ -1,11 +1,4 @@
-import {
-  type InterpolatedFrame,
-  type Replay,
-  type ReplayCar,
-  type SimEvent,
-  sampleFrames,
-  wrapS,
-} from "@bench/sim";
+import { type InterpolatedFrame, type Replay, type ReplayCar, sampleFrames, wrapS } from "@bench/sim";
 
 /** Per-car lookups precomputed once per replay. */
 export interface CarIndex {
@@ -14,7 +7,7 @@ export interface CarIndex {
   frameRate: number;
   trackLength: number;
   frameCount: number;
-  /** Race distance per frame: (lap - 1) * length + s. */
+  /** Distance from the line per frame, (lap - 1) * length + s: negative on the run-up, past length at the end. */
   progress: Float64Array;
   /** Running maximum of progress, for monotonic time-at-distance lookups. */
   runMax: Float64Array;
@@ -24,10 +17,11 @@ export interface CarIndex {
   startTime: number;
   /** Time the FINISHED status was given, or null. */
   finishTime: number | null;
-  /** False once the lap event says the lap was deleted. */
+  /** Time the car retired (a DNF status), or null. */
+  outTime: number | null;
+  /** False when the lap was deleted. */
   lapValid: boolean;
   statuses: { t: number; status: string }[];
-  laps: SimEvent[];
 }
 
 export interface CarSample extends InterpolatedFrame {
@@ -48,14 +42,10 @@ export function indexCar(car: ReplayCar, index: number, frameRate: number, track
     max = Math.max(max, p);
     runMax[k] = max;
   }
-  const statuses: { t: number; status: string }[] = [];
-  const laps: SimEvent[] = [];
-  for (const e of car.events) {
-    if (e.type === "status" && e.detail) statuses.push({ t: e.t, status: e.detail });
-    else if (e.type === "lap") laps.push(e);
-  }
-  statuses.sort((a, b) => a.t - b.t);
-  laps.sort((a, b) => a.t - b.t);
+  const statuses = car.events
+    .filter((e) => e.type === "status" && e.detail)
+    .map((e) => ({ t: e.t, status: e.detail! }))
+    .sort((a, b) => a.t - b.t);
   const endTime = (n - 1) / frameRate;
   if (statuses.length === 0 && car.result.status !== "RUNNING")
     statuses.push({ t: endTime, status: car.result.status });
@@ -71,9 +61,9 @@ export function indexCar(car: ReplayCar, index: number, frameRate: number, track
     endTime,
     startTime: Math.max(0, start) / frameRate,
     finishTime: fin ? fin.t : null,
-    lapValid: !laps.some((e) => e.detail === "invalid"),
+    outTime: statuses.find((s) => s.status.startsWith("DNF"))?.t ?? null,
+    lapValid: !car.events.some((e) => e.type === "lap" && e.detail === "invalid"),
     statuses,
-    laps,
   };
 }
 
@@ -125,39 +115,4 @@ export function statusAt(c: CarIndex, t: number): string {
     else break;
   }
   return status;
-}
-
-export interface LapInfo {
-  completed: number;
-  last: number | null;
-  lastValid: boolean;
-  best: number | null;
-  currentLapStart: number;
-}
-
-export function lapInfoAt(c: CarIndex, t: number): LapInfo {
-  let completed = 0;
-  let last: number | null = null;
-  let lastValid = true;
-  let best: number | null = null;
-  let currentLapStart = c.startTime;
-  for (const e of c.laps) {
-    if (e.t > t + 1e-9) break;
-    completed++;
-    last = e.value ?? null;
-    lastValid = e.detail !== "invalid";
-    if (lastValid && last !== null && (best === null || last < best)) best = last;
-    currentLapStart = e.t;
-  }
-  return { completed, last, lastValid, best, currentLapStart };
-}
-
-/** Fastest valid lap among all cars up to time t (for purple highlighting). */
-export function overallBestAt(cars: CarIndex[], t: number): { id: string; time: number } | null {
-  let best: { id: string; time: number } | null = null;
-  for (const c of cars) {
-    const b = lapInfoAt(c, t).best;
-    if (b !== null && (best === null || b < best.time)) best = { id: c.car.id, time: b };
-  }
-  return best;
 }

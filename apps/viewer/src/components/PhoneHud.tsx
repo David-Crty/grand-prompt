@@ -1,8 +1,13 @@
-import { type GapMode, type TimelineMarker, towerFinal } from "@bench/ui";
+import {
+  CAMERA_LABEL,
+  CAMERA_MODES,
+  type CameraMode,
+  type GapMode,
+  type TimelineMarker,
+  towerFinal,
+} from "@bench/ui";
 import {
   Button,
-  CAMERA_LABEL,
-  type CameraMode,
   FocusRow,
   GhostNote,
   IconButton,
@@ -15,6 +20,7 @@ import {
   TimingTower,
   TowerStrip,
 } from "@bench/ui/react";
+import { boardEntries } from "../lib/hud.js";
 import type { Incident } from "../lib/incidents.js";
 import { TOAST_KIND } from "../lib/messages.js";
 import type { ViewerModel } from "../lib/model.js";
@@ -28,8 +34,6 @@ export type PhoneSheet = "tower" | "result" | "incident" | "analysis";
 
 /** Height of the incident sheet: the TV camera frames the car in the space above it. */
 export const INCIDENT_SHEET_PX = 430;
-
-const CAMERAS: CameraMode[] = ["tv", "chase", "onboard", "map"];
 
 /**
  * The phone layout (below 600 px): header bar, collapsed tower strip, one message at a time, and a dock with the
@@ -91,7 +95,7 @@ export function PhoneHud({
   const entry = model.entries.get(snap.focusId);
   // One message at a time: a retirement or the result while it lasts, otherwise the latest.
   const toast =
-    [...snap.toasts].reverse().find((m) => TOAST_KIND[m.kind] === "dnf" || m.text.startsWith("Chequered")) ??
+    [...snap.toasts].reverse().find((m) => TOAST_KIND[m.kind] === "dnf" || m.kind === "chequered") ??
     snap.toasts.at(-1);
   const b = snap.launch;
   return (
@@ -103,7 +107,6 @@ export function PhoneHud({
         sub={sub}
         lap={lapText}
         t={snap.t}
-        ghost={model.ghost}
         ghostOpen={ghostOpen}
         onGhost={onGhost}
       />
@@ -113,12 +116,8 @@ export function PhoneHud({
             <StartBoard
               t={snap.t - model.replay.header.launch.time}
               title="Past the line"
-              rows={b.rows.flatMap((r) => {
-                const e = model.entries.get(r.id);
-                return e ? [{ entry: e, distance: r.distance }] : [];
-              })}
+              {...boardEntries(b, model.entries)}
               scale={b.scale}
-              same={b.same.map((g) => g.flatMap((id) => model.entries.get(id) ?? []))}
             />
           </div>
           {ghostOpen ? (
@@ -151,7 +150,7 @@ export function PhoneHud({
                 action={
                   TOAST_KIND[toast.kind] === "dnf"
                     ? { label: "Why", onClick: () => onWhy(toast.carId) }
-                    : toast.text.startsWith("Chequered")
+                    : toast.kind === "chequered"
                       ? { label: "Result", onClick: () => onSheet("result") }
                       : null
                 }
@@ -201,7 +200,7 @@ export function PhoneHud({
             label="Camera"
             value={mode}
             onChange={onMode}
-            options={CAMERAS.map((c) => ({ value: c, label: CAMERA_LABEL[c] }))}
+            options={CAMERA_MODES.map((c) => ({ value: c, label: CAMERA_LABEL[c] }))}
           />
         </div>
       </div>

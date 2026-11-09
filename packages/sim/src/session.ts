@@ -15,26 +15,15 @@ import type { Track } from "./track/track.js";
 import type { CarConfig } from "./types.js";
 import { API_VERSION, DDK_VERSION, SIM_VERSION } from "./version.js";
 
-export const CAR_COLORS = [
-  "#e63946",
-  "#2a9d8f",
-  "#f4a261",
-  "#457b9d",
-  "#e9c46a",
-  "#9b5de5",
-  "#00bbf9",
-  "#f15bb5",
-];
-
 export interface SessionEntry extends CarEntry {
-  color?: string;
+  /** Content hash of the driver's source, recorded with its result. */
   driverHash?: string;
 }
 
 export interface ClassifiedResult extends CarResult {
   position: number;
+  /** Seconds behind P1, for timed laps only. */
   gap: number | null;
-  color: string;
   driverHash: string;
 }
 
@@ -97,14 +86,13 @@ export function runSession(
     opts.onCar?.(run, i);
   });
 
-  const colors = new Map(entries.map((e, i) => [e.id, e.color ?? CAR_COLORS[i % CAR_COLORS.length]!]));
   const hashes = new Map(entries.map((e) => [e.id, e.driverHash ?? "unknown"]));
   const ordered = classify(runs.map((r) => r.result));
   const leader = ordered[0];
   const classification: ClassifiedResult[] = ordered.map((r, i) => {
     const gap =
       leader && i > 0 && r.lapTime !== null && leader.lapTime !== null ? r.lapTime - leader.lapTime : null;
-    return { ...r, position: i + 1, gap, color: colors.get(r.id)!, driverHash: hashes.get(r.id)! };
+    return { ...r, position: i + 1, gap, driverHash: hashes.get(r.id)! };
   });
 
   const h = new Hasher();
@@ -126,7 +114,6 @@ export function runSession(
   const cars: ReplayCar[] = runs.map((r, i) => ({
     id: entries[i]!.id,
     name: entries[i]!.name,
-    color: colors.get(entries[i]!.id)!,
     driverHash: hashes.get(entries[i]!.id)!,
     frames: encodeFrames(r.frames),
     events: r.events,

@@ -39,13 +39,14 @@ export function Cars({ model, live }: { model: ViewerModel; live: React.RefObjec
       model.cars.map((c) => {
         const group = new THREE.Group();
         group.name = c.car.id;
-        // Bodywork shows the provider; the entry colour rides on the trail, marker and labels.
+        // Bodywork shows the provider; the entry colour rides on the stripe, trail, marker and labels.
+        const entry = model.entries.get(c.car.id)!;
         const paint = new THREE.MeshStandardMaterial({
-          color: model.entries.get(c.car.id)?.body ?? c.car.color,
+          color: entry.body,
           roughness: 0.32,
           metalness: 0.25,
         });
-        const livery = new THREE.MeshStandardMaterial({ color: c.car.color, roughness: 0.4, metalness: 0.1 });
+        const livery = new THREE.MeshStandardMaterial({ color: entry.color, roughness: 0.4, metalness: 0.1 });
         const body = new THREE.Mesh(geo.body, paint);
         const stripe = new THREE.Mesh(geo.livery, livery);
         const detail = new THREE.Mesh(geo.detail, shared.detail);
@@ -84,7 +85,7 @@ export function Cars({ model, live }: { model: ViewerModel; live: React.RefObjec
         const marker = new THREE.Mesh(
           shared.marker,
           new THREE.MeshBasicMaterial({
-            color: c.car.color,
+            color: entry.color,
             transparent: true,
             opacity: 0.9,
             depthWrite: false,
@@ -98,7 +99,7 @@ export function Cars({ model, live }: { model: ViewerModel; live: React.RefObjec
         const tg = new THREE.BufferGeometry();
         tg.setAttribute("position", new THREE.BufferAttribute(new Float32Array(TRAIL_POINTS * 6), 3));
         const col = new Float32Array(TRAIL_POINTS * 8);
-        const [r, g, b] = linearRgb(c.car.color);
+        const [r, g, b] = linearRgb(entry.color);
         for (let k = 0; k < TRAIL_POINTS * 2; k++) col.set([r, g, b, 0], k * 4);
         tg.setAttribute("color", new THREE.BufferAttribute(col, 4));
         tg.setIndex(new THREE.BufferAttribute(shared.trailIndex, 1));

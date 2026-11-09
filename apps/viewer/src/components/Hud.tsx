@@ -1,8 +1,6 @@
-import type { GapMode, TimelineMarker } from "@bench/ui";
+import { CAMERA_LABEL, type CameraMode, formatClock, type GapMode, type TimelineMarker } from "@bench/ui";
 import {
   Button,
-  CAMERA_LABEL,
-  type CameraMode,
   CarLabel,
   FocusCard,
   GhostNote,
@@ -21,9 +19,8 @@ import {
   type TransportFlag,
 } from "@bench/ui/react";
 import { useMemo } from "react";
-import { formatClock } from "../lib/format.js";
-import type { CarSample, LapInfo } from "../lib/frames.js";
-import { mapCars, mapPins } from "../lib/hud.js";
+import type { CarSample } from "../lib/frames.js";
+import { boardEntries, entriesOf, focusLap, mapCars, mapPins } from "../lib/hud.js";
 import { type Incident, incidentTitle } from "../lib/incidents.js";
 import { type RaceMessage, TOAST_KIND } from "../lib/messages.js";
 import { buildMinimap } from "../lib/minimap.js";
@@ -41,7 +38,6 @@ export interface HudSnapshot {
   focus: CarSample | null;
   /** Every car's sample, in model order, for the track map. */
   samples: CarSample[];
-  lap: LapInfo | null;
   fastestId: string | null;
   toasts: RaceMessage[];
   /** Cars that retired in the last few seconds, tinted on the tower. */
@@ -139,7 +135,6 @@ export function TopRight({
         sub={sub}
         t={snap.t}
         speed={snap.speed}
-        ghost={model.ghost}
         ghostOpen={ghostOpen}
         onGhost={onGhost}
       />
@@ -245,9 +240,8 @@ export function IncidentMode({
 export function Focus({ model, snap }: { model: ViewerModel; snap: HudSnapshot }) {
   const row = snap.rows.find((r) => r.id === snap.focusId);
   const entry = model.entries.get(snap.focusId);
-  if (!row || !entry) return null;
-  const lap = snap.lap;
-  const running = lap && !row.finished && !row.out;
+  const car = model.cars.find((c) => c.car.id === snap.focusId);
+  if (!row || !entry || !car) return null;
   return (
     <div className="hud-focus">
       <FocusCard
@@ -255,10 +249,7 @@ export function Focus({ model, snap }: { model: ViewerModel; snap: HudSnapshot }
         entry={entry}
         sample={snap.focus}
         fastest={snap.fastestId === row.id}
-        lap={{
-          current: running && snap.t >= lap.currentLapStart ? snap.t - lap.currentLapStart : null,
-          time: lap?.completed && lap.lastValid ? lap.last : null,
-        }}
+        lap={focusLap(car, row, snap.t)}
       />
     </div>
   );
@@ -332,7 +323,7 @@ export function Labels({
 }) {
   const rows = new Map(snap.rows.map((r) => [r.id, r]));
   const groups = snap.pack
-    ? packGroups(snap.pack, snap.pack.others).map((g) => g.flatMap((id) => model.entries.get(id) ?? []))
+    ? packGroups(snap.pack, snap.pack.others).map((g) => entriesOf(g, model.entries))
     : [];
   const more = snap.pack && snap.pack.others.length < snap.pack.ids.length;
   return (
@@ -381,11 +372,7 @@ export function Labels({
 export function Start({ model, snap }: { model: ViewerModel; snap: HudSnapshot }) {
   const b = snap.launch;
   if (!b) return null;
-  const rows = b.rows.flatMap((r) => {
-    const entry = model.entries.get(r.id);
-    return entry ? [{ entry, distance: r.distance }] : [];
-  });
-  const same = b.same.map((g) => g.flatMap((id) => model.entries.get(id) ?? []));
+  const { rows, same } = boardEntries(b, model.entries);
   return (
     <div className="hud-start">
       <StartBoard t={snap.t - model.replay.header.launch.time} rows={rows} scale={b.scale} same={same} />
@@ -402,9 +389,9 @@ const KEYS: [string, string][] = [
   ["↑ ↓  or  + −", "Playback speed"],
   ["Home / End", "Start / end of the replay"],
   ["Z / X  or  wheel", "TV zoom in / out"],
-  ["G", "Gap to leader / interval"],
+  ["G", "Gap to P1 / interval"],
   ["T", "Trails"],
-  ["A", "Analysis: best-lap speed traces"],
+  ["A", "Analysis: speed, pedals and sectors of the timed laps"],
   ["C", "Classification"],
   ["H", "Hide / show HUD"],
   ["F", "FPS readout"],

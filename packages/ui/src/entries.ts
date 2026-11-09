@@ -5,7 +5,7 @@
  */
 import { COLORS, ENTRY_COLORS } from "./tokens.gen.js";
 
-export type Provider = "anthropic" | "openai" | "google" | "xai" | "mistral" | "house" | "other";
+export type Provider = "anthropic" | "openai" | "google" | "xai" | "mistral" | "other";
 
 export interface EntryInput {
   id: string;
@@ -20,20 +20,18 @@ export interface Entry {
   id: string;
   name: string;
   code: string;
-  /** 1 to 12, or 0 for the house driver and entries past twelve without a free slot. */
+  /** 1 to 12, or 0 for an entry past twelve without a free slot. */
   slot: number;
   provider: Provider;
   /** Entry colour (chip, label, trail, tower, map, charts, livery stripe). */
   color: string;
   /** 3D body paint for the provider. */
   body: string;
-  house: boolean;
 }
 
 export const SLOT_COUNT = ENTRY_COLORS.length;
 
 const PROVIDER_PREFIX: [RegExp, Provider][] = [
-  [/^reference$|house/i, "house"],
   [/^claude/i, "anthropic"],
   [/^(gpt|o\d|openai|codex)/i, "openai"],
   [/^gemini|^gemma/i, "google"],
@@ -53,7 +51,6 @@ export const BODY_TOKEN: Record<Provider, keyof typeof COLORS> = {
   google: "body-cobalt",
   xai: "body-pearl",
   mistral: "body-saffron",
-  house: "entry-house",
   other: "body-graphite",
 };
 
@@ -96,14 +93,12 @@ function uniqueCodes(items: EntryInput[]): string[] {
 
 /**
  * Resolve every entry of one event. Explicit slots are honoured first, in order, as long as they are free;
- * the rest take the lowest free slot in input order. The house driver never takes a slot.
+ * the rest take the lowest free slot in input order.
  */
 export function resolveEntries(items: EntryInput[]): Entry[] {
   const codes = uniqueCodes(items);
   const taken = new Set<number>();
   const slots = items.map((e) => {
-    const house = (e.provider ?? providerOf(e.id)) === "house";
-    if (house) return 0;
     if (e.slot !== undefined && e.slot >= 1 && e.slot <= SLOT_COUNT && !taken.has(e.slot)) {
       taken.add(e.slot);
       return e.slot;
@@ -128,9 +123,8 @@ export function resolveEntries(items: EntryInput[]): Entry[] {
       code: codes[i]!,
       slot,
       provider,
-      color: slot > 0 ? ENTRY_COLORS[slot - 1]! : COLORS["entry-house"],
+      color: slot > 0 ? ENTRY_COLORS[slot - 1]! : COLORS["entry-none"],
       body: COLORS[BODY_TOKEN[provider]],
-      house: provider === "house",
     };
   });
 }
@@ -142,7 +136,7 @@ export function entryMap(entries: Entry[]): Map<string, Entry> {
 
 /** The entry colour as a token reference (`var(--entry-04)`), so components follow the theme rather than a hex. */
 export function entryVar(e: Pick<Entry, "slot"> | null | undefined): string {
-  return e && e.slot > 0 ? `var(--entry-${String(e.slot).padStart(2, "0")})` : "var(--entry-house)";
+  return e && e.slot > 0 ? `var(--entry-${String(e.slot).padStart(2, "0")})` : "var(--entry-none)";
 }
 
 export const PROVIDER_LABEL: Record<Provider, string> = {
@@ -151,6 +145,5 @@ export const PROVIDER_LABEL: Record<Provider, string> = {
   google: "Google",
   xai: "xAI",
   mistral: "Mistral",
-  house: "House driver",
   other: "Other",
 };

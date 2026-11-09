@@ -1,14 +1,14 @@
+import { type Entry, entryVar, formatLapTime } from "@bench/ui";
 import { useEffect, useMemo, useState } from "react";
-import { recolorRace } from "../lib/entries.js";
-import { formatLapTime } from "../lib/format.js";
+import { eventEntries } from "../lib/entries.js";
 import { filterRaces, formatDate, type RaceEntry, type RaceIndex, watchHref } from "../lib/races.js";
 
 const INDEX_URL = "/results/index.json";
 
-function Driver({ name, color }: { name: string; color: string }) {
+function Driver({ name, entry }: { name: string; entry: Entry | undefined }) {
   return (
     <span className="rl-driver">
-      <span className="swatch" style={{ background: color }} />
+      <span className="swatch" style={{ background: entryVar(entry) }} />
       {name}
     </span>
   );
@@ -16,6 +16,7 @@ function Driver({ name, color }: { name: string; color: string }) {
 
 function Row({ r }: { r: RaceEntry }) {
   const untimed = r.cars - r.timed;
+  const entries = eventEntries(r.drivers);
   return (
     <a className="rl-row" href={watchHref(r.replay)}>
       <div className="rl-main">
@@ -30,7 +31,7 @@ function Row({ r }: { r: RaceEntry }) {
         <div className="rl-label">Pole</div>
         {r.pole ? (
           <>
-            <Driver name={r.pole.name} color={r.pole.color} />
+            <Driver name={r.pole.name} entry={entries.get(r.pole.id)} />
             <div className={`rl-time${r.pole.time != null ? " purple" : ""}`}>
               {r.pole.time != null ? formatLapTime(r.pole.time) : r.pole.status}
             </div>
@@ -43,7 +44,7 @@ function Row({ r }: { r: RaceEntry }) {
         <div className="rl-label">Field</div>
         <div className="rl-swatches" title={r.drivers.map((d) => d.name).join(", ")}>
           {r.drivers.map((d) => (
-            <span key={d.id} className="swatch" style={{ background: d.color }} />
+            <span key={d.id} className="swatch" style={{ background: entryVar(entries.get(d.id)) }} />
           ))}
         </div>
         <div className="rl-time">
@@ -73,7 +74,7 @@ export function RaceList({ error, loading }: { error: string | null; loading: st
         if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${INDEX_URL}`);
         return res.json() as Promise<RaceIndex>;
       })
-      .then((ix) => setIndex({ ...ix, races: ix.races.map(recolorRace) }))
+      .then(setIndex)
       .catch((e: Error) => setFailed(e.message));
   }, []);
 
@@ -102,7 +103,7 @@ export function RaceList({ error, loading }: { error: string | null; loading: st
       {!index && !failed ? <p className="rl-note">Looking for races…</p> : null}
       {index && index.races.length === 0 ? (
         <p className="rl-note">
-          No replays under results/ yet. Run <code>pnpm bench race …</code> to make one.
+          No replays under results/ yet. Run <code>pnpm bench event run …</code> to make one.
         </p>
       ) : null}
       {index && index.races.length > 0 && races.length === 0 ? (

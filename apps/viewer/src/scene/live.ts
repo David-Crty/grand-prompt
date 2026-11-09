@@ -29,8 +29,7 @@ export interface LiveState {
   samples: CarSample[];
   cars: (CarHandles | null)[];
   labels: (HTMLDivElement | null)[];
-  /** Overlapping cars this frame (ghost race), and the one pack drawn with a single label. */
-  packs: Pack[];
+  /** The pack of overlapping cars drawn with a single label this frame. */
   labelPack: (Pack & { others: string[] }) | null;
   packLabel: HTMLDivElement | null;
   /** Height (px) of a bottom sheet the TV camera should frame the car above, or null. */

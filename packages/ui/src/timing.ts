@@ -2,7 +2,7 @@
  * What the timing components print for a row: pure, so the tower, the phone strip, the sheet and the video
  * read the same words for the same state.
  */
-import { formatGap, statusShort } from "./format.js";
+import { formatGap } from "./format.js";
 
 /** The fields of a live standing the components need (the viewer's `StandingRow` has them all). */
 export interface TimingRow {
@@ -47,10 +47,9 @@ export function gapLabel(
 /** The status column: a chequer for a timed lap, a badge for a deleted lap, a retirement or a time-up. */
 export function statusCell(row: TimingRow): { kind: "fin" | "del" | "dnf" | "time" | "run"; text: string } {
   if (row.deleted) return { kind: "del", text: "DEL" };
-  const st = statusShort(row.status);
-  if (st === "FIN") return { kind: "fin", text: "FIN" };
-  if (st === "DNF") return { kind: "dnf", text: "DNF" };
-  if (st === "TIME") return { kind: "time", text: "TIME" };
+  if (row.status === "FINISHED") return { kind: "fin", text: "FIN" };
+  if (row.status.startsWith("DNF")) return { kind: "dnf", text: "DNF" };
+  if (row.status === "TIME UP") return { kind: "time", text: "TIME" };
   return { kind: "run", text: "" };
 }
 

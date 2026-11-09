@@ -2,7 +2,12 @@ import type { CarFrames, CarResult, SessionConfig, SimEvent } from "./race.js";
 import type { ClassifiedResult } from "./session.js";
 import type { TrackData } from "./track/track.js";
 
-/** See docs/REPLAY_FORMAT.md. */
+/**
+ * One session, as the viewer plays it: stored gzipped as `replay.json.gz`. The viewer runs no physics; it
+ * interpolates these frames (`sampleFrames`). Every car has the same run-up of `header.launch.time` seconds
+ * and crosses the line at the same instant, then its frames stop when its lap ends (finish or retirement).
+ * Values are rounded for size (`encodeFrames`); `stateHash` is computed on full-precision state.
+ */
 export interface Replay {
   format: "bench-replay";
   formatVersion: 1;
@@ -32,7 +37,6 @@ export interface ReplayHeader {
 export interface ReplayCar {
   id: string;
   name: string;
-  color: string;
   driverHash: string;
   frames: CarFrames;
   events: SimEvent[];

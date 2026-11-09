@@ -84,7 +84,7 @@ describe("Track", () => {
   it("classifies surfaces by lateral offset", () => {
     const t = protoRing();
     // find a sample with a left kerb (left-hand corner)
-    const i = t.kerbLeft.findIndex((k) => k === 1);
+    const i = t.kerbLeft.indexOf(1);
     expect(i).toBeGreaterThanOrEqual(0);
     const wl = t.widthLeft[i]!;
     const wr = t.widthRight[i]!;

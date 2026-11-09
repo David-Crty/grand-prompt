@@ -18,7 +18,6 @@ type Row = RaceSource["classification"][number];
 function row(over: Partial<Row> & Pick<Row, "id" | "position">): Row {
   return {
     name: over.id,
-    color: "#fff",
     status: "FINISHED",
     lapTime: 80,
     ...over,
@@ -31,8 +30,8 @@ function source(over: Partial<RaceSource> = {}): RaceSource {
     trackId: "monaco",
     session: { seed: 7 },
     classification: [
-      row({ id: "b", position: 2, lapTime: 80.5, color: "#00f" }),
-      row({ id: "a", position: 1, lapTime: 80, color: "#f00" }),
+      row({ id: "b", position: 2, lapTime: 80.5 }),
+      row({ id: "a", position: 1, lapTime: 80 }),
       row({ id: "c", position: 3, status: "DNF: CRASHED", lapTime: null }),
     ],
     ...over,
@@ -52,7 +51,7 @@ describe("summarizeRace", () => {
       cars: 3,
       timed: 2,
       time: 1000,
-      pole: { id: "a", color: "#f00", time: 80, status: "FINISHED" },
+      pole: { id: "a", time: 80, status: "FINISHED" },
     });
     expect(r.drivers.map((d) => d.id)).toEqual(["a", "b", "c"]);
   });
@@ -115,61 +114,47 @@ describe("scanResults", () => {
   };
   const touch = (path: string, sec: number) => utimesSync(path, sec, sec);
 
-  it("lists replays with results.json, falls back to the replay, and skips bad entries", () => {
-    const a = dir("race/monaco-001");
+  it("lists replays next to their results.json, and skips bad entries", () => {
+    const a = dir("qualify/monaco-001");
     writeFileSync(join(a, "replay.json.gz"), gzipSync("{}"));
     writeFileSync(join(a, "results.json"), JSON.stringify(source()));
     touch(join(a, "replay.json.gz"), 100);
     touch(join(a, "results.json"), 200);
 
-    const demo = dir("demo");
-    const replay = {
-      header: { simVersion: "0.1.0", trackId: "ring", session: { type: "race", laps: 2, seed: 1 } },
-      track: { name: "Ring from replay" },
-      classification: [row({ id: "x", position: 1 })],
-    };
-    writeFileSync(join(demo, "replay.json"), JSON.stringify(replay));
-    touch(join(demo, "replay.json"), 300);
-
-    const ev = dir("my event/race");
-    writeFileSync(
-      join(ev, "replay.json.gz"),
-      gzipSync(JSON.stringify({ ...replay, classification: undefined })),
-    );
-    writeFileSync(join(ev, "results.json"), JSON.stringify({ not: "a result" }));
-    touch(join(ev, "replay.json.gz"), 50);
+    const ev = dir("my event/qualify");
+    writeFileSync(join(ev, "replay.json"), "{}");
+    writeFileSync(join(ev, "results.json"), JSON.stringify(source({ trackId: "ring" })));
+    touch(join(ev, "replay.json"), 50);
     touch(join(ev, "results.json"), 50);
 
-    const broken = dir("race/broken-001");
-    writeFileSync(join(broken, "replay.json.gz"), "not gzip");
-    const headless = dir("race/headless-001");
-    writeFileSync(join(headless, "replay.json"), "{}");
-    const legacy = dir("race/legacy-001");
-    writeFileSync(
-      join(legacy, "replay.json"),
-      JSON.stringify({ ...replay, classification: [{ id: "old", position: 1, bestLap: 80 }] }),
-    );
-    const badHeader = dir("race/bad-header-001");
-    writeFileSync(join(badHeader, "replay.json"), JSON.stringify({ header: { trackId: 3 } }));
+    const notResult = dir("qualify/not-a-result");
+    writeFileSync(join(notResult, "replay.json.gz"), gzipSync("{}"));
+    writeFileSync(join(notResult, "results.json"), JSON.stringify({ not: "a result" }));
+    const broken = dir("qualify/broken");
+    writeFileSync(join(broken, "replay.json.gz"), gzipSync("{}"));
+    writeFileSync(join(broken, "results.json"), "{");
+    const replayOnly = dir("qualify/replay-only");
+    writeFileSync(join(replayOnly, "replay.json"), "{}");
     dir("practice/empty");
-    dir(".hidden/race");
-    writeFileSync(join(results, ".hidden/race/replay.json"), JSON.stringify(replay));
-    writeFileSync(join(results, "replay.json"), JSON.stringify(replay));
+    dir(".hidden/qualify");
+    writeFileSync(join(results, ".hidden/qualify/replay.json"), "{}");
+    writeFileSync(join(results, ".hidden/qualify/results.json"), JSON.stringify(source()));
+    writeFileSync(join(results, "replay.json"), "{}");
+    writeFileSync(join(results, "results.json"), JSON.stringify(source()));
     symlinkSync(join(root, "missing"), join(results, "dangling"));
     dir("a/b/c/d/e/f");
-    writeFileSync(join(results, "a/b/c/d/e/f/replay.json"), JSON.stringify(replay));
+    writeFileSync(join(results, "a/b/c/d/e/f/replay.json"), "{}");
+    writeFileSync(join(results, "a/b/c/d/e/f/results.json"), JSON.stringify(source()));
 
     const { races } = scanResults(results, tracks);
-    expect(races.map((r) => r.id)).toEqual(["demo", "race/monaco-001", "my event/race"]);
-    const [d, m, e] = races;
-    expect(d!.trackName).toBe("Ring from replay");
-    expect(d!.replay).toBe("/results/demo/replay.json");
+    expect(races.map((r) => r.id)).toEqual(["qualify/monaco-001", "my event/qualify"]);
+    const [m, e] = races;
     expect(m!.trackName).toBe("Monaco");
     expect(m!.time).toBe(200_000);
-    expect(m!.replay).toBe("/results/race/monaco-001/replay.json.gz");
-    expect(e!.replay).toBe("/results/my%20event/race/replay.json.gz");
+    expect(m!.replay).toBe("/results/qualify/monaco-001/replay.json.gz");
+    expect(e!.trackName).toBe("ring");
+    expect(e!.replay).toBe("/results/my%20event/qualify/replay.json");
     expect(e!.group).toBe("my event");
-    expect(e!.cars).toBe(0);
   });
 
   it("uses no track name for unreadable track files", () => {

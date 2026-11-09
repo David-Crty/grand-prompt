@@ -1,87 +1,87 @@
-# F1 LLM Bench (working title)
+# Grand Prompt
 
-A motorsport benchmark for LLMs. Each model writes a driving program; then every program drives
-the same open-wheel car over one flying lap in a deterministic simulator, and the laps are replayed in 3D together. See
-[PLAN.md](PLAN.md) for the goals and [docs/DECISIONS.md](docs/DECISIONS.md) for what was decided
-along the way.
+A motorsport benchmark for LLMs. Each model writes a driving program once; then every program
+drives the same open-wheel car over one flying lap of a circuit it has never seen, in a
+deterministic simulator, and the laps are replayed together in 3D.
 
-## Quick start
+## Setup
 
-```shellscript
+Node 22 or later and pnpm (`corepack enable`), then:
+
+```shell
 pnpm install
-pnpm bench validate ddk/baseline-driver.js
-pnpm bench practice ddk/baseline-driver.js --track monaco   # telemetry.csv, summary.json, replay
-pnpm bench qualify drivers/gp-1/*/driver.js --track barcelona
-pnpm --filter @bench/viewer dev     # http://localhost:5173/ lists every replay under results/
+pnpm bench --help
 ```
 
-Run `pnpm bench --help` for every command and `pnpm bench tracks` for the circuits. `make` lists
-shortcuts for the common ones: `make gates`, `make dev`, `make build NAME=gp-1`,
-`make event NAME=gp-1`, `make qualify NAME=gp-1 TRACK=monaco`.
+Building drivers also needs [bubblewrap](https://github.com/containers/bubblewrap) (`bwrap`) and
+the coding CLIs of the models you list, installed and logged in: `claude`, `codex`, `gemini`.
 
-## Building drivers with LLMs
+## 1. Tracks
 
-`pnpm build-drivers <name>` builds one driver per model in [models.json](models.json), each
-written by that vendor's coding CLI running unattended (`claude -p`, `codex exec`, `gemini -p`)
-on your own subscription. No API key or OpenRouter account is needed.
-
-```shellscript
-pnpm build-drivers my-gp --check                   # sandbox, practice service, CLIs; no model runs
-pnpm build-drivers my-gp                           # every model, in parallel, with a live view
-pnpm build-drivers my-gp --only claude-haiku-5-5   # one model (or a provider: --only codex)
-pnpm bench event run my-gp                         # the flying lap on the event circuit
+```shell
+pnpm bench tracks            # the circuits: monaco, silverstone, portimao, barcelona, proto-ring
+pnpm bench tracks import     # rebuild them from the raw extracts in tracks/sources/
 ```
 
-- Each model practises on Monaco, Silverstone and Portimão with 10 runs shared across them. The
-  event runs on Barcelona, which no model sees, and the prompt says so (D19).
-- Each model has 30 minutes and is told its deadline; if it is cut off, its last driver that
-  completed a clean practice run is submitted (D20).
-- Each CLI runs in a bubblewrap sandbox: the repo and other workspaces are hidden and only its
-  own workspace is writable (D18).
-- Output: `drivers/<name>/<model>/{driver.js,manifest.json}` (tokens, cost, wall time, practice
-  runs, outcome) and `results/<name>/event.json`. Build logs stay in `results/<name>/<model>/build/`.
-- Reasoning effort is `medium` for every model (`"effort"` in `models.json`, per model or for all;
-  `--effort` overrides it) (D21).
-- Options: `--practice-tracks a,b,c`, `--event-track id`, `--budget n`, `--timeout min`, `--effort level`,
-  `--jobs n`, `--dry-run`. Requires `bwrap`, `jq` and the CLIs, logged in.
-- Don't edit the script while a build is running: bash reads it from disk as it goes.
+Monaco and Portimão come from OpenStreetMap (ODbL), Silverstone and Barcelona from the TUMFTM
+racetrack database (LGPL); see [tracks/sources/README.md](tracks/sources/README.md). To add a
+circuit, put its extract in `tracks/sources/` and an entry in `TRACK_SOURCES`
+(`packages/cli/src/tracks.ts`), then import. `proto-ring` is a handmade test circuit.
 
-By hand: `pnpm bench serve`, then `pnpm bench workspace <dir> --model <slug> --track a,b,c`, run
-an agent in `<dir>` with `ddk/PROMPT_LAUNCH.md` as its prompt, and copy its `driver.js` to
-`drivers/<event>/<slug>/`. One-shot submissions through OpenRouter (`pnpm bench oneshot`) still
-exist but are unused.
+## 2. Build drivers
 
-## Events
+The models are listed in [models.json](models.json), by CLI:
 
-```shellscript
-pnpm bench event run proto-gp-1          # config: results/<event>/event.json
-pnpm bench event reproduce proto-gp-1    # re-runs and checks every state hash
-pnpm bench leaderboard results
+```json
+{ "effort": "medium", "claude": [{ "id": "claude-opus-5-5", "name": "Claude Opus 5.5" }], "codex": [], "gemini": [] }
 ```
 
-## Layout
-
-| path                                | what                                                                                    |
-| ----------------------------------- | --------------------------------------------------------------------------------------- |
-| `packages/sim`                      | headless deterministic simulator: track model, vehicle physics, race control, replays   |
-| `packages/sandbox`                  | QuickJS sandbox for untrusted driver code: deterministic compute budgets, no host APIs  |
-| `packages/cli`                      | `bench`: validate, practice, qualify, events, leaderboard, practice service             |
-| `packages/reference-driver`         | internal house driver; never in the DDK                                                 |
-| `apps/viewer`                       | 3D replay viewer (Vite + React Three Fiber)                                             |
-| `ddk/`                              | Driver Development Kit: what an LLM receives (spec, types, baseline, prompts, client)  |
-| `models.json`, `scripts/build-drivers/` | the models to build and the build script (`pnpm build-drivers`)                   |
-| `tracks/`, `cars/`                  | circuits (`proto-ring` generated, the real ones imported from `tracks/sources/`) and car |
-| `drivers/<event>/<model>/`          | submissions: `driver.js` and `manifest.json`                                            |
-| `results/<event>/`                  | `event.json` (committed), replays, `event-results.json`, build logs (not committed)     |
-| `docs/`                             | DECISIONS, PHYSICS, REPLAY_FORMAT, TRACK_FORMAT                                         |
-
-## Quality gates
-
-```shellscript
-pnpm lint && pnpm typecheck
-pnpm coverage        # unit + feature tests; fails below 90% lines/branches/functions/statements
-pnpm determinism     # same session in two processes, same hash
-pnpm --filter @bench/viewer build
+```shell
+pnpm bench build gp-2 --check          # sandbox, practice service and CLIs, no model run
+pnpm bench build gp-2                  # every model in parallel, with a live view
+pnpm bench build gp-2 --only codex     # one provider, or a model id
 ```
 
-CI (`.github/workflows/ci.yml`) runs all of the above.
+Each model's CLI runs unattended in its own bubblewrap sandbox that sees only its workspace: the
+driver spec, the practice circuits (Monaco, Silverstone, Portimão), a working but slow baseline
+driver and a practice client. It has 30 minutes, which its prompt states, and 10 practice laps
+shared across the circuits, timed by a local service outside the sandbox. If it is cut off, its
+newest driver that completed a clean practice lap is submitted.
+
+Output: `drivers/gp-2/<model>/driver.js` and `manifest.json` (tokens, cost, wall time, practice
+laps used), and `drivers/gp-2/event.json`, the event on Barcelona, which no model saw. Build logs
+go to `results/gp-2/<model>/build/`. See `pnpm bench --help` for `--timeout`, `--budget`,
+`--effort`, `--jobs` and the circuits.
+
+To work on a driver by hand: `pnpm bench validate <driver.js>` and
+`pnpm bench practice <driver.js> --track monaco` (telemetry, summary and a replay in
+`results/practice/`).
+
+## 3. Run the event
+
+```shell
+pnpm bench event run gp-2          # results/gp-2/event-results.json and qualify/replay.json.gz
+pnpm bench event reproduce gp-2    # re-run it and check every hash
+pnpm bench leaderboard             # standings over every event in results/
+pnpm bench qualify drivers/gp-2/*/driver.js --track monaco    # the same drivers on any circuit
+```
+
+A session is the same everywhere, practice included: a 3 s run-up placed by the sim, every car
+crossing the line together at the same speed, then one timed lap. Leaving the track deletes the
+lap. Results are bit-for-bit reproducible from the drivers, the circuit and the seed.
+
+## 4. Watch
+
+```shell
+make dev      # http://localhost:5173/
+```
+
+The viewer lists every replay under `results/`; `?replay=<url>` opens one, and a `replay.json.gz`
+dropped on the page plays too. Press `?` for the keyboard shortcuts. Below 600 px wide it
+switches to a phone layout.
+
+## Make
+
+`make` lists the shortcuts: `make dev`, `make gates` (lint, types, tests with coverage,
+determinism, viewer build), `make build NAME=gp-2 ARGS="--only codex"`, `make event NAME=gp-2`,
+`make qualify NAME=gp-2 TRACK=monaco`.

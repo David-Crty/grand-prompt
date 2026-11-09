@@ -27,7 +27,7 @@ describe("deriveCode", () => {
     ]);
   });
   it("falls back when no word qualifies", () => {
-    expect(deriveCode("Reference (house)")).toBe("REF");
+    expect(deriveCode("DDK (baseline)")).toBe("DDK");
     expect(deriveCode("GPT-5")).toBe("GPT");
     expect(deriveCode("o3")).toBe("OXX");
     expect(deriveCode("123")).toBe("CAR");
@@ -42,7 +42,6 @@ describe("providerOf", () => {
     ["gemini-3-pro", "google"],
     ["grok-5", "xai"],
     ["devstral-2", "mistral"],
-    ["reference", "house"],
     ["baseline", "other"],
   ])("%s is %s", (id, p) => expect(providerOf(id)).toBe(p));
 });
@@ -61,7 +60,6 @@ describe("resolveEntries", () => {
       code: "AST",
       provider: "openai",
       body: COLORS["body-silver"],
-      house: false,
     });
   });
 
@@ -75,15 +73,11 @@ describe("resolveEntries", () => {
     expect(e.map((x) => x.slot)).toEqual([3, 1, 2, 4]);
   });
 
-  it("keeps the house driver out of the slots", () => {
-    const e = resolveEntries([{ id: "reference", name: "Reference (house)" }, ...gp1.slice(0, 2)]);
-    expect(e[0]).toMatchObject({
-      slot: 0,
-      house: true,
-      color: COLORS["entry-house"],
-      body: COLORS["entry-house"],
-    });
-    expect(e[1]!.slot).toBe(1);
+  it("gives entries past the twelfth slot the neutral colour", () => {
+    const many = Array.from({ length: 13 }, (_, i) => ({ id: `m-${i}`, name: `Model ${i}` }));
+    const e = resolveEntries(many);
+    expect(e[11]!.slot).toBe(12);
+    expect(e[12]).toMatchObject({ slot: 0, color: COLORS["entry-none"], body: COLORS["body-graphite"] });
   });
 
   it("splits code collisions with the version digit, or a counter, and keeps explicit codes", () => {

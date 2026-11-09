@@ -43,7 +43,7 @@ describe("runSession (ghost mode)", () => {
     car,
     [
       { id: "slow", name: "Slow", runtime: follower({ speed: 12 }), driverHash: "aaa" },
-      { id: "fast", name: "Fast", runtime: follower({ speed: 16 }), color: "#123456" },
+      { id: "fast", name: "Fast", runtime: follower({ speed: 16 }), driverHash: "abc" },
       { id: "dnf", name: "Broken", runtime: fnDriver(() => null) },
     ],
     { seed: 3 },
@@ -57,9 +57,9 @@ describe("runSession (ghost mode)", () => {
     expect(c[1]!.gap!).toBeGreaterThan(1);
     expect(c[2]!.status).toBe("DNF: ECU FAILURE");
     expect(c[2]!.gap).toBeNull();
-    expect(c[0]!.color).toBe("#123456");
+    expect(c[0]!.driverHash).toBe("abc");
     expect(c[1]!.driverHash).toBe("aaa");
-    expect(c[0]!.driverHash).toBe("unknown");
+    expect(c[2]!.driverHash).toBe("unknown");
   });
 
   it("writes a self-contained replay", () => {

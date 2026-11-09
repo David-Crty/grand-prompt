@@ -1,39 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { detectCorners } from "../src/lib/corners.js";
 import { indexReplay } from "../src/lib/frames.js";
-import { bestLapTraces, lapTrace, tracePath } from "../src/lib/laps.js";
 import { dnfText, raceMessages, TOAST_KIND, toastLife, visibleToasts } from "../src/lib/messages.js";
 import { buildModel } from "../src/lib/model.js";
 import { makeCar, makeReplay, stadiumTrack } from "./fixtures.js";
 
 const track = stadiumTrack();
-
-describe("laps", () => {
-  const cars = indexReplay(
-    makeReplay(
-      [
-        makeCar(track, { id: "a", speed: 50 }),
-        makeCar(track, { id: "b", speed: 45, invalidLaps: [2] }),
-        makeCar(track, { id: "c", speed: 45, invalidLaps: [1, 2] }),
-      ],
-      track,
-    ),
-  );
-  it("bins speed against distance", () => {
-    const tr = lapTrace(cars[0]!, 1, 10)!;
-    expect(tr.s[0]).toBe(5);
-    expect(tr.speed.every((v) => v === 50)).toBe(true);
-    expect(tr.time).toBeCloseTo(track.length / 50 + 1);
-    expect(lapTrace(cars[0]!, 9)).toBeNull();
-    const all = bestLapTraces(cars, 20);
-    expect(all.map((t) => t.carId)).toEqual(["a", "b"]);
-    const path = tracePath(tr, track.length, 0, 100, 100, 50);
-    expect(path.split(" ")[0]).toBe("0.5,25.0");
-    expect(tracePath({ ...tr, s: [0], speed: [3] }, 10, 3, 3, 10, 10)).toBe("0.0,10.0");
-    const noEvent = { ...cars[0]!, laps: [] };
-    expect(lapTrace(noEvent, 1)!.time).toBeNull();
-  });
-});
 
 describe("messages", () => {
   const car = makeCar(track, {
@@ -92,13 +64,13 @@ describe("messages", () => {
     // b retires at 9; its own warnings would fold, a's stay.
     expect(at(9.1)).toContain("dnf");
     expect(at(30)).toEqual(["crash", "crash", "dnf"]);
-    expect(at(60)).toEqual(["finish"]);
+    expect(at(60)).toEqual(["chequered"]);
     expect(at(90)).toEqual([]);
     // At 8x every message lives four times longer; still three at most.
     expect(at(60, 8)).toHaveLength(3);
     const warnBeforeOut = [
-      { t: 10, carId: "x", name: "", color: "", kind: "impact" as const, text: "w" },
-      { t: 11, carId: "x", name: "", color: "", kind: "dnf" as const, text: "out" },
+      { t: 10, carId: "x", kind: "impact" as const, text: "w" },
+      { t: 11, carId: "x", kind: "dnf" as const, text: "out" },
     ];
     expect(visibleToasts(warnBeforeOut, 11.5, 1).map((m) => m.kind)).toEqual(["dnf"]);
     expect(TOAST_KIND.fastest).toBe("fastest");
@@ -122,7 +94,6 @@ describe("buildModel", () => {
     expect(m.cars).toHaveLength(2);
     expect(m.duration).toBeCloseTo((2 * track.length) / 48, 0);
     expect(m.trees).toHaveLength(100);
-    expect(m.traces).toHaveLength(2);
     expect(m.messages.length).toBeGreaterThan(0);
     const unseeded = buildModel({ ...r, header: { ...r.header, seed: 0 } }, 10);
     expect(unseeded.trees).toHaveLength(10);

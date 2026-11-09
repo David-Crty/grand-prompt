@@ -47,7 +47,7 @@ export interface BuildFacts {
   cli: string | null;
 }
 
-/** Shared practice runs per build (D21), unless a manifest says otherwise. */
+/** Practice runs per build (the workspace default), unless a manifest says otherwise. */
 export const PRACTICE_LIMIT = 10;
 
 /** Cost as the CLI reported it, or tokens × list price, marked as an estimate (not cache-adjusted: an upper bound). */

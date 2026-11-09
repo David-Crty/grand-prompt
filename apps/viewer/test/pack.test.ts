@@ -90,7 +90,7 @@ describe("start board", () => {
   });
 });
 
-describe("constraint 2: what viewers see is what was timed", () => {
+describe("what viewers see is what was timed", () => {
   it("draws every car exactly at its replay sample, ghost or not", () => {
     const track = stadiumTrack();
     // Identical launches: every car on the same line at the same time.

@@ -1,4 +1,4 @@
-import type { CarSpec, DriverRuntime, Telemetry, TrackInfo } from "@bench/sim";
+import { type CarSpec, type DriverRuntime, SURFACE_CODES, type Telemetry, type TrackInfo } from "@bench/sim";
 import { buildSync, transformSync } from "esbuild";
 import {
   getQuickJS,
@@ -103,7 +103,8 @@ export function bundleDriverFile(path: string): string {
   }
 }
 
-const SURFACES = ["track", "kerb", "grass", "gravel"];
+/** What a driver can be told it is on: the barrier reads as gravel. */
+const SURFACES = SURFACE_CODES.filter((s) => s !== "barrier");
 const NON_OBJECT: Record<string, unknown> = {
   null: null,
   undefined: undefined,

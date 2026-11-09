@@ -49,6 +49,12 @@ export interface LapRecord {
   valid: boolean;
 }
 
+/**
+ * `lap`: value the lap time, detail "invalid" when it was deleted. `sector`: value the sector completed.
+ * `offTrack`: value the metres beyond the limit. `impact` (slow barrier contact, the car stops and goes on)
+ * and `crash`: value the speed in m/s. `strike`: value the strike count, detail the driver's fault.
+ * `status`: detail the new status, with its reason, e.g. "DNF: CRASHED (hit the barrier at 180 km/h)".
+ */
 export type EventType = "lap" | "sector" | "offTrack" | "impact" | "crash" | "strike" | "status";
 
 export interface SimEvent {
@@ -75,17 +81,24 @@ export interface CarResult {
   errors: string[];
 }
 
-/** Columnar 50 Hz frames. t = i / CONTROL_HZ. */
+/** Columnar 50 Hz frames: frame i is at t = i / CONTROL_HZ. */
 export interface CarFrames {
+  /** Car centre, m. */
   x: number[];
   y: number[];
+  /** Rad, not wrapped: interpolate the short way. */
   yaw: number[];
+  /** M/s. */
   speed: number[];
+  /** Actual actuator positions: steer -1..1 (fraction of maxSteer, positive left), pedals 0..1. */
   steer: number[];
   throttle: number[];
   brake: number[];
+  /** Index into SURFACE_CODES: track, kerb, grass, gravel, barrier. */
   surface: number[];
+  /** 0 during the run-up, 1 on the lap, 2 on the final frame after the line. */
   lap: number[];
+  /** Distance along the centreline from the line, m. */
   s: number[];
 }
 

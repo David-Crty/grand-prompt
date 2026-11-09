@@ -17,7 +17,7 @@ export function App() {
   const [gen, setGen] = useState(0);
   const [fromUrl, setFromUrl] = useState(false);
   const [results, setResults] = useState<EventResults | null>(null);
-  // StrictMode runs effects twice in development; fetch the URL's replay once (issue 8).
+  // StrictMode runs effects twice in development; fetch the URL's replay once.
   const requested = useRef<string | null>(null);
 
   const loadUrl = useCallback((url: string) => {
@@ -77,7 +77,7 @@ export function App() {
     };
   }, []);
 
-  // Phones draw half the trees (performance, constraint 9); decided once, so a resize never rebuilds the scene.
+  // Phones draw half the trees, for frame rate; decided once, so a resize never rebuilds the scene.
   const trees = useMemo(() => (window.matchMedia?.(PHONE_QUERY).matches ? 700 : 1400), []);
   const model = useMemo(() => (replay ? buildModel(replay, trees) : null), [replay, trees]);
 

@@ -101,9 +101,7 @@ export function Classification({
     else navigator.clipboard?.writeText(url).then(done, () => {});
   };
   const event = results?.event.name ?? null;
-  const sub = [model.replay.track.name, event, "flying lap", model.ghost ? "ghost cars" : ""]
-    .filter(Boolean)
-    .join(" · ");
+  const sub = [model.replay.track.name, event, "flying lap", "ghost cars"].filter(Boolean).join(" · ");
   const pole = c.rows[0];
   if (layout === "sheet")
     return (

@@ -28,9 +28,8 @@ export function timelineMarkers(messages: RaceMessage[], entries: Map<string, En
       case "dnf":
         out.push({ t: m.t, kind: "dnf", label: `${code(m.carId)} out`, carIds: ids });
         break;
-      case "finish":
-        if (m.text.startsWith("Chequered"))
-          out.push({ t: m.t, kind: "finish", label: "Chequered flag", carIds: ids });
+      case "chequered":
+        out.push({ t: m.t, kind: "finish", label: "Chequered flag", carIds: ids });
         break;
       default:
         break;

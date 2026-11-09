@@ -1,5 +1,6 @@
-export const CAMERA_MODES = ["tv", "chase", "onboard", "map"] as const;
-export type CameraMode = (typeof CAMERA_MODES)[number];
+import { CAMERA_MODES, type CameraMode } from "@bench/ui";
+
+export { CAMERA_MODES, type CameraMode };
 /** Playback speeds; below 1x is slow motion (incident replays start at 0.5x). */
 export const SPEEDS = [0.25, 0.5, 1, 2, 4, 8, 16, 32] as const;
 

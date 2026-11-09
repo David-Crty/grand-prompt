@@ -187,7 +187,7 @@ export function TowerStrip({
     return (
       <span key={r.id} className={cx("gp-strip__row", r.id === focusId && "is-focused")}>
         <PositionBox position={r.position} leader={r.position === 1} out={r.out} />
-        <EntryChip entry={e} variant={r.out ? "out" : undefined} />
+        <EntryChip entry={e} out={r.out} />
         <GapText row={r} compact />
       </span>
     );

@@ -1,16 +1,23 @@
+import { formatGap, formatLapTime, kmh } from "@bench/ui";
 import type { ToastKind } from "@bench/ui/react";
 import { type Corner, whereOnLap } from "./corners.js";
-import { formatGap, formatLapTime, kmh } from "./format.js";
 import { type CarIndex, sampleCar } from "./frames.js";
 
-export type MessageKind = "start" | "fastest" | "deleted" | "crash" | "impact" | "finish" | "dnf" | "strike";
+export type MessageKind =
+  | "start"
+  | "fastest"
+  | "deleted"
+  | "crash"
+  | "impact"
+  | "finish"
+  | "dnf"
+  | "strike"
+  | "chequered";
 
 export interface RaceMessage {
   t: number;
   /** Empty for messages about the session (the start). */
   carId: string;
-  name: string;
-  color: string;
   kind: MessageKind;
   text: string;
   /** The phone's shorter wording, when there is one ("Out · before Turn 4"). */
@@ -51,8 +58,6 @@ export function raceMessages(
     out.push({
       t: launch?.time ?? 0,
       carId: "",
-      name: "",
-      color: "",
       kind: "start",
       text: join("Flying lap", `${cars.length} cars`, launch ? `${kmh(launch.speed)} km/h at the line` : ""),
     });
@@ -61,7 +66,7 @@ export function raceMessages(
   let done = 0;
   let last = 0;
   for (const { c, e } of all) {
-    const base = { t: e.t, carId: c.car.id, name: c.car.name, color: c.car.color };
+    const base = { t: e.t, carId: c.car.id };
     switch (e.type) {
       case "lap":
         if (e.detail === "invalid") out.push({ ...base, kind: "deleted", text: "Lap deleted: track limits" });
@@ -108,9 +113,7 @@ export function raceMessages(
     out.push({
       t: last,
       carId: "",
-      name: "",
-      color: "",
-      kind: "finish",
+      kind: "chequered",
       text: pole ? `Chequered flag · ${pole.name} on pole` : "Chequered flag · no valid lap",
     });
   return out;
@@ -134,13 +137,14 @@ export const TOAST_KIND: Record<MessageKind, ToastKind> = {
   crash: "dnf",
   dnf: "dnf",
   finish: "finish",
+  chequered: "finish",
 };
 
 const isOut = (m: RaceMessage) => m.kind === "crash" || m.kind === "dnf";
 
 /** How long a message stays on screen at 1×, in replay seconds: retirements and the result stay longest. */
 export function toastLife(m: RaceMessage): number {
-  return isOut(m) || (m.kind === "finish" && m.text.startsWith("Chequered")) ? 30 : 8;
+  return isOut(m) || m.kind === "chequered" ? 30 : 8;
 }
 
 /**

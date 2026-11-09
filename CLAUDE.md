@@ -1,106 +1,106 @@
-# F1 LLM Bench (working title)
+# Grand Prompt
 
-LLMs each write a driving program once, then all programs drive one flying lap in the same car on
-the same circuit in a deterministic simulator, and the laps are replayed in 3D together. `PLAN.md` holds the goals and
-phases (sections 1, 3 and 12 are firm; change them only with the owner's agreement). Read
-`docs/DECISIONS.md` before changing behaviour, and add an entry for every significant choice
-or deviation.
+LLMs each write a driving program once (`bench build`), then all programs drive one flying lap in
+the same car on a circuit none of them practised on, in a deterministic simulator (`bench event
+run`), and the laps are replayed together in 3D (`apps/viewer`). The README says how to use it;
+this file is for working on it.
+
+## Principles (ask the owner before changing these)
+- **Determinism.** A result is a pure function of (sim version, track, car, driver code, seed):
+  fixed timestep, seeded PRNG, no `Date`, `Math.random` or wall clock in the sim or the sandbox.
+  Same inputs, bit-identical state hash.
+- **Separation.** The sim has no rendering dependency; the viewer runs no physics and only plays
+  replays. What viewers see is exactly what was timed: nothing moves a car to make it look better.
+- **Fairness.** Every driver gets the same information (the DDK, public car parameters only), the
+  same compute budget, the same sandbox and the same session.
+- **Versioned results.** Replays and results carry `SIM_VERSION`, `API_VERSION` and `DDK_VERSION`
+  (`packages/sim/src/version.ts`).
+- **Ask** before freezing the driver API for a season, or before anything that invalidates past
+  results.
 
 ## Status
-- Phases 0 to 3 are done: sandbox, DDK, house driver, events, leaderboard, practice service,
-  agentic workspaces and `pnpm build-drivers` (`scripts/build-drivers/`).
-- First agentic trial (D17): four Claude models on `proto-gp-1`. It is not a ranking (unequal
-  budgets, isolation by instruction only), but it showed that drivers tuned to the event circuit
-  crash elsewhere and that the house driver is far off the pace.
-- Current format (D18 to D21): models from `models.json` build through their own CLIs in a
-  bubblewrap sandbox at `medium` effort, practise on monaco, silverstone and portimao (10 shared
-  runs, 30 min, deadline in the prompt) and are timed on `barcelona`, which they never see.
-- Every session is one flying lap (D26): a 3 s run-up placed by the sim, all cars crossing the line
-  together at a launch speed computed from the track, then one timed lap; off-track deletes it.
-  Practice is the same session. There is no race, no `--laps` and no `bench race`.
-- `gp-1` (8 models) was built before effort was set (D21) and for the old standing-start format;
-  its drivers still load and run. No OpenRouter: the
-  owner has no account; `bench oneshot` exists but is unused.
-- **Not done:** a build at a fixed effort, a house driver fast enough to be a meaningful
-  reference (it crashes on the real circuits), Gemini model ids in `models.json` (the Gemini CLI
-  is not installed), and freezing the API for a season (PLAN 6.5). Ask before freezing.
-- Ghost cars share the same run-up and line, so they overlap until they diverge after the line;
-  that is intended (D26). The viewer explains the overlap with translucent packs, a pack label and
-  a start board, and never moves a car (D27).
-- Phase 4: the phone viewer exists (below 600 px); the Remotion video is not started. Phase 5 (wheel-to-wheel) is not
-  started.
+- Done: sim, sandbox, DDK, practice service, sandboxed agentic builds, events, leaderboard, viewer
+  (desktop and phone).
+- `gp-1` (8 Claude and GPT models) was built for an older, standing-start session at each CLI's
+  default effort; its drivers still load and run, and `pnpm determinism` uses them.
+- Not done: a build at a fixed effort; Gemini ids in `models.json` (the Gemini CLI is not
+  installed here); the video export (Remotion); wheel-to-wheel racing (shared world, collisions,
+  a new API season).
+- Known: runoff clipping (`clipRunoffByProximity` in `track.ts`) only looks
+  `maxRunoff + 2·maxWidth + 5` m around a sample, so sections slightly farther apart can keep
+  overlapping runoff. Fixing it changes results (golden hashes, `SIM_VERSION`).
 
 ## Layout
-- `packages/sim`: pure TS, browser-safe. Track (spline, Frenet projection, surfaces), vehicle
-  (`vehicle.ts`), race control (`race.ts`, `CarSim`), sessions (`session.ts`, ghost mode), replay.
-- `packages/sandbox`: QuickJS driver runtime (`SandboxedDriver`), deterministic op budgets.
-- `packages/cli`: the `bench` CLI (`src/index.ts` dispatch, `commands.ts`, `service.ts`,
-  `workspace.ts`, `oneshot.ts`). The entry point is `pnpm bench …`.
-- `packages/reference-driver`: the internal house driver. It must never be copied into `ddk/`.
-- `packages/ui`: the design system (D27). Tokens are `tokens.json` (`make tokens` after editing), the styles
-  `components.css` (class prefix `gp-`), the React components `src/react` (presentational, shared with the
-  video), and entries (code, colour slot, provider body) come from `resolveEntries`. Rules for UI work: values
-  come from tokens, never a hex in a component; a car is identified by its entry, never by `car.color`; what
-  viewers see is what was timed (constraint 2), so ghosts, labels and panels explain overlaps and nothing moves
-  a car; logic goes in tested pure modules, not in components. The visual reference is the owner's design
-  canvas on claude.ai.
-- `apps/viewer`: Vite + R3F. It plays replays only and contains no physics. Pure logic lives in
-  `src/lib` (tested), and the scene in `src/scene`. It serves `results/` at `/results/`, plus
-  `/results/index.json` (the race list, built per request by `server/results-index.ts`). The car
-  mesh is `src/lib/car-model.gen.json`, generated from `cars/sources/*.stl` by
-  `scripts/import-car.ts` (D24).
-- `models.json` + `scripts/build-drivers/` (`pnpm build-drivers`, an Ink live view, D25): agentic
-  builds through the claude/codex/gemini CLIs, each in a bubblewrap sandbox (D18). The launch prompt is `ddk/PROMPT_LAUNCH.md` (`{{TIME_LIMIT}}`
-  and `{{DEADLINE}}` filled per model), the brief `ddk/PROMPT_AGENTIC.md` (copied as `TASK.md`).
-- `ddk/`: everything an LLM sees. `driver.d.ts` must match the sim's types; `sim/test/ddk.test.ts`
-  checks this. Keep the hidden constants (aero, tires, brakes) out of it: information level B.
-- `tracks/proto-ring.json` is generated by `scripts/gen-proto-ring.ts`; the real circuits by
-  `scripts/import-tracks.ts` from `tracks/sources/`. Cars live in `cars/proto.json`.
-- `docs/`: PHYSICS, REPLAY_FORMAT, TRACK_FORMAT, DECISIONS.
+- `packages/sim`: pure TS, browser-safe. `track/` (spline, Frenet projection, surfaces, the import
+  helpers), `vehicle.ts` (bicycle model, Pacejka, aero; constants in `cars/proto.json`), `race.ts`
+  (`CarSim`: one car's run-up and flying lap, race control), `session.ts` (ghost mode: every car
+  alone, then classified), `replay.ts` (the format the viewer plays), `telemetry.ts` (CSV and the
+  text summary drivers' authors read).
+- `packages/sandbox`: QuickJS runtime for untrusted drivers; budgets count interrupt-handler
+  calls, so they are deterministic.
+- `packages/cli`: `bench` (`src/index.ts` is the option table and dispatch). `session.ts`
+  validate/practice/qualify, `event.ts` events and leaderboard, `tracks.ts` list and import,
+  `service.ts` + `workspace.ts` the practice service, `build/` the agentic builds (`lib.ts` is the
+  tested pure part; `run.ts`, `index.tsx` and the Ink view `ui.tsx` are run by hand).
+- `packages/ui`: the design system shared by the viewer (and a future video). Tokens in
+  `tokens.json` (`make tokens` regenerates `tokens.gen.*`), styles in `components.css` (prefix
+  `gp-`), presentational React components in `src/react`, entries (code, colour slot, provider)
+  from `resolveEntries`.
+- `apps/viewer`: Vite + React Three Fiber. Pure logic in `src/lib` (tested), the 3D scene in
+  `src/scene`, the HUD in `src/components`. The dev server serves `results/` at `/results/` and
+  builds `/results/index.json` per request (`server/results-index.ts`). The car mesh
+  `src/lib/car-model.gen.json` comes from `cars/sources/*.stl` (`make car`).
+- `ddk/`: everything a model sees: `DRIVER_SPEC.md`, `driver.d.ts`, `baseline-driver.js`,
+  `car-public.json`, the practice client `bench-client.mjs`, the brief `PROMPT_AGENTIC.md` (copied
+  as `TASK.md`) and the launch prompt `PROMPT_LAUNCH.md`.
+- `drivers/<event>/`: an event's inputs: `event.json` (circuit, seed) and one folder per model
+  with `driver.js` and `manifest.json`. `results/` is generated output only, not committed.
+- `tracks/<id>.json`: circuits; `tracks/sources/`: the raw extracts they are imported from.
+- `scripts/`: `determinism-check.ts` (CI), `gen-tokens.ts`, `import-car.ts`.
 
 ## Commands
-`make` lists shortcuts over all of these (`make gates`, `make build NAME=…`, `make qualify NAME=… TRACK=…`).
 ```bash
-pnpm bench --help
-pnpm bench qualify ddk/baseline-driver.js --reference   # -> results/qualify/proto-ring-NNN/
-pnpm bench event run <event>                            # flying lap of drivers/<event>/* -> results/<event>/qualify/
-pnpm bench tracks                                             # ids for --track (monaco, silverstone, …)
-pnpm --filter @bench/viewer dev   # http://localhost:5173/ lists every replay under results/; ?replay=<url> opens one
-pnpm tsx scripts/demo-replay.ts   # regenerates results/demo (4-car demo)
-pnpm tsx scripts/plausibility.ts  # vehicle targets: top speed, braking g, lateral g, 0-100
-pnpm build-drivers <name> --check   # sandbox and CLIs, no model run
-pnpm build-drivers <name>           # one driver per models.json entry -> drivers/<name>/, live view
+make                                    # the shortcuts
+pnpm bench --help                       # every command
+pnpm bench practice ddk/baseline-driver.js --track monaco
+pnpm bench event run gp-1               # drivers/gp-1/* -> results/gp-1/
+pnpm --filter @bench/viewer dev         # http://localhost:5173/
 ```
 
-## Quality gates (run all before calling work done, or `make gates`)
+## Quality gates (all of them before calling work done: `make gates`)
 ```bash
 pnpm lint && pnpm typecheck && pnpm coverage && pnpm determinism && pnpm --filter @bench/viewer build
 ```
-- **The owner requires ≥ 90% coverage** (lines, statements, functions, branches), enforced in
-  `vitest.config.ts` over `packages/*/src`, `apps/viewer/src/lib` and `apps/viewer/server`.
-  Balance unit tests with *feature tests* that run real simulations (see `sim/test/race.test.ts`,
-  `cli/test/cli.test.ts`).
-- Any change to physics, race control or the track changes the golden hashes. Regenerate them
-  with `UPDATE_GOLDEN=1 pnpm vitest run packages/sim/test/golden.test.ts`, bump `SIM_VERSION`
-  in `packages/sim/src/version.ts`, and recheck `scripts/plausibility.ts` against PLAN 5.3.
-- After physics changes, the exploit tests (`reference-driver/test/exploits.test.ts`) must
-  still show that no known exploit beats the house driver. LLM drivers do beat it (D17).
-
-## Git
-The project is in early development: work and commit directly on `main`. Don't create feature
-branches or merge requests unless the owner asks for one. Run the quality gates before each commit.
+- Coverage must stay ≥ 90% (lines, statements, functions, branches) over `packages/*/src`,
+  `apps/viewer/src/lib` and `apps/viewer/server` (`vitest.config.ts`). Balance unit tests with
+  feature tests that run real sessions (`sim/test/race.test.ts`, `cli/test/cli.test.ts`).
+- Any change to physics, race control or track processing changes the golden hashes: regenerate
+  them with `make golden`, bump `SIM_VERSION`, and check the plausibility targets in
+  `sim/test/vehicle.test.ts` still hold.
+- `sim/test/race.test.ts` holds the rules that stop exploits (checkpoints against cutting and
+  reversing, track limits, barriers, full lock at speed); keep them passing after physics changes.
 
 ## Conventions and gotchas
-- Determinism: no `Date`, `Math.random` or wall clock in the sim. The sandbox's wall-clock
-  check is only a backstop. Results are always produced sandboxed, and sandboxed and
-  unsandboxed hashes differ (QuickJS has its own libm).
-- Biome must not touch Markdown (it mangles the `{{…}}` placeholders in the prompts); it is
-  excluded in `biome.json`.
-- Track file `sectors` and runoff zones are lap fractions, not metres.
-- Tests that write results use a temp `BENCH_ROOT`, never the repo's `results/`.
-- No F1 branding, team names or liveries.
-- `drivers/` is excluded from Biome: submissions must stay byte-identical to their hashes.
+- The DDK is what models read. Changing it (or the `Telemetry`/`TrackInfo`/`CarSpec`/`Controls`
+  shapes, which `sim/test/ddk.test.ts` checks against `driver.d.ts`) changes the benchmark: bump
+  `DDK_VERSION` or `API_VERSION` and say so. Hidden car constants (aero, tyres, brakes) never go in
+  it.
+- Results are produced sandboxed; sandboxed and unsandboxed hashes differ (QuickJS has its own
+  libm).
+- Track `sectors` and runoff zones are lap fractions, not metres.
+- Tests that write results use a temporary `BENCH_ROOT`, never the repo's `results/`.
+- `drivers/` and `**/*.md` are excluded from Biome: submissions must stay byte-identical to their
+  hashes, and Biome mangles the `{{…}}` prompt placeholders.
 - Practice tokens live in one file, `results/agentic/tokens.json`, rewritten on each
   registration: never create workspaces concurrently.
-- Running the build needs agents with their own permissions off inside the sandbox; Claude Code's
-  auto mode blocks launching them, so the owner runs builds, and tests use a stub CLI on `PATH`.
+- Builds run the model CLIs with their own permission prompts off inside bubblewrap; Claude Code's
+  auto mode blocks launching them, so the owner runs builds. Tests never start a model.
+- UI: values come from tokens, never a hex in a component; a car is identified by its entry
+  (`resolveEntries`), never by a colour in the replay; logic goes in tested pure modules, not in
+  components. The visual reference is the owner's design canvas on claude.ai.
+- No F1 branding, team names or liveries.
+
+## Git
+Early development: commit directly on `main`, no branches or merge requests unless the owner asks.
+Run the gates before each commit. There is no decision log: put the why of a significant choice
+in its commit message.

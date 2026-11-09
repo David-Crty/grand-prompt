@@ -18,9 +18,8 @@ import {
 } from "./components/Hud.js";
 import { INCIDENT_SHEET_PX, PhoneHud, type PhoneSheet } from "./components/PhoneHud.js";
 import { clampZoom, stepZoom } from "./lib/camera.js";
-import { lapInfoAt, overallBestAt } from "./lib/frames.js";
 import { cycleSpeed, pinchFactor, swipeDir } from "./lib/gestures.js";
-import { justOut } from "./lib/hud.js";
+import { fastestId, justOut } from "./lib/hud.js";
 import type { Incident } from "./lib/incidents.js";
 import { visibleToasts } from "./lib/messages.js";
 import type { ViewerModel } from "./lib/model.js";
@@ -69,7 +68,6 @@ export function Viewer({
       samples: [],
       cars: [],
       labels: [],
-      packs: [],
       labelPack: null,
       packLabel: null,
       insetBottom: null,
@@ -140,9 +138,8 @@ export function Viewer({
       const L = live.current;
       const t = L.clock.t;
       const k = model.cars.findIndex((c) => c.car.id === L.focusId);
-      const best = overallBestAt(model.cars, t);
       const board =
-        model.ghost && L.samples.length === model.cars.length
+        L.samples.length === model.cars.length
           ? launchBoard(model.cars.map((c, j) => ({ id: c.car.id, ...L.samples[j]! })))
           : null;
       setSnap({
@@ -153,8 +150,7 @@ export function Viewer({
         focusId: L.focusId,
         focus: L.samples[k] ?? null,
         samples: [...L.samples],
-        lap: k >= 0 ? lapInfoAt(model.cars[k]!, t) : null,
-        fastestId: best?.id ?? null,
+        fastestId: fastestId(L.rows),
         toasts: visibleToasts(model.messages, t, L.clock.speed, 3),
         justOut: justOut(model.cars, t),
         pack: L.labelPack,

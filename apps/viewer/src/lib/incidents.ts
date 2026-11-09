@@ -5,8 +5,8 @@
  * driver program failure, stall, time up).
  */
 import type { TrackData } from "@bench/sim";
+import { formatClock, kmh } from "@bench/ui";
 import { type Corner, whereOnLap } from "./corners.js";
-import { formatClock, kmh } from "./format.js";
 import type { CarIndex } from "./frames.js";
 import { impactKmh } from "./messages.js";
 

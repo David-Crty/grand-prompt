@@ -18,10 +18,3 @@ export function linearRgb(hex: string, scale = 1): RGB {
   const [r, g, b] = hexToRgb(hex);
   return [srgbToLinear(r) * scale, srgbToLinear(g) * scale, srgbToLinear(b) * scale];
 }
-
-/** Readable text color (black or white) on a background. */
-export function contrastText(hex: string): "#000" | "#fff" {
-  const [r, g, b] = hexToRgb(hex).map(srgbToLinear) as RGB;
-  const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  return lum > 0.3 ? "#000" : "#fff";
-}

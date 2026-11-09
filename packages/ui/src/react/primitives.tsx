@@ -18,22 +18,9 @@ export function Wordmark({ size = "s" }: { size?: "s" | "m" | "l" }) {
   );
 }
 
-export function EntryChip({
-  entry,
-  size = "s",
-  variant,
-}: {
-  entry: Entry;
-  size?: "s" | "l" | "xl";
-  variant?: "fill" | "bar" | "dot" | "out" | "house";
-}) {
-  const v = variant ?? (entry.house ? "house" : "fill");
+export function EntryChip({ entry, out = false }: { entry: Entry; out?: boolean }) {
   return (
-    <span
-      className={cx("gp-chip", size !== "s" && `gp-chip--${size}`, v !== "fill" && `gp-chip--${v}`)}
-      style={entryStyle(entry)}
-      title={entry.name}
-    >
+    <span className={cx("gp-chip", out && "gp-chip--out")} style={entryStyle(entry)} title={entry.name}>
       {entry.code}
     </span>
   );

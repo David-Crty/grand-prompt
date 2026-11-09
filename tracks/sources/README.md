@@ -1,7 +1,8 @@
 # Raw track sources
 
-Inputs of `scripts/import-tracks.ts`, which writes `tracks/<id>.json`. Re-run it after changing
-anything here: `pnpm tsx scripts/import-tracks.ts`.
+Inputs of `pnpm bench tracks import`, which writes `tracks/<id>.json` for every entry of
+`TRACK_SOURCES` in `packages/cli/src/tracks.ts`. Re-run it after changing anything here; a test
+checks that it reproduces the committed track files.
 
 | File | Track | Source | License |
 |---|---|---|---|

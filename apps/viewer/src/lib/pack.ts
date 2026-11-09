@@ -1,8 +1,9 @@
 /**
- * Ghost start (issue 1, constraint 2). Every car ran its flying lap alone from the same run-up (D26), so the
- * replay overlays cars that never met. Nothing here moves a car: packs only decide which cars are drawn
- * translucent and which labels merge into one, and the start board shows how far each car is past the line.
+ * Ghost start. Every car ran its flying lap alone from the same run-up, so the replay overlays cars that never
+ * met. Nothing here moves a car: packs only decide which cars are drawn translucent and which labels merge
+ * into one, and the start board shows how far each car is past the line.
  */
+import { toThree } from "./coords.js";
 import type { CarSample } from "./frames.js";
 
 export interface PackCar {
@@ -95,12 +96,12 @@ export function labelPack(packs: Pack[], focusId: string): (Pack & { others: str
   return null;
 }
 
-/** Where a car is drawn: exactly its replay sample, on the ground (three.js x, y, z). Constraint 2. */
+/** Where a car is drawn: exactly its replay sample, on the ground. */
 export function carPlacement(s: Pick<CarSample, "x" | "y" | "yaw">): {
   position: [number, number, number];
   yaw: number;
 } {
-  return { position: [s.x, 0, -s.y], yaw: s.yaw };
+  return { position: toThree(s.x, s.y), yaw: s.yaw };
 }
 
 // ------------------------------------------------------------------ start board

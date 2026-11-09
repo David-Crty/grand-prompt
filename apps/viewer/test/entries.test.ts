@@ -1,9 +1,8 @@
 import { ENTRY_COLORS } from "@bench/ui";
 import { describe, expect, it } from "vitest";
-import { eventEntries, recolorRace, recolorReplay } from "../src/lib/entries.js";
+import { eventEntries } from "../src/lib/entries.js";
 import { buildModel } from "../src/lib/model.js";
 import { paramsForReplay, parseParams } from "../src/lib/params.js";
-import { summarizeRace } from "../src/lib/races.js";
 import { makeCar, makeReplay, stadiumTrack } from "./fixtures.js";
 
 const track = stadiumTrack();
@@ -20,52 +19,10 @@ describe("event entries", () => {
     expect(e.get("claude-a")?.provider).toBe("anthropic");
   });
 
-  it("recolours cars and classification without touching the source", () => {
-    const e = eventEntries(replay.cars);
-    const out = recolorReplay(replay, e);
-    expect(out.cars.find((c) => c.id === "claude-a")?.color).toBe(ENTRY_COLORS[0]);
-    const withRows = recolorReplay(
-      {
-        ...replay,
-        classification: replay.cars.map((c) => ({
-          ...c.result,
-          id: c.id,
-          name: c.name,
-          position: 1,
-          gap: null,
-          color: c.color,
-          driverHash: c.driverHash,
-        })),
-      },
-      e,
-    );
-    expect(withRows.classification.find((c) => c.id === "gpt-b")?.color).toBe(ENTRY_COLORS[1]);
-    expect(replay.cars[0]!.color).not.toBe(out.cars[0]!.color);
-    const unknown = recolorReplay(replay, new Map());
-    expect(unknown.cars[0]!.color).toBe(replay.cars[0]!.color);
-  });
-
-  it("is applied by the model and the race list alike", () => {
+  it("are the model's colours", () => {
     const m = buildModel(replay, 10);
     expect([m.entries.get("claude-a")?.code, m.entries.get("gpt-b")?.code]).toEqual(["CA1", "CA2"]);
-    expect(m.replay.cars.find((c) => c.id === "gpt-b")?.color).toBe(ENTRY_COLORS[1]);
-    const src = {
-      simVersion: "0.1.0",
-      trackId: "stadium",
-      session: { seed: 1 },
-    };
-    const cls = replay.cars.map((c, i) => ({
-      id: c.id,
-      name: c.name,
-      color: c.color,
-      status: "FINISHED" as const,
-      position: i + 1,
-      lapTime: 60 + i,
-    }));
-    const row = recolorRace(summarizeRace("e/race", "/r.json", { ...src, classification: cls }, { time: 0 }));
-    expect(row.drivers.find((d) => d.id === "gpt-b")?.color).toBe(m.entries.get("gpt-b")?.color);
-    expect(row.pole?.color).toBe(m.entries.get(row.pole!.id)?.color);
-    expect(recolorRace({ ...row, pole: null }).pole).toBeNull();
+    expect(m.entries.get("gpt-b")?.color).toBe(ENTRY_COLORS[1]);
   });
 });
 

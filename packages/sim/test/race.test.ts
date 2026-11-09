@@ -150,6 +150,12 @@ describe("race control", () => {
     expect(r.lapTime).toBeNull();
   });
 
+  it("full lock at top speed spins or crashes the car: no lap", () => {
+    const r = runOne(fnDriver((t) => ({ throttle: 1, brake: 0, steer: t.speed > 80 ? 1 : 0 }))).result;
+    expect(r.lap).toBeNull();
+    expect(r.status).not.toBe("FINISHED");
+  });
+
   it("the time limit counts from the line", () => {
     const run = runOne(follower({ speed: 10 }), { timeLimit: 5 });
     expect(run.result.status).toBe("TIME UP");

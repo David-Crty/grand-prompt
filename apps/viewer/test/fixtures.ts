@@ -90,7 +90,6 @@ export interface CarOpts {
   /** Stop (DNF) after this many seconds. */
   dnfAt?: number;
   invalidLaps?: number[];
-  color?: string;
   extraEvents?: SimEvent[];
   startS?: number;
 }
@@ -155,7 +154,6 @@ export function makeCar(track: TrackData, o: CarOpts): ReplayCar {
   return {
     id: o.id,
     name: `Car ${o.id}`,
-    color: o.color ?? "#3366cc",
     driverHash: "d",
     frames: f,
     events,

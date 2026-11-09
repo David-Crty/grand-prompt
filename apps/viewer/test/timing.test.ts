@@ -1,10 +1,9 @@
+import { gapLabel } from "@bench/ui";
 import { describe, expect, it } from "vitest";
 import {
   frameAt,
   indexCar,
   indexReplay,
-  lapInfoAt,
-  overallBestAt,
   progressAt,
   sampleCar,
   statusAt,
@@ -25,7 +24,7 @@ describe("frames", () => {
     expect(c.progress[0]).toBe(0);
     expect(c.endTime).toBeCloseTo((c.frameCount - 1) / 10);
     expect(c.finishTime).toBeCloseTo((2 * L) / 50);
-    expect(c.laps).toHaveLength(2);
+    expect(c.lapValid).toBe(false);
     expect(frameAt(c, -1)).toEqual({ i: 0, j: 1, a: 0 });
     expect(frameAt(c, 1e9).i).toBe(c.frameCount - 1);
   });
@@ -47,23 +46,9 @@ describe("frames", () => {
     expect(sampleCar(c, 1e9).ended).toBe(true);
   });
 
-  it("tracks status and laps over time", () => {
+  it("tracks status over time", () => {
     expect(statusAt(c, 0)).toBe("RUNNING");
     expect(statusAt(c, 1e9)).toBe("FINISHED");
-    const mid = lapInfoAt(c, L / 50 + 1);
-    expect(mid.completed).toBe(1);
-    expect(mid.best).toBeCloseTo(L / 50 + 1);
-    const end = lapInfoAt(c, 1e9);
-    expect(end.completed).toBe(2);
-    expect(end.lastValid).toBe(false);
-    expect(end.best).toBeCloseTo(L / 50 + 1);
-    expect(lapInfoAt(c, 0)).toEqual({
-      completed: 0,
-      last: null,
-      lastValid: true,
-      best: null,
-      currentLapStart: 0,
-    });
   });
 
   it("falls back to the result status when no status event exists", () => {
@@ -72,14 +57,6 @@ describe("frames", () => {
     expect(ci.statuses).toEqual([{ t: ci.endTime, status: "FINISHED" }]);
     const running = { ...bare, result: { ...bare.result, status: "RUNNING" as const } };
     expect(indexCar(running, 0, 10, L).statuses).toEqual([]);
-  });
-
-  it("finds the overall best lap", () => {
-    const cars = indexReplay(
-      makeReplay([makeCar(track, { id: "a", speed: 50 }), makeCar(track, { id: "b", speed: 52 })], track),
-    );
-    expect(overallBestAt(cars, 0)).toBeNull();
-    expect(overallBestAt(cars, 1e9)!.id).toBe("b");
   });
 });
 
@@ -100,24 +77,24 @@ describe("liveStandings", () => {
   it("orders running cars by distance with time gaps", () => {
     const rows = liveStandings(cars, 4);
     expect(rows.map((r) => r.id)).toEqual(["fast", "dnf", "mid", "slow", "crawl"]);
-    expect(rows[0]!.gapText).toBe("LEADER");
-    expect(rows[0]!.intervalText).toBe("INTERVAL");
+    expect(gapLabel(rows[0]!).text).toBe("LEADER");
+    expect(gapLabel(rows[0]!, "interval").text).toBe("INTERVAL");
     expect(rows[2]!.gap).toBeCloseTo(4 - (48 * 4) / 50, 1);
-    expect(rows[2]!.gapText).toMatch(/^\+0\.1/);
+    expect(gapLabel(rows[2]!).text).toMatch(/^\+0\.1/);
   });
 
   it("puts retirements last and finished cars first", () => {
     const t = (2 * L) / 48 + 0.5;
     const rows = liveStandings(cars, t);
     expect(rows.map((r) => r.id)).toEqual(["fast", "mid", "slow", "crawl", "dnf"]);
-    expect(rows[0]!.gapText).toBe("POLE");
-    expect(rows[0]!.intervalText).toBe("POLE");
+    expect(gapLabel(rows[0]!).text).toBe("POLE");
+    expect(gapLabel(rows[0]!, "interval").text).toBe("POLE");
     expect(rows[1]!.finished).toBe(true);
     expect(rows[1]!.gap).toBeCloseTo((2 * L) / 48 - (2 * L) / 50, 2);
+    expect(rows[1]!.interval).toBeCloseTo(rows[1]!.gap!, 6);
     expect(rows[4]!.out).toBe(true);
-    expect(rows[4]!.gapText).toBe("OUT");
-    expect(rows[3]!.lapsDown).toBe(1);
-    expect(rows[3]!.gapText).toBe("+1 LAP");
+    expect(rows[4]!.gap).toBeNull();
+    expect(gapLabel(rows[4]!).text).toBe("OUT");
   });
 
   it("uses the gap to leader as interval behind a retired car", () => {
@@ -133,6 +110,7 @@ describe("liveStandings", () => {
     );
     const rows = liveStandings(only, 3);
     expect(rows.map((r) => r.id)).toEqual(["a", "b", "x"]);
+    expect(rows[1]!.interval).toBeCloseTo(rows[1]!.gap!, 6);
   });
 
   it("puts a finished car whose lap was deleted after the running cars, without a time", () => {
@@ -150,18 +128,16 @@ describe("liveStandings", () => {
     expect(mixed[0]!.lapValid).toBe(false);
     const rows = liveStandings(mixed, (2 * L) / 48 + 0.5);
     expect(rows.map((r) => r.id)).toEqual(["timed", "running", "deleted", "out"]);
-    expect(rows[2]!.gapText).toBe("NO TIME");
+    expect(gapLabel(rows[2]!).text).toBe("NO TIME");
     expect(rows[2]!.finished).toBe(true);
-    expect(rows[3]!.intervalText).toBe("OUT");
+    expect(rows[2]!.gap).toBeNull();
+    expect(gapLabel(rows[3]!, "interval").text).toBe("OUT");
   });
 
-  it("reports interval laps and unreachable distances", () => {
-    const a = cars[1]!;
-    const crawl = cars[4]!;
-    expect(timeGap(a, crawl, 35).lapsDown).toBe(1);
+  it("reports a gap only once the car ahead has been where the other is", () => {
     const ahead = indexCar(makeCar(track, { id: "z", speed: 50, startS: 100 }), 9, 10, L);
     const behind = indexCar(makeCar(track, { id: "y", speed: 50 }), 8, 10, L);
-    expect(timeGap(ahead, behind, 0)).toEqual({ gap: 0, lapsDown: 0 });
-    expect(timeGap(behind, ahead, 1)).toEqual({ gap: null, lapsDown: 0 });
+    expect(timeGap(ahead, behind, 0)).toBe(0);
+    expect(timeGap(behind, ahead, 1)).toBeNull();
   });
 });

@@ -1,4 +1,5 @@
 import { Prng, type TrackData, wrapS } from "@bench/sim";
+import { COLORS } from "@bench/ui";
 import { linearRgb, type RGB } from "./color.js";
 
 export const KERB_WIDTH = 1.2;
@@ -233,19 +234,19 @@ export class MeshBuilder {
   }
 }
 
-export const PALETTE = {
-  asphalt: "#4a4d54",
-  line: "#f2f2ee",
-  kerbRed: "#d42a2a",
-  kerbWhite: "#f4f4f0",
-  grassA: "#5f9a3a",
-  grassB: "#68a542",
-  gravel: "#d8c49a",
-  barrierA: "#f0f0ea",
-  barrierB: "#2c5a8c",
-  barrierTop: "#bfc4cc",
-  checkerDark: "#1d1d1f",
-  sector: "#f5c400",
+const PALETTE = {
+  asphalt: COLORS["world-asphalt"],
+  line: COLORS["world-line"],
+  kerbRed: COLORS["world-kerb-red"],
+  kerbWhite: COLORS["world-kerb-white"],
+  grassA: COLORS["world-grass-a"],
+  grassB: COLORS["world-grass-b"],
+  gravel: COLORS["world-gravel"],
+  barrierA: COLORS["world-barrier-a"],
+  barrierB: COLORS["world-barrier-b"],
+  barrierTop: COLORS["world-barrier-top"],
+  checkerDark: COLORS["world-checker"],
+  sector: COLORS["world-sector"],
 };
 
 function jitter(rgb: RGB, f: number): RGB {

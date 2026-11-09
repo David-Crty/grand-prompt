@@ -65,8 +65,8 @@ describe("timing labels", () => {
   it("refers to entry colours by token", () => {
     expect(entryVar({ slot: 4 })).toBe("var(--entry-04)");
     expect(entryVar({ slot: 12 })).toBe("var(--entry-12)");
-    expect(entryVar({ slot: 0 })).toBe("var(--entry-house)");
-    expect(entryVar(null)).toBe("var(--entry-house)");
+    expect(entryVar({ slot: 0 })).toBe("var(--entry-none)");
+    expect(entryVar(null)).toBe("var(--entry-none)");
     expect(PROVIDER_LABEL.openai).toBe("OpenAI");
   });
 });

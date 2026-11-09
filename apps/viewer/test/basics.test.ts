@@ -1,27 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { contrastText, hexToRgb, linearRgb, srgbToLinear } from "../src/lib/color.js";
-import {
-  angleDelta,
-  damp,
-  damp3,
-  dampAngle,
-  dampFactor,
-  dist2,
-  lerp,
-  lerp3,
-  toThree,
-  yawToThree,
-} from "../src/lib/coords.js";
-import {
-  formatClock,
-  formatDelta,
-  formatGap,
-  formatLapsDown,
-  formatLapTime,
-  kmh,
-  nameTag,
-  statusShort,
-} from "../src/lib/format.js";
+import { hexToRgb, linearRgb, srgbToLinear } from "../src/lib/color.js";
+import { angleDelta, damp, dampAngle, dampFactor, lerp, toThree } from "../src/lib/coords.js";
 import { stackLabels } from "../src/lib/labels.js";
 import { parseParams, stepSpeed } from "../src/lib/params.js";
 import { PlaybackClock } from "../src/lib/playback.js";
@@ -30,59 +9,17 @@ describe("coords", () => {
   it("maps sim x/y/z-up to three y-up", () => {
     expect(toThree(1, 2, 3)).toEqual([1, 3, -2]);
     expect(toThree(1, 2)).toEqual([1, 0, -2]);
-    expect(yawToThree(0.5)).toBe(0.5);
   });
   it("interpolates and damps", () => {
     expect(lerp(0, 10, 0.25)).toBe(2.5);
-    expect(lerp3([0, 0, 0], [2, 4, 6], 0.5)).toEqual([1, 2, 3]);
     expect(dampFactor(1, -1)).toBe(0);
     expect(damp(0, 10, 1e9, 1)).toBeCloseTo(10);
-    expect(damp3([0, 0, 0], [1, 1, 1], 0, 1)).toEqual([0, 0, 0]);
-    expect(dist2(0, 0, 3, 4)).toBe(5);
   });
   it("takes the short way round angles", () => {
     expect(angleDelta(3, -3)).toBeCloseTo(2 * Math.PI - 6);
     expect(angleDelta(-3, 3)).toBeCloseTo(6 - 2 * Math.PI);
     expect(angleDelta(0, Math.PI)).toBeCloseTo(Math.PI);
     expect(dampAngle(3, -3, 1e9, 1)).toBeCloseTo(3 + 2 * Math.PI - 6);
-  });
-});
-
-describe("format", () => {
-  it("formats lap times", () => {
-    expect(formatLapTime(83.4567)).toBe("1:23.457");
-    expect(formatLapTime(9.5)).toBe("9.500");
-    expect(formatLapTime(65, 0)).toBe("1:05");
-    expect(formatLapTime(null)).toBe("--");
-    expect(formatLapTime(undefined)).toBe("--");
-    expect(formatLapTime(-1)).toBe("--");
-    expect(formatLapTime(Number.NaN)).toBe("--");
-  });
-  it("formats clock, gaps and deltas", () => {
-    expect(formatClock(83.9)).toBe("1:23");
-    expect(formatClock(3725)).toBe("1:02:05");
-    expect(formatClock(-5)).toBe("0:00");
-    expect(formatGap(1.23456)).toBe("+1.235");
-    expect(formatGap(null)).toBe("");
-    expect(formatGap(Number.POSITIVE_INFINITY)).toBe("");
-    expect(formatLapsDown(1)).toBe("+1 LAP");
-    expect(formatLapsDown(3)).toBe("+3 LAPS");
-    expect(formatDelta(-0.1)).toBe("-0.100");
-    expect(formatDelta(0.5)).toBe("+0.500");
-    expect(formatDelta(undefined)).toBe("");
-    expect(kmh(100)).toBe(360);
-  });
-  it("shortens statuses and names", () => {
-    expect(statusShort("RUNNING")).toBe("");
-    expect(statusShort("FINISHED")).toBe("FIN");
-    expect(statusShort("DNF: CRASHED")).toBe("DNF");
-    expect(statusShort("TIME UP")).toBe("TIME");
-    expect(statusShort("weird")).toBe("WEIR");
-    expect(nameTag("Reference 97%")).toBe("R97");
-    expect(nameTag("DDK baseline")).toBe("DDK");
-    expect(nameTag("Claude")).toBe("CLA");
-    expect(nameTag("Mistral Large Model")).toBe("MLM");
-    expect(nameTag("  ")).toBe("???");
   });
 });
 
@@ -93,8 +30,6 @@ describe("color", () => {
     expect(hexToRgb("nope")).toEqual([0.5, 0.5, 0.5]);
     expect(srgbToLinear(0.01)).toBeCloseTo(0.01 / 12.92);
     expect(linearRgb("#ffffff", 2)).toEqual([2, 2, 2]);
-    expect(contrastText("#ffffff")).toBe("#000");
-    expect(contrastText("#101010")).toBe("#fff");
   });
 });
 

@@ -1,3 +1,4 @@
+import { COLORS } from "@bench/ui";
 import { Sky } from "@react-three/drei";
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
@@ -168,7 +169,12 @@ function SectorBoards({ model }: { model: ViewerModel }) {
     const L = model.layout;
     const list = [
       { s: 0, text: "FINISH", bg: "#111", fg: "#fff" },
-      ...model.replay.track.sectors.map((s, k) => ({ s, text: `S${k + 2}`, bg: "#f5c400", fg: "#111" })),
+      ...model.replay.track.sectors.map((s, k) => ({
+        s,
+        text: `S${k + 2}`,
+        bg: COLORS["world-sector"],
+        fg: "#111",
+      })),
     ];
     return list.map((it) => {
       const p = pointAt(L, it.s);
@@ -266,7 +272,7 @@ export function World({
   const sun = useMemo(() => SUN_DIR.clone().multiplyScalar(1000), []);
   return (
     <>
-      <color attach="background" args={["#bcd3e6"]} />
+      <color attach="background" args={[COLORS["world-sky"]]} />
       <fog attach="fog" args={["#c9dcea", 900, 5200]} />
       <Sky
         distance={45000}

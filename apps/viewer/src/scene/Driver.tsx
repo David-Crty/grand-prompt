@@ -63,18 +63,16 @@ export function Driver({
     });
     L.rows = liveStandings(model.cars, t);
     const mapMode = L.mode === "map";
-    // Ghost race: overlapping runs are drawn translucent and labelled as one pack; positions are never touched.
-    L.packs = model.ghost
-      ? findPacks(
-          model.cars.map((c, k) => {
-            const s = L.samples[k]!;
-            return { id: c.car.id, x: s.x, y: s.y, progress: s.progress, ended: s.ended };
-          }),
-          PACK_LENGTHS * model.replay.header.car.length,
-        )
-      : [];
-    const ghosts = ghostIds(L.packs, L.focusId);
-    L.labelPack = mapMode ? null : labelPack(L.packs, L.focusId);
+    // Overlapping runs are drawn translucent and labelled as one pack; positions are never touched.
+    const packs = findPacks(
+      model.cars.map((c, k) => {
+        const s = L.samples[k]!;
+        return { id: c.car.id, x: s.x, y: s.y, progress: s.progress, ended: s.ended };
+      }),
+      PACK_LENGTHS * model.replay.header.car.length,
+    );
+    const ghosts = ghostIds(packs, L.focusId);
+    L.labelPack = mapMode ? null : labelPack(packs, L.focusId);
 
     model.cars.forEach((c, k) => {
       const h = L.cars[k];

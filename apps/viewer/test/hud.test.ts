@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { detectCorners, whereOnLap } from "../src/lib/corners.js";
 import { indexReplay, sampleCar } from "../src/lib/frames.js";
-import { justOut, mapCars, mapPins, outTime } from "../src/lib/hud.js";
+import { boardEntries, entriesOf, fastestId, focusLap, justOut, mapCars, mapPins } from "../src/lib/hud.js";
 import { impactKmh } from "../src/lib/messages.js";
 import { buildModel } from "../src/lib/model.js";
 import { timelineMarkers } from "../src/lib/timeline.js";
@@ -53,7 +53,7 @@ describe("hud data", () => {
     ],
     track,
   );
-  replay.classification = [{ ...replay.cars[0]!.result, position: 1, gap: null, color: "", driverHash: "" }];
+  replay.classification = [{ ...replay.cars[0]!.result, position: 1, gap: null, driverHash: "" }];
   const model = buildModel(replay, 10);
   const project = (x: number, y: number): [number, number] => [x / 10, y / 10];
 
@@ -72,10 +72,39 @@ describe("hud data", () => {
     expect(mapPins(model, 5, project)).toEqual([]);
   });
 
+  it("derives the focus card's lap clock, the fastest car and the start board's entries", () => {
+    const rows = (t: number) => liveStandings(model.cars, t);
+    const a = model.cars[0]!;
+    const atStart = focusLap(a, rows(a.startTime + 2).find((r) => r.id === "a")!, a.startTime + 2);
+    expect(atStart.current).toBeCloseTo(2);
+    expect(atStart.time).toBeNull();
+    const end = model.duration;
+    const done = focusLap(a, rows(end).find((r) => r.id === "a")!, end);
+    expect(done).toEqual({ current: null, time: a.car.result.lapTime });
+    expect(fastestId(rows(1))).toBeNull();
+    expect(fastestId(rows(end))).toBe("a");
+    expect(fastestId([])).toBeNull();
+    expect(entriesOf(["a", "nobody", "b"], model.entries).map((e) => e.id)).toEqual(["a", "b"]);
+    const board = boardEntries(
+      {
+        rows: [
+          { id: "a", distance: 3 },
+          { id: "x", distance: 1 },
+        ],
+        same: [["a", "b"]],
+        scale: 10,
+        spread: 0,
+      },
+      model.entries,
+    );
+    expect(board.rows.map((r) => [r.entry.id, r.distance])).toEqual([["a", 3]]);
+    expect(board.same[0]!.map((e) => e.id)).toEqual(["a", "b"]);
+  });
+
   it("knows who retired and when", () => {
     const c = model.cars.find((x) => x.car.id === "c")!;
-    expect(outTime(c)).toBeCloseTo(12, 6);
-    expect(outTime(model.cars[0]!)).toBeNull();
+    expect(c.outTime).toBeCloseTo(12, 6);
+    expect(model.cars[0]!.outTime).toBeNull();
     expect([...justOut(model.cars, 13)]).toEqual(["c"]);
     expect(justOut(model.cars, 30).size).toBe(0);
     expect(justOut(model.cars, 5).size).toBe(0);
@@ -90,9 +119,9 @@ describe("hud data", () => {
     expect(model.markers.find((m) => m.kind === "dnf")?.label).toBe(`${model.entries.get("c")!.code} out`);
     const warn = timelineMarkers(
       [
-        { t: 1, carId: "a", name: "", color: "", kind: "deleted", text: "Lap deleted: track limits" },
-        { t: 2, carId: "a", name: "", color: "", kind: "impact", text: "x" },
-        { t: 3, carId: "zz", name: "", color: "", kind: "finish", text: "P2 · 1:00.000" },
+        { t: 1, carId: "a", kind: "deleted", text: "Lap deleted: track limits" },
+        { t: 2, carId: "a", kind: "impact", text: "x" },
+        { t: 3, carId: "zz", kind: "finish", text: "P2 · 1:00.000" },
       ],
       model.entries,
     );
@@ -104,7 +133,6 @@ describe("hud data", () => {
         carIds: ["a"],
       },
     ]);
-    expect(model.ghost).toBe(true);
     expect(model.corners).toHaveLength(2);
   });
 

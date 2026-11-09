@@ -1,13 +1,9 @@
 import type { Entry } from "@bench/ui";
 import { type CarIndex, type CarSample, sampleCar } from "./frames.js";
+import type { LaunchBoard } from "./pack.js";
 import type { StandingRow } from "./timing.js";
 
 type Project = (x: number, y: number) => [number, number];
-
-/** When a car retired, or null while it runs or after it finished. */
-export function outTime(c: CarIndex): number | null {
-  return c.statuses.find((s) => s.status.startsWith("DNF"))?.t ?? null;
-}
 
 /**
  * Cars on the minimap: running and finished ones, drawn back to front so the leader sits on top of the cars
@@ -40,7 +36,7 @@ export function mapPins(
   project: Project,
 ) {
   return model.cars.flatMap((c) => {
-    const at = outTime(c);
+    const at = c.outTime;
     if (at === null || at > t) return [];
     const s = sampleCar(c, at);
     const [x, y] = project(s.x, s.y);
@@ -52,8 +48,43 @@ export function mapPins(
 export function justOut(cars: CarIndex[], t: number, window = 10): Set<string> {
   const out = new Set<string>();
   for (const c of cars) {
-    const at = outTime(c);
+    const at = c.outTime;
     if (at !== null && at <= t && t - at < window) out.add(c.car.id);
   }
   return out;
+}
+
+/** The entries of these car ids, skipping unknown ones. */
+export function entriesOf(ids: string[], entries: Map<string, Entry>): Entry[] {
+  return ids.flatMap((id) => entries.get(id) ?? []);
+}
+
+/** The start board's rows and same-place groups, as entries. */
+export function boardEntries(board: LaunchBoard, entries: Map<string, Entry>) {
+  return {
+    rows: board.rows.flatMap((r) => {
+      const entry = entries.get(r.id);
+      return entry ? [{ entry, distance: r.distance }] : [];
+    }),
+    same: board.same.map((g) => entriesOf(g, entries)),
+  };
+}
+
+/** The focus card's lap clock: the running time from the line, then the lap time once it is timed. */
+export function focusLap(
+  c: CarIndex,
+  row: StandingRow,
+  t: number,
+): { current: number | null; time: number | null } {
+  const running = !row.finished && !row.out && t >= c.startTime;
+  return {
+    current: running ? t - c.startTime : null,
+    time: row.finished && !row.deleted ? c.car.result.lapTime : null,
+  };
+}
+
+/** P1 once its lap is timed: every car crosses the line together, so the first timed lap is the fastest. */
+export function fastestId(rows: StandingRow[]): string | null {
+  const p1 = rows[0];
+  return p1?.finished && !p1.deleted ? p1.id : null;
 }

@@ -1,17 +1,16 @@
 import type { ClassifiedResult, SessionConfig } from "@bench/sim";
 
-/** The fields of a `results.json` (or of a replay's header + classification) a race list needs. */
+/** The fields of a session's `results.json` a race list needs. */
 export interface RaceSource {
   simVersion: string;
   trackId: string;
   session: Pick<SessionConfig, "seed">;
-  classification: Pick<ClassifiedResult, "id" | "name" | "color" | "status" | "position" | "lapTime">[];
+  classification: Pick<ClassifiedResult, "id" | "name" | "status" | "position" | "lapTime">[];
 }
 
 export interface RaceDriver {
   id: string;
   name: string;
-  color: string;
 }
 
 export interface RaceEntry {
@@ -19,7 +18,7 @@ export interface RaceEntry {
   id: string;
   /** URL the viewer fetches. */
   replay: string;
-  /** First path segment: "qualify", "practice", "demo", or an event id. */
+  /** First path segment: "qualify", "practice", or an event id. */
   group: string;
   trackId: string;
   trackName: string;
@@ -57,8 +56,8 @@ export function summarizeRace(
     time: opts.time,
     cars: cls.length,
     timed: cls.filter((c) => c.lapTime != null).length,
-    pole: p1 ? { id: p1.id, name: p1.name, color: p1.color, status: p1.status, time: p1.lapTime } : null,
-    drivers: cls.map((c) => ({ id: c.id, name: c.name, color: c.color })),
+    pole: p1 ? { id: p1.id, name: p1.name, status: p1.status, time: p1.lapTime } : null,
+    drivers: cls.map((c) => ({ id: c.id, name: c.name })),
   };
 }
 

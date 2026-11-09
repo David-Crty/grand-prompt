@@ -44,7 +44,7 @@ export const COLORS = {
   "entry-10": "#fc75b7",
   "entry-11": "#fed98f",
   "entry-12": "#e81ee9",
-  "entry-house": "#9aa0a8",
+  "entry-none": "#9aa0a8",
   "body-clay": "#c8673f",
   "body-silver": "#c4c8ce",
   "body-cobalt": "#3f6fd6",
@@ -62,6 +62,8 @@ export const COLORS = {
   "world-barrier-b": "#2c5a8c",
   "world-sky": "#bcd3e6",
   "world-sector": "#f5c400",
+  "world-barrier-top": "#bfc4cc",
+  "world-checker": "#1d1d1f",
   "map-track": "#3a3f47",
   "map-track-edge": "#ffffff1f"
 } as const;

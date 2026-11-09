@@ -1,7 +1,8 @@
 import * as React from "react";
+import { CAMERA_LABEL, CAMERA_MODES, type CameraMode } from "../cameras.js";
 import { type Entry, entryVar } from "../entries.js";
 import { formatClock, formatGap, formatLapTime, kmh } from "../format.js";
-import { type MarkerKind, mergeMarkers, type TimelineMarker } from "../timeline.js";
+import { mergeMarkers, type TimelineMarker } from "../timeline.js";
 import { gapLabel, lapOrDash, type TimingRow } from "../timing.js";
 import { Icon, type IconName, MarkerIcon } from "./icons.js";
 import {
@@ -26,7 +27,6 @@ export function SessionHeader({
   sub,
   t,
   speed,
-  ghost,
   ghostOpen = false,
   onGhost,
 }: {
@@ -37,7 +37,6 @@ export function SessionHeader({
   sub: string;
   t: number;
   speed: number;
-  ghost: boolean;
   ghostOpen?: boolean;
   onGhost?: () => void;
 }) {
@@ -59,18 +58,16 @@ export function SessionHeader({
       <span className="gp-vrule" />
       <span className="gp-session__clock gp-c">{formatClock(t)}</span>
       <span className="gp-session__speed">{speed}×</span>
-      {ghost ? (
-        <button
-          type="button"
-          className="gp-badge gp-badge--ghost"
-          aria-expanded={ghostOpen}
-          onClick={onGhost}
-          title="What ghost cars are"
-        >
-          <Icon name="ghost" />
-          Ghost cars
-        </button>
-      ) : null}
+      <button
+        type="button"
+        className="gp-badge gp-badge--ghost"
+        aria-expanded={ghostOpen}
+        onClick={onGhost}
+        title="What ghost cars are"
+      >
+        <Icon name="ghost" />
+        Ghost cars
+      </button>
     </div>
   );
 }
@@ -228,7 +225,7 @@ export function FocusRow({
   return (
     <div className="gp-frow" style={entryStyle(entry)}>
       <PositionBox position={row.position} leader={row.position === 1} out={row.out} />
-      <EntryChip entry={entry} variant={row.out ? "out" : undefined} />
+      <EntryChip entry={entry} out={row.out} />
       <span className="gp-entry__name gp-trunc gp-frow__name">{entry.name}</span>
       <span className="gp-frow__speed gp-c">{live ? kmh(live.speed) : 0}</span>
       <span className="gp-speed__u">KM/H</span>
@@ -296,14 +293,6 @@ export function ToastStack({ children }: { children: React.ReactNode }) {
 
 // ------------------------------------------------------------------ timeline and transport
 
-const MARK_ICON: Record<MarkerKind, MarkerKind> = {
-  start: "start",
-  fastest: "fastest",
-  warn: "warn",
-  dnf: "dnf",
-  finish: "finish",
-};
-
 /** Hook: the element's width, kept current with a ResizeObserver. */
 function useWidth<T extends HTMLElement>(): [React.RefObject<T | null>, number] {
   const ref = React.useRef<T>(null);
@@ -323,7 +312,6 @@ export function Timeline({
   duration,
   t,
   markers,
-  laps = [],
   activeT = null,
   onSeek,
   onMarker,
@@ -332,8 +320,6 @@ export function Timeline({
   duration: number;
   t: number;
   markers: TimelineMarker[];
-  /** Ticks with their labels, e.g. the line ("LINE"). */
-  laps?: { t: number; label: string }[];
   /** A marker at this time is drawn active (incident replay). */
   activeT?: number | null;
   onSeek: (t: number) => void;
@@ -380,16 +366,6 @@ export function Timeline({
     >
       <div className="gp-timeline__track" />
       <div className="gp-timeline__played" style={{ width: at(t) }} />
-      {laps.map((l) => (
-        <React.Fragment key={l.t}>
-          <i className="gp-timeline__lap" style={{ left: at(l.t) }} />
-          {size === "m" ? (
-            <span className="gp-timeline__lapn" style={{ left: at(l.t) }}>
-              {l.label}
-            </span>
-          ) : null}
-        </React.Fragment>
-      ))}
       {merged.map((m) => (
         <button
           type="button"
@@ -404,7 +380,7 @@ export function Timeline({
           onBlur={() => setHover(null)}
           onClick={() => onMarker?.(m)}
         >
-          <MarkerIcon kind={MARK_ICON[m.kind]} />
+          <MarkerIcon kind={m.kind} />
         </button>
       ))}
       <span className="gp-timeline__head" style={{ left: at(t) }} />
@@ -420,15 +396,6 @@ export function Timeline({
   );
 }
 
-export type CameraMode = "tv" | "chase" | "onboard" | "map";
-export const CAMERA_LABEL: Record<CameraMode, string> = {
-  tv: "TV",
-  chase: "Chase",
-  onboard: "Onboard",
-  map: "Map",
-};
-const CAMERAS: CameraMode[] = ["tv", "chase", "onboard", "map"];
-
 export type TransportFlag = "trails" | "analysis" | "classification" | "help";
 
 export function TransportBar({
@@ -440,7 +407,6 @@ export function TransportBar({
   canFaster,
   camera,
   markers,
-  laps,
   activeT,
   toggles,
   onToggle,
@@ -458,7 +424,6 @@ export function TransportBar({
   canFaster: boolean;
   camera: CameraMode;
   markers: TimelineMarker[];
-  laps?: { t: number; label: string }[];
   activeT?: number | null;
   toggles: { trails: boolean; analysis: boolean; classification: boolean };
   onToggle: () => void;
@@ -484,7 +449,6 @@ export function TransportBar({
         duration={duration}
         t={t}
         markers={markers}
-        laps={laps}
         activeT={activeT}
         onSeek={onSeek}
         onMarker={onMarker}
@@ -516,7 +480,7 @@ export function TransportBar({
         label="Camera"
         value={camera}
         onChange={onCamera}
-        options={CAMERAS.map((c, k) => ({
+        options={CAMERA_MODES.map((c, k) => ({
           value: c,
           label: CAMERA_LABEL[c],
           title: `${CAMERA_LABEL[c]} (${k + 1})`,
@@ -563,23 +527,18 @@ export function CarLabel({
   entry,
   position,
   focused = false,
-  ghost = false,
   out = false,
   name = true,
 }: {
   entry: Entry;
   position: number | null;
   focused?: boolean;
-  ghost?: boolean;
   out?: boolean;
   /** Show the name next to the code when focused (not on the map). */
   name?: boolean;
 }) {
   return (
-    <div
-      className={cx("gp-clabel", focused && "is-focused", ghost && "is-ghost", out && "is-out")}
-      style={entryStyle(entry)}
-    >
+    <div className={cx("gp-clabel", focused && "is-focused", out && "is-out")} style={entryStyle(entry)}>
       {position !== null && !out ? <span className="gp-clabel__pos">{position}</span> : null}
       <span className="gp-clabel__code">{entry.code}</span>
       {focused && name ? <span className="gp-clabel__name">{entry.name}</span> : null}
@@ -587,11 +546,12 @@ export function CarLabel({
   );
 }
 
-export function IncidentPin({ kind = "dnf", label }: { kind?: "dnf" | "warn"; label?: string }) {
+/** Where a retired car stopped. */
+export function IncidentPin({ label }: { label?: string }) {
   return (
-    <div className={`gp-pin gp-pin--${kind}`} title={label}>
+    <div className="gp-pin gp-pin--dnf" title={label}>
       <span className="gp-pin__head">
-        <Icon name={kind === "dnf" ? "cross" : "warn"} />
+        <Icon name="cross" />
       </span>
       <span className="gp-pin__stem" />
     </div>
@@ -678,7 +638,7 @@ export function MiniMap({
 
 // ------------------------------------------------------------------ phone
 
-/** The phone's header bar: back, track and event, ghost badge, lap and clock. */
+/** The phone's header bar: back, track and event, ghost badge, lap state and clock. */
 export function SessionBar({
   backHref,
   backLabel,
@@ -686,19 +646,17 @@ export function SessionBar({
   sub,
   lap,
   t,
-  ghost,
   ghostOpen = false,
   onGhost,
 }: {
   backHref?: string;
   backLabel?: string;
   track: string;
-  /** "gp-1 · Race". */
+  /** "gp-1 · Flying lap". */
   sub: string;
-  /** "L1/5" or "FINAL". */
+  /** "FLYING" or "FINAL". */
   lap: string;
   t: number;
-  ghost: boolean;
   ghostOpen?: boolean;
   onGhost?: () => void;
 }) {
@@ -717,17 +675,15 @@ export function SessionBar({
         <span className="gp-session__name">{track}</span>
         <span className="gp-session__sub">{sub}</span>
       </div>
-      {ghost ? (
-        <button
-          type="button"
-          className="gp-badge gp-badge--ghost gp-bar__ghost"
-          aria-expanded={ghostOpen}
-          onClick={onGhost}
-        >
-          <Icon name="ghost" />
-          Ghost
-        </button>
-      ) : null}
+      <button
+        type="button"
+        className="gp-badge gp-badge--ghost gp-bar__ghost"
+        aria-expanded={ghostOpen}
+        onClick={onGhost}
+      >
+        <Icon name="ghost" />
+        Ghost
+      </button>
       <span className="gp-c gp-bar__lap">{lap}</span>
       <span className="gp-session__clock gp-c gp-bar__clock">{formatClock(t)}</span>
     </header>
