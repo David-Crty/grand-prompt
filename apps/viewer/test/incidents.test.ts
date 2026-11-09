@@ -57,7 +57,7 @@ function synth(id: string, end: number, state: (t: number) => State, events: Sim
 const ramp = (t: number, t0: number, t1: number, a: number, b: number) =>
   t <= t0 ? a : t >= t1 ? b : a + ((b - a) * (t - t0)) / (t1 - t0);
 const index = (c: ReplayCar) => indexCar(c, 0, RATE, track.length);
-const out = (t: number, detail: string): SimEvent => ({ t, type: "status", lap: 1, detail });
+const out = (t: number, detail: string): SimEvent => ({ t, type: "status", detail });
 
 describe("incidents", () => {
   it("power oversteer, at rest facing the wrong way, wrong-way driving, then the barrier", () => {
@@ -71,7 +71,7 @@ describe("incidents", () => {
         if (t < 6.5) return { dir: Math.PI, yaw: Math.PI, speed: 0 };
         return { dir: Math.PI, yaw: Math.PI, speed: 10 };
       },
-      [{ t: 9.5, type: "crash", lap: 1, value: 10 }, out(9.5, "DNF: CRASHED (hit the barrier at 36 km/h)")],
+      [{ t: 9.5, type: "crash", value: 10 }, out(9.5, "DNF: CRASHED (hit the barrier at 36 km/h)")],
     );
     const inc = analyseIncident(index(car), track, corners)!;
     expect(inc.sentence).toBe(
@@ -101,7 +101,7 @@ describe("incidents", () => {
         if (t < 10) return { dir: 0, yaw: 0, speed: ramp(t, 8, 10, 1, 20), surface: t < 9 ? 2 : 0 };
         return { dir: 0, yaw: ramp(t, 10, 10.5, 0, Math.PI / 2), speed: 20, throttle: 0.5 };
       },
-      [{ t: 11, type: "crash", lap: 1, value: 20 }, out(11, "DNF: CRASHED (hit the barrier at 72 km/h)")],
+      [{ t: 11, type: "crash", value: 20 }, out(11, "DNF: CRASHED (hit the barrier at 72 km/h)")],
     );
     const inc = analyseIncident(index(car), track, corners)!;
     expect(inc.sentence).toBe(

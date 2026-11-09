@@ -43,7 +43,6 @@ export interface SessionConfig {
 }
 
 export interface LapRecord {
-  lap: number;
   time: number;
   sectors: number[];
   valid: boolean;
@@ -60,7 +59,6 @@ export type EventType = "lap" | "sector" | "offTrack" | "impact" | "crash" | "st
 export interface SimEvent {
   t: number;
   type: EventType;
-  lap: number;
   value?: number;
   detail?: string;
 }
@@ -263,7 +261,7 @@ export class CarSim {
   }
 
   private event(type: EventType, value?: number, detail?: string): void {
-    const e: SimEvent = { t: this.t, type, lap: 1 };
+    const e: SimEvent = { t: this.t, type };
     if (value !== undefined) e.value = value;
     if (detail !== undefined) e.detail = detail;
     this.events.push(e);
@@ -451,7 +449,7 @@ export class CarSim {
       const time = cross(L) - LAUNCH_TIME;
       const prevSum = this.sectorTimes.reduce((a, b) => a + b, 0);
       this.sectorTimes.push(time - prevSum);
-      this.lap = { lap: 1, time, sectors: this.sectorTimes, valid: this.lapValid };
+      this.lap = { time, sectors: this.sectorTimes, valid: this.lapValid };
       this.event("lap", time, this.lapValid ? undefined : "invalid");
       this.setStatus("FINISHED");
     }

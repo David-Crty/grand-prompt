@@ -25,7 +25,7 @@ describe("edge cases", () => {
     const run = out.runs[0]!;
     const impacts = run.events.filter((e) => e.type === "impact");
     expect(impacts.length).toBeGreaterThan(5);
-    for (let i = 0; i < 30; i++) run.events.push({ t: 100 + i, type: "impact", lap: 1, value: 1 });
+    for (let i = 0; i < 30; i++) run.events.push({ t: 100 + i, type: "impact", value: 1 });
     const text = summarizeSession(out.results, out.runs);
     expect(text).toMatch(/more events/);
     expect(summarizeSession(out.results, [])).toMatch(/P1 Righty/);

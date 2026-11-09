@@ -137,7 +137,7 @@ export function makeCar(track: TrackData, o: CarOpts): ReplayCar {
   for (let l = 1; l <= laps; l++) {
     const t = (l * track.length - startS) / o.speed;
     if (t > endT + 1e-9) break;
-    const ev: SimEvent = { t, type: "lap", lap: l, value: l === 1 ? lapTime + 1 : lapTime - l * 0.01 };
+    const ev: SimEvent = { t, type: "lap", value: l === 1 ? lapTime + 1 : lapTime - l * 0.01 };
     if (o.invalidLaps?.includes(l)) ev.detail = "invalid";
     events.push(ev);
   }
@@ -145,7 +145,6 @@ export function makeCar(track: TrackData, o: CarOpts): ReplayCar {
   events.push({
     t: endT,
     type: "status",
-    lap: laps + 1,
     detail: dnf ? "DNF: CRASHED (barrier)" : "FINISHED",
   });
   if (o.extraEvents) events.push(...o.extraEvents);

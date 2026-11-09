@@ -143,9 +143,7 @@ describe("hud data", () => {
           makeCar(track, {
             id: "x",
             speed: 40,
-            extraEvents: [
-              { t: 5, type: "status", lap: 1, detail: "DNF: CRASHED (hit the barrier at 106 km/h)" },
-            ],
+            extraEvents: [{ t: 5, type: "status", detail: "DNF: CRASHED (hit the barrier at 106 km/h)" }],
           }),
         ],
         track,

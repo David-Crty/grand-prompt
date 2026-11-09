@@ -56,7 +56,7 @@ const results: EventResults = {
   ],
 };
 
-const lap = (time: number, sectors: number[], valid = true) => ({ lap: 1, time, sectors, valid });
+const lap = (time: number, sectors: number[], valid = true) => ({ time, sectors, valid });
 const row = (o: Partial<ClassifiedResult> & { id: string }): ClassifiedResult =>
   ({
     name: o.id,
