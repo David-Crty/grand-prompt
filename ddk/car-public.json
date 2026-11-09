@@ -1,0 +1,15 @@
+{
+  "id": "proto-ow",
+  "version": 1,
+  "infoLevel": "B",
+  "mass": 800,
+  "wheelbase": 3.6,
+  "width": 2,
+  "length": 5.6,
+  "weightFront": 0.45,
+  "maxSteer": 0.35,
+  "steerRate": 1.6,
+  "throttleRate": 10,
+  "brakeRate": 16,
+  "maxPower": 740000
+}
