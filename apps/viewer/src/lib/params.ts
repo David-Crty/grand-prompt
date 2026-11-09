@@ -1,6 +1,7 @@
 export const CAMERA_MODES = ["tv", "chase", "onboard", "map"] as const;
 export type CameraMode = (typeof CAMERA_MODES)[number];
-export const SPEEDS = [1, 2, 4, 8, 16, 32] as const;
+/** Playback speeds; below 1x is slow motion (incident replays start at 0.5x). */
+export const SPEEDS = [0.25, 0.5, 1, 2, 4, 8, 16, 32] as const;
 
 export interface ViewerParams {
   replay: string | null;
@@ -53,4 +54,17 @@ export function parseParams(search: string): ViewerParams {
 export function stepSpeed(current: number, dir: 1 | -1): number {
   if (dir > 0) return SPEEDS.find((s) => s > current + 1e-9) ?? SPEEDS[SPEEDS.length - 1]!;
   return [...SPEEDS].reverse().find((s) => s < current - 1e-9) ?? SPEEDS[0];
+}
+
+/**
+ * Deep-link time, camera and car belong to the replay named in the URL. A replay dropped onto the page
+ * opens at the start, followed car and camera reset.
+ */
+export function paramsForReplay(p: ViewerParams, fromUrl: boolean): ViewerParams {
+  return fromUrl ? p : { ...p, t: null, cam: null, car: null };
+}
+
+/** The event a replay belongs to, from its URL (`/results/gp-1/qualify/replay.json.gz` is gp-1), for the back link. */
+export function eventOf(url: string | null): string | null {
+  return url?.match(/\/results\/([^/]+)\//)?.[1] ?? null;
 }

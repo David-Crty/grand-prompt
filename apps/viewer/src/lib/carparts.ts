@@ -204,8 +204,10 @@ function element(u: number, y: number, chord: number, angle: number, thick: numb
 }
 
 export interface RearWing {
-  /** Painted: the two flaps and the endplates. */
+  /** Painted with the body: the two flaps. */
   painted: Solid[];
+  /** In the entry colour: the two endplates. */
+  endplates: Solid[];
   /** Carbon: the mainplane and the two pylons. */
   carbon: Solid[];
 }
@@ -245,7 +247,8 @@ export function buildRearWing(tailX: number, span: number, scale: number, lift =
   const t = 0.02 * scale;
   const p = 0.09 * scale;
   return {
-    painted: [...flaps, prism(endplate, half, half + t), prism(endplate, -half - t, -half)],
+    painted: flaps,
+    endplates: [prism(endplate, half, half + t), prism(endplate, -half - t, -half)],
     carbon: [main!, prism(pylon, p - t / 2, p + t / 2), prism(pylon, -p - t / 2, -p + t / 2)],
   };
 }

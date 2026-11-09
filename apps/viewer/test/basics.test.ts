@@ -51,7 +51,7 @@ describe("coords", () => {
 describe("format", () => {
   it("formats lap times", () => {
     expect(formatLapTime(83.4567)).toBe("1:23.457");
-    expect(formatLapTime(9.5)).toBe("09.500");
+    expect(formatLapTime(9.5)).toBe("9.500");
     expect(formatLapTime(65, 0)).toBe("1:05");
     expect(formatLapTime(null)).toBe("--");
     expect(formatLapTime(undefined)).toBe("--");
@@ -134,7 +134,8 @@ describe("params", () => {
     expect(stepSpeed(16, 1)).toBe(32);
     expect(stepSpeed(32, 1)).toBe(32);
     expect(stepSpeed(2, -1)).toBe(1);
-    expect(stepSpeed(1, -1)).toBe(1);
+    expect(stepSpeed(1, -1)).toBe(0.5);
+    expect(stepSpeed(0.25, -1)).toBe(0.25);
     expect(stepSpeed(3, 1)).toBe(4);
   });
 });

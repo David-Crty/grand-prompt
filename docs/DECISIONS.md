@@ -356,3 +356,38 @@ qualifying and the 5-lap race, and `event reproduce` matches. Opus qualified on 
   checked as one valid flying lap on the Proto Ring and on each real circuit; the owner agreed to
   the format, but the section text itself is unchanged.
 
+## D27. A design system for the viewer, the results pages and the video (2026-11-09)
+
+- The inherited HUD style is replaced by the Grand Prompt design system. It lives in code, in `packages/ui`:
+  tokens, `components.css` and the React components. The brand book, component guides and screens stay in the
+  owner's design system and canvas on claude.ai; a copy in the repository would only drift. `tokens.json` is
+  the one source for colours, type, spacing and motion; `make tokens` generates `tokens.gen.css` and
+  `src/tokens.gen.ts`, and tests fail while they are stale or when a contrast floor breaks (text 4.5:1 on
+  every surface, entry colours 3:1 on every ground).
+- Dark only. The chrome is ink and chalk; hue belongs to entries and to a short list of signals (fastest lap,
+  DNF, warning, delta). The red accent is gone, partly because it read as a series colour.
+- A car is an entry (`resolveEntries` in `@bench/ui`): a three-letter code from the model's given name, one
+  of twelve colour slots tuned to stay apart under protanopia, deuteranopia and tritanopia (the code carries
+  slots 9 to 12), and a provider that picks the body paint. The entry colour goes on labels, trails, the
+  tower, the map and charts; the body shows the provider. Replays do not carry slots yet, so the viewer
+  resolves them in id order and ignores the stored colour; `models.json` slots come with the publish step.
+- Type is Archivo (variable width and weight; expanded for titles, condensed for numbers) and JetBrains Mono,
+  both OFL, shipped in `packages/ui/fonts`.
+- The redesign was planned in six phases (foundations, desktop HUD, ghost start, incidents, classification and
+  analysis, phone); the owner asked for the replay viewer as one pull request instead of commits on `main`.
+  The ghost start (issue 1) follows option A plus B: translucent packs, a pack label and a start board, never a
+  moved car; a test checks that every car is drawn at its replay sample.
+- Words come from the data, so the same replay always says the same thing: corners are numbered from the line
+  by curvature (`lib/corners.ts`), and an incident sentence is built from the car's frames (spin onset, coming
+  to rest, wrong-way driving, rejoining, how it ended; `lib/incidents.ts`).
+- Build cost is what the CLI reported, or tokens × list price from the committed `prices.json`, marked as an
+  estimate (an upper bound: no cache discount). `prices.json` starts empty; an estimate needs a dated price.
+- The points column (10-8-6-5-4-3-2-1) is display only, the design's proposal, until season standings exist.
+- Merged after D26, so the components were adapted to the flying lap: the tower head reads FLYING LAP or
+  FINAL, P1 shows POLE once timed and a deleted lap NO TIME (status DEL); the focus card shows the running
+  lap, the lap time and the gap to P1; the classification is lap time, gap and why a car has no time (lap
+  deleted, time up, retired), with points for valid laps only. Sectors compare the field's valid laps
+  (purple fastest, yellow slower), and the analysis compares timed laps. Race control says when the field
+  crosses the line and at what speed, then pole and each timed lap in arrival order, which is lap-time
+  order. The start board shows metres past the line, its clock counting from the line. Lap ticks,
+  penalties, warnings and "lapped" are gone.

@@ -8,7 +8,7 @@
   },
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json && tsc -p apps/viewer --noEmit",
+    "typecheck": "tsc -p tsconfig.json && tsc -p packages/ui --noEmit && tsc -p apps/viewer --noEmit",
     "lint": "biome check .",
     "format": "biome format --write .",
     "bench": "tsx packages/cli/src/main.ts",

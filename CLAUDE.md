@@ -25,8 +25,9 @@ or deviation.
   reference (it crashes on the real circuits), Gemini model ids in `models.json` (the Gemini CLI
   is not installed), and freezing the API for a season (PLAN 6.5). Ask before freezing.
 - Ghost cars share the same run-up and line, so they overlap until they diverge after the line;
-  that is intended (D26).
-- Phase 4: Remotion video and the mobile viewer are not started. Phase 5 (wheel-to-wheel) is not
+  that is intended (D26). The viewer explains the overlap with translucent packs, a pack label and
+  a start board, and never moves a car (D27).
+- Phase 4: the phone viewer exists (below 600 px); the Remotion video is not started. Phase 5 (wheel-to-wheel) is not
   started.
 
 ## Layout
@@ -36,6 +37,13 @@ or deviation.
 - `packages/cli`: the `bench` CLI (`src/index.ts` dispatch, `commands.ts`, `service.ts`,
   `workspace.ts`, `oneshot.ts`). The entry point is `pnpm bench …`.
 - `packages/reference-driver`: the internal house driver. It must never be copied into `ddk/`.
+- `packages/ui`: the design system (D27). Tokens are `tokens.json` (`make tokens` after editing), the styles
+  `components.css` (class prefix `gp-`), the React components `src/react` (presentational, shared with the
+  video), and entries (code, colour slot, provider body) come from `resolveEntries`. Rules for UI work: values
+  come from tokens, never a hex in a component; a car is identified by its entry, never by `car.color`; what
+  viewers see is what was timed (constraint 2), so ghosts, labels and panels explain overlaps and nothing moves
+  a car; logic goes in tested pure modules, not in components. The visual reference is the owner's design
+  canvas on claude.ai.
 - `apps/viewer`: Vite + R3F. It plays replays only and contains no physics. Pure logic lives in
   `src/lib` (tested), and the scene in `src/scene`. It serves `results/` at `/results/`, plus
   `/results/index.json` (the race list, built per request by `server/results-index.ts`). The car

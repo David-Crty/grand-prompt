@@ -1,12 +1,35 @@
+import type { GapMode, TimelineMarker } from "@bench/ui";
+import {
+  Button,
+  CAMERA_LABEL,
+  type CameraMode,
+  CarLabel,
+  FocusCard,
+  GhostNote,
+  IncidentBanner,
+  IncidentCard,
+  IncidentPin,
+  IncidentTrace,
+  MiniMap,
+  PackLabel,
+  RaceToast,
+  SessionHeader,
+  StartBoard,
+  TimingTower,
+  ToastStack,
+  TransportBar,
+  type TransportFlag,
+} from "@bench/ui/react";
 import { useMemo } from "react";
-import { TV_ZOOM_MAX, TV_ZOOM_MIN } from "../lib/camera.js";
-import { contrastText } from "../lib/color.js";
-import { formatClock, formatLapTime, kmh, nameTag, statusShort } from "../lib/format.js";
+import { formatClock } from "../lib/format.js";
 import type { CarSample, LapInfo } from "../lib/frames.js";
-import type { RaceMessage } from "../lib/messages.js";
+import { mapCars, mapPins } from "../lib/hud.js";
+import { type Incident, incidentTitle } from "../lib/incidents.js";
+import { type RaceMessage, TOAST_KIND } from "../lib/messages.js";
 import { buildMinimap } from "../lib/minimap.js";
 import type { ViewerModel } from "../lib/model.js";
-import { CAMERA_MODES, type CameraMode, SPEEDS } from "../lib/params.js";
+import { type LaunchBoard, type Pack, packGroups } from "../lib/pack.js";
+import { SPEEDS } from "../lib/params.js";
 import type { StandingRow } from "../lib/timing.js";
 
 export interface HudSnapshot {
@@ -20,352 +43,272 @@ export interface HudSnapshot {
   samples: CarSample[];
   lap: LapInfo | null;
   fastestId: string | null;
-  messages: RaceMessage[];
+  toasts: RaceMessage[];
+  /** Cars that retired in the last few seconds, tinted on the tower. */
+  justOut: Set<string>;
+  /** The pack of ghost cars drawn with one label, if any. */
+  pack: (Pack & { others: string[] }) | null;
+  /** The start board while it is up (ghost start). */
+  launch: LaunchBoard | null;
   fpsMs: number;
   stats: { jsMs: number; calls: number; tris: number };
 }
 
-const MODE_LABEL: Record<CameraMode, string> = { tv: "TV", chase: "Chase", onboard: "Onboard", map: "Map" };
+const MAP_W = 316;
+const MAP_H = 150;
 
-export function TimingTower({
+export function Tower({
   model,
   snap,
-  showInterval,
+  mode,
+  onMode,
   onFocus,
+  onPin,
 }: {
   model: ViewerModel;
   snap: HudSnapshot;
-  showInterval: boolean;
+  mode: GapMode;
+  onMode: (m: GapMode) => void;
   onFocus: (id: string) => void;
+  onPin: (id: string) => void;
 }) {
-  const allDone = snap.rows.every((r) => r.finished || r.out);
+  const map = useMemo(() => buildMinimap(model.layout, MAP_W, MAP_H), [model]);
   return (
-    <div className="tower panel">
-      <div className="tower-head">
-        <span className="brand">GRAND PROMPT</span>
-        <span className="tower-lap">{allDone ? "FINAL" : "FLYING LAP"}</span>
-      </div>
-      {snap.rows.map((r) => {
-        const st = statusShort(r.status);
-        return (
-          <button
-            type="button"
-            key={r.id}
-            className={`tower-row${r.id === snap.focusId ? " focused" : ""}${r.out ? " out" : ""}`}
-            onClick={() => onFocus(r.id)}
-            title={r.name}
-          >
-            <span className="pos">{r.position}</span>
-            <span className="swatch" style={{ background: r.color }} />
-            <span className="name">{r.name}</span>
-            <span
-              className={snap.fastestId === r.id ? "fastest" : ""}
-              title={snap.fastestId === r.id ? "Fastest lap" : undefined}
-            />
-            <span className={`gap${r.position === 1 ? " lead" : ""}`}>
-              {showInterval ? r.intervalText : r.gapText}
-            </span>
-            <span className="lapcol">
-              {st === "FIN" ? (
-                <Chequer />
-              ) : st ? (
-                <span className={`badge b-${st.toLowerCase()}`}>{st}</span>
-              ) : null}
-            </span>
-          </button>
-        );
-      })}
-      <div className="tower-foot">{showInterval ? "INTERVAL" : "GAP TO LEADER"}</div>
-      <TrackMap model={model} snap={snap} onFocus={onFocus} />
+    <div className="hud-tower">
+      <TimingTower
+        rows={snap.rows}
+        entries={model.entries}
+        focusId={snap.focusId}
+        fastestId={snap.fastestId}
+        mode={mode}
+        justOut={snap.justOut}
+        onFocus={onFocus}
+        onMode={onMode}
+      >
+        <div className="hud-map">
+          <MiniMap
+            width={map.width}
+            height={map.height}
+            path={map.path}
+            start={map.start}
+            cars={mapCars(model, snap.rows, snap.samples, snap.focusId, map.project)}
+            pins={mapPins(model, snap.t, map.project)}
+            onFocus={onFocus}
+            onPin={onPin}
+          />
+        </div>
+      </TimingTower>
     </div>
   );
 }
 
-const MAP_WIDTH = 340;
-const MAP_MAX_HEIGHT = 190;
-
-function TrackMap({
-  model,
-  snap,
-  onFocus,
-}: {
-  model: ViewerModel;
-  snap: HudSnapshot;
-  onFocus: (id: string) => void;
-}) {
-  const map = useMemo(() => buildMinimap(model.layout, MAP_WIDTH, MAP_MAX_HEIGHT), [model]);
-  const position = new Map(snap.rows.map((r) => [r.id, r]));
-  const order = model.cars
-    .map((c, k) => ({ c, k, row: position.get(c.car.id) }))
-    .filter((e) => snap.samples[e.k])
-    .sort((a, b) => (b.row?.position ?? 0) - (a.row?.position ?? 0));
-  const focused = order.find((e) => e.c.car.id === snap.focusId);
-  const drawn = focused ? [...order.filter((e) => e !== focused), focused] : order;
-  return (
-    <svg className="trackmap" viewBox={`0 0 ${map.width} ${map.height}`} role="img" aria-label="Track map">
-      <path className="tm-track" d={map.path} />
-      <path className="tm-line" d={map.path} />
-      <line className="tm-start" x1={map.start[0]} y1={map.start[1]} x2={map.start[2]} y2={map.start[3]} />
-      {drawn.map(({ c, k, row }) => {
-        const s = snap.samples[k]!;
-        const [x, y] = map.project(s.x, s.y);
-        const isFocus = c.car.id === snap.focusId;
-        return (
-          // biome-ignore lint/a11y/noStaticElementInteractions: the tower rows are the accessible way to pick a car
-          <g
-            key={c.car.id}
-            className={`tm-car${isFocus ? " focused" : ""}${row?.out ? " out" : ""}`}
-            transform={`translate(${x.toFixed(1)} ${y.toFixed(1)})`}
-            onClick={() => onFocus(c.car.id)}
-          >
-            <title>{`P${row?.position ?? "?"} ${c.car.name}`}</title>
-            <circle r={isFocus ? 6.5 : 4.5} fill={c.car.color} />
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
-function Chequer() {
-  const cells = [];
-  for (let r = 0; r < 3; r++)
-    for (let c = 0; c < 4; c++)
-      if ((r + c) % 2 === 0) cells.push(<rect key={`${r}${c}`} x={c * 4} y={r * 4} width={4} height={4} />);
-  return (
-    <svg className="chequer" viewBox="0 0 16 12" width="16" height="12" aria-label="Finished">
-      <rect width="16" height="12" fill="#fff" />
-      <g fill="#111">{cells}</g>
-    </svg>
-  );
-}
-
-export function SessionInfo({
+export function TopRight({
   model,
   snap,
   mode,
   backHref,
+  backLabel,
+  ghostOpen,
+  onGhost,
+  onWhy,
+  incident,
+  onReplay,
+  onMap,
+  onCloseIncident,
 }: {
   model: ViewerModel;
   snap: HudSnapshot;
   mode: CameraMode;
   backHref?: string;
+  backLabel?: string;
+  ghostOpen: boolean;
+  onGhost: () => void;
+  onWhy: (carId: string) => void;
+  incident: Incident | null;
+  onReplay: (inc: Incident) => void;
+  onMap: () => void;
+  onCloseIncident: () => void;
 }) {
+  const sub = `Flying lap · ${CAMERA_LABEL[mode]}`;
   return (
-    <div className="session panel">
-      {backHref ? (
-        <a className="session-back" href={backHref}>
-          ← All races
-        </a>
-      ) : null}
-      <div className="session-track">{model.replay.track.name}</div>
-      <div className="session-row">
-        <span className="session-type">QUALIFYING</span>
-        <span className="clock">{formatClock(snap.t)}</span>
-        <span className={`speed-badge${snap.speed !== 1 ? " fast" : ""}`}>{snap.speed}×</span>
-      </div>
-      <div className="session-cam">{MODE_LABEL[mode]}</div>
-    </div>
-  );
-}
-
-export function Telemetry({ model, snap }: { model: ViewerModel; snap: HudSnapshot }) {
-  const f = snap.focus;
-  const row = snap.rows.find((r) => r.id === snap.focusId);
-  const car = model.cars.find((c) => c.car.id === snap.focusId)?.car;
-  if (!f || !row || !car) return null;
-  const lap = snap.lap;
-  const cur =
-    lap && !row.finished && !row.out && snap.t >= lap.currentLapStart ? snap.t - lap.currentLapStart : null;
-  const off = f.surface >= 2 && !f.ended;
-  return (
-    <div className="telemetry panel">
-      <div className="tel-head" style={{ background: car.color, color: contrastText(car.color) }}>
-        <span className="tel-pos">P{row.position}</span>
-        <span className="tel-name">{car.name}</span>
-      </div>
-      <div className="tel-body">
-        <div className="tel-speed">
-          <span className="tel-kmh">{f.ended ? 0 : kmh(f.speed)}</span>
-          <span className="tel-unit">KM/H</span>
-        </div>
-        <div className="tel-bars">
-          <Bar label="THR" value={f.ended ? 0 : f.throttle} cls="thr" />
-          <Bar label="BRK" value={f.ended ? 0 : f.brake} cls="brk" />
-        </div>
-        <div className="tel-steer">
-          <div className="steer-track">
-            <div className="steer-dot" style={{ left: `${50 - f.steer * 50}%` }} />
-          </div>
-          <span>STEER</span>
-        </div>
-      </div>
-      <div className="tel-laps">
-        <div>
-          <span className="k">LAP</span>
-          <span className="v">
-            {cur !== null ? formatLapTime(cur, 1) : row.status === "FINISHED" ? "FIN" : "--"}
-          </span>
-        </div>
-        <div>
-          <span className="k">TIME</span>
-          <span
-            className={`v${lap?.lastValid === false ? " invalid" : snap.fastestId === car.id ? " purple" : ""}`}
-          >
-            {formatLapTime(lap?.last)}
-          </span>
-        </div>
-      </div>
-      {off ? <div className="tel-off">{["", "", "GRASS", "GRAVEL", "BARRIER"][f.surface]}</div> : null}
-    </div>
-  );
-}
-
-function Bar({ label, value, cls }: { label: string; value: number; cls: string }) {
-  return (
-    <div className="bar">
-      <div className="bar-track">
-        <div
-          className={`bar-fill ${cls}`}
-          style={{ height: `${Math.round(Math.min(1, Math.max(0, value)) * 100)}%` }}
+    <div className="hud-topright">
+      <SessionHeader
+        backHref={backHref}
+        backLabel={backLabel}
+        track={model.replay.track.name}
+        sub={sub}
+        t={snap.t}
+        speed={snap.speed}
+        ghost={model.ghost}
+        ghostOpen={ghostOpen}
+        onGhost={onGhost}
+      />
+      {ghostOpen ? <GhostNote count={model.cars.length} onClose={onGhost} /> : null}
+      {incident ? (
+        <IncidentPanel
+          model={model}
+          incident={incident}
+          onReplay={onReplay}
+          onMap={onMap}
+          onClose={onCloseIncident}
         />
-      </div>
-      <span>{label}</span>
+      ) : snap.toasts.length ? (
+        <ToastStack>
+          {snap.toasts.map((m) => {
+            const kind = TOAST_KIND[m.kind];
+            return (
+              <RaceToast
+                key={`${m.t}-${m.carId}-${m.kind}`}
+                kind={kind}
+                entry={model.entries.get(m.carId) ?? null}
+                text={m.text}
+                t={m.t}
+                action={kind === "dnf" ? { label: "Why", onClick: () => onWhy(m.carId) } : null}
+              />
+            );
+          })}
+        </ToastStack>
+      ) : null}
     </div>
   );
 }
 
-export function Messages({ snap }: { snap: HudSnapshot }) {
-  if (snap.messages.length === 0) return null;
+export function IncidentPanel({
+  model,
+  incident,
+  onReplay,
+  onMap,
+  onClose,
+  layout = "card",
+}: {
+  layout?: "card" | "sheet";
+  model: ViewerModel;
+  incident: Incident;
+  onReplay: (inc: Incident) => void;
+  onMap: () => void;
+  onClose: () => void;
+}) {
+  const entry = model.entries.get(incident.carId);
+  if (!entry) return null;
+  const marks = incident.spins.map((s, k) => ({ t: s.t, label: k ? "SPIN 2" : "SPIN" }));
   return (
-    <div className="messages">
-      {snap.messages.map((m) => (
-        <div key={`${m.t}-${m.carId}-${m.kind}`} className={`msg panel m-${m.kind}`}>
-          <span className="swatch" style={{ background: m.color }} />
-          <span className="msg-name">{nameTag(m.name)}</span>
-          <span className="msg-text">{m.text}</span>
-        </div>
-      ))}
+    <IncidentCard
+      title={incidentTitle(incident)}
+      where={incident.where}
+      entry={entry}
+      sentence={incident.error ? `${incident.sentence} ${incident.error}` : incident.sentence}
+      trace={<IncidentTrace window={incident.window} marks={marks} entry={entry} />}
+      facts={[
+        { k: "Out at", v: formatClock(incident.t) },
+        { k: "Impact", v: incident.impactKmh !== null ? `${incident.impactKmh} km/h` : "–" },
+        { k: "Cause", v: incident.cause },
+      ]}
+      actions={
+        <>
+          <Button variant="primary" icon="back5" onClick={() => onReplay(incident)}>
+            Replay from {formatClock(incident.replayFrom)}
+          </Button>
+          <Button icon="map" onClick={onMap}>
+            Map
+          </Button>
+        </>
+      }
+      onClose={layout === "sheet" ? onClose : undefined}
+      layout={layout}
+    />
+  );
+}
+
+/** Top centre during an incident replay: whose incident, and how long until it ends. */
+export function IncidentMode({
+  model,
+  snap,
+  incident,
+  onExit,
+}: {
+  model: ViewerModel;
+  snap: HudSnapshot;
+  incident: Incident;
+  onExit: () => void;
+}) {
+  const name = model.entries.get(incident.carId)?.name ?? incident.carId;
+  const dt = incident.t - snap.t;
+  const what = incident.impactKmh !== null ? "impact" : "retirement";
+  const text = `${name} · ${dt > 0 ? `${dt.toFixed(1)} s to ${what}` : `${what} ${(-dt).toFixed(1)} s ago`}`;
+  return (
+    <div className="hud-banner">
+      <IncidentBanner text={text} onExit={onExit} />
     </div>
   );
 }
 
-export function Controls({
+export function Focus({ model, snap }: { model: ViewerModel; snap: HudSnapshot }) {
+  const row = snap.rows.find((r) => r.id === snap.focusId);
+  const entry = model.entries.get(snap.focusId);
+  if (!row || !entry) return null;
+  const lap = snap.lap;
+  const running = lap && !row.finished && !row.out;
+  return (
+    <div className="hud-focus">
+      <FocusCard
+        row={row}
+        entry={entry}
+        sample={snap.focus}
+        fastest={snap.fastestId === row.id}
+        lap={{
+          current: running && snap.t >= lap.currentLapStart ? snap.t - lap.currentLapStart : null,
+          time: lap?.completed && lap.lastValid ? lap.last : null,
+        }}
+      />
+    </div>
+  );
+}
+
+export function Transport({
   model,
   snap,
   mode,
-  trails,
-  zoom,
-  onZoom,
+  toggles,
+  activeT,
   onToggle,
   onSeek,
+  onMarker,
   onSpeed,
   onMode,
-  onTrails,
-  onAnalysis,
-  onHelp,
+  onFlag,
 }: {
   model: ViewerModel;
   snap: HudSnapshot;
   mode: CameraMode;
-  trails: boolean;
-  zoom: number;
-  onZoom: (z: number) => void;
+  toggles: { trails: boolean; analysis: boolean; classification: boolean };
+  activeT: number | null;
   onToggle: () => void;
   onSeek: (t: number) => void;
+  onMarker: (m: TimelineMarker) => void;
   onSpeed: (dir: 1 | -1) => void;
   onMode: (m: CameraMode) => void;
-  onTrails: () => void;
-  onAnalysis: () => void;
-  onHelp: () => void;
+  onFlag: (f: TransportFlag) => void;
 }) {
   return (
-    <div className="controls panel">
-      <button type="button" className="play" onClick={onToggle} aria-label={snap.playing ? "Pause" : "Play"}>
-        {snap.playing ? (
-          <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
-            <rect x="3" y="2" width="3.5" height="12" fill="currentColor" />
-            <rect x="9.5" y="2" width="3.5" height="12" fill="currentColor" />
-          </svg>
-        ) : (
-          <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
-            <path d="M4 2 L14 8 L4 14 Z" fill="currentColor" />
-          </svg>
-        )}
-      </button>
-      <span className="time">
-        {formatClock(snap.t)} / {formatClock(model.duration)}
-      </span>
-      <input
-        className="scrub"
-        type="range"
-        min={0}
-        max={model.duration}
-        step={0.02}
-        value={snap.t}
-        onChange={(e) => onSeek(Number(e.target.value))}
-        aria-label="Seek"
+    <div className="hud-transport">
+      <TransportBar
+        t={snap.t}
+        duration={model.duration}
+        playing={snap.playing}
+        speed={snap.speed}
+        canSlower={snap.speed > SPEEDS[0]}
+        canFaster={snap.speed < SPEEDS[SPEEDS.length - 1]!}
+        camera={mode}
+        markers={model.markers}
+        activeT={activeT}
+        toggles={toggles}
+        onToggle={onToggle}
+        onSeek={onSeek}
+        onMarker={onMarker}
+        onSpeed={onSpeed}
+        onCamera={onMode}
+        onFlag={onFlag}
       />
-      <div className="seg speed">
-        <button
-          type="button"
-          onClick={() => onSpeed(-1)}
-          disabled={snap.speed <= SPEEDS[0]}
-          aria-label="Slower"
-          title="Slower (key − or ↓)"
-        >
-          −
-        </button>
-        <span className="speed-value">{snap.speed}×</span>
-        <button
-          type="button"
-          onClick={() => onSpeed(1)}
-          disabled={snap.speed >= SPEEDS[SPEEDS.length - 1]!}
-          aria-label="Faster"
-          title="Faster (key + or ↑)"
-        >
-          +
-        </button>
-      </div>
-      <div className="seg">
-        {CAMERA_MODES.map((m, k) => (
-          <button
-            type="button"
-            key={m}
-            className={mode === m ? "on" : ""}
-            onClick={() => onMode(m)}
-            title={`Key ${k + 1}`}
-          >
-            {MODE_LABEL[m]}
-          </button>
-        ))}
-      </div>
-      {mode === "tv" ? (
-        <label className="zoom" title="Mouse wheel or keys Z / X, double-click to reset">
-          <span>Zoom {zoom.toFixed(1)}×</span>
-          <input
-            type="range"
-            min={Math.log2(TV_ZOOM_MIN)}
-            max={Math.log2(TV_ZOOM_MAX)}
-            step={0.01}
-            value={Math.log2(zoom)}
-            onChange={(e) => onZoom(2 ** Number(e.target.value))}
-            onDoubleClick={() => onZoom(1)}
-            aria-label="TV zoom"
-          />
-        </label>
-      ) : null}
-      <div className="seg">
-        <button type="button" className={trails ? "on" : ""} onClick={onTrails} title="Key T">
-          Trails
-        </button>
-        <button type="button" onClick={onAnalysis} title="Key A">
-          Analysis
-        </button>
-        <button type="button" onClick={onHelp} title="Key ?">
-          ?
-        </button>
-      </div>
     </div>
   );
 }
@@ -373,30 +316,79 @@ export function Controls({
 export function Labels({
   model,
   snap,
+  mode,
+  phone = false,
   register,
+  registerPack,
+  onFocus,
 }: {
   model: ViewerModel;
   snap: HudSnapshot;
+  mode: CameraMode;
+  phone?: boolean;
   register: (k: number, el: HTMLDivElement | null) => void;
+  registerPack: (el: HTMLDivElement | null) => void;
+  onFocus: (id: string) => void;
 }) {
+  const rows = new Map(snap.rows.map((r) => [r.id, r]));
+  const groups = snap.pack
+    ? packGroups(snap.pack, snap.pack.others).map((g) => g.flatMap((id) => model.entries.get(id) ?? []))
+    : [];
+  const more = snap.pack && snap.pack.others.length < snap.pack.ids.length;
   return (
     <div className="labels">
+      <div className="label-anchor" ref={registerPack} style={{ display: "none" }}>
+        {groups.length ? (
+          <PackLabel
+            title={more ? `Pack · ${snap.pack!.others.length} more` : "Pack"}
+            groups={groups}
+            layout={phone ? "row" : "list"}
+          />
+        ) : null}
+      </div>
       {model.cars.map((c, k) => {
-        const row = snap.rows.find((r) => r.id === c.car.id);
-        return (
+        const row = rows.get(c.car.id);
+        const entry = model.entries.get(c.car.id);
+        if (!entry) return null;
+        // On the map a retired car is a pin where it stopped; elsewhere it keeps a faded label.
+        return row?.out && mode === "map" ? (
           <div key={c.car.id} className="label-anchor" ref={(el) => register(k, el)}>
-            <div className={`label${c.car.id === snap.focusId ? " focused" : ""}`}>
-              <span
-                className="label-pos"
-                style={{ background: c.car.color, color: contrastText(c.car.color) }}
-              >
-                {row?.position ?? ""}
-              </span>
-              <span className="label-name">{c.car.name}</span>
-            </div>
+            <IncidentPin label={`${entry.code} out`} />
+          </div>
+        ) : (
+          <div key={c.car.id} className="label-anchor" ref={(el) => register(k, el)}>
+            <button
+              type="button"
+              className="label-hit"
+              onClick={() => onFocus(c.car.id)}
+              aria-label={`Follow ${entry.name}`}
+            >
+              <CarLabel
+                entry={entry}
+                position={row?.position ?? null}
+                focused={c.car.id === snap.focusId}
+                out={row?.out ?? false}
+                name={mode !== "map" && !phone}
+              />
+            </button>
           </div>
         );
       })}
+    </div>
+  );
+}
+
+export function Start({ model, snap }: { model: ViewerModel; snap: HudSnapshot }) {
+  const b = snap.launch;
+  if (!b) return null;
+  const rows = b.rows.flatMap((r) => {
+    const entry = model.entries.get(r.id);
+    return entry ? [{ entry, distance: r.distance }] : [];
+  });
+  const same = b.same.map((g) => g.flatMap((id) => model.entries.get(id) ?? []));
+  return (
+    <div className="hud-start">
+      <StartBoard t={snap.t - model.replay.header.launch.time} rows={rows} scale={b.scale} same={same} />
     </div>
   );
 }
@@ -406,9 +398,10 @@ const KEYS: [string, string][] = [
   ["Tab / ] and Shift+Tab / [", "Next / previous car (or click one in the timing tower)"],
   ["Space", "Play / pause"],
   ["← →", "Seek 5 s (Shift: 30 s)"],
+  [", .", "Previous / next event on the timeline"],
   ["↑ ↓  or  + −", "Playback speed"],
-  ["Home / End", "Start / end of the race"],
-  ["Z / X  or  wheel", "TV zoom in / out (double-click the slider to reset)"],
+  ["Home / End", "Start / end of the replay"],
+  ["Z / X  or  wheel", "TV zoom in / out"],
   ["G", "Gap to leader / interval"],
   ["T", "Trails"],
   ["A", "Analysis: best-lap speed traces"],

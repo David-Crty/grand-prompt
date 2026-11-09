@@ -1,5 +1,6 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": { "allowJs": true, "checkJs": false, "jsx": "react-jsx" },
-  "include": ["packages/*/src", "packages/*/test", "scripts", "vitest.config.ts"]
+  "include": ["packages/*/src", "packages/*/test", "scripts", "vitest.config.ts"],
+  "exclude": ["packages/ui/src/react"]
 }

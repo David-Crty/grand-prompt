@@ -1,0 +1,4 @@
+{
+  "note": "List prices in USD per million tokens, used only to estimate build cost when a CLI reports tokens but not cost (Codex). Estimates are marked as such and are an upper bound (no cache discount). Add a model as { \"inputPerM\": 0, \"outputPerM\": 0, \"date\": \"YYYY-MM-DD\", \"source\": \"<price page>\" }, keyed by its models.json id.",
+  "models": {}
+}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { recolorRace } from "../lib/entries.js";
 import { formatLapTime } from "../lib/format.js";
 import { filterRaces, formatDate, type RaceEntry, type RaceIndex, watchHref } from "../lib/races.js";
 
@@ -72,7 +73,7 @@ export function RaceList({ error, loading }: { error: string | null; loading: st
         if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${INDEX_URL}`);
         return res.json() as Promise<RaceIndex>;
       })
-      .then(setIndex)
+      .then((ix) => setIndex({ ...ix, races: ix.races.map(recolorRace) }))
       .catch((e: Error) => setFailed(e.message));
   }, []);
 

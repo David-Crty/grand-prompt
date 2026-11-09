@@ -1,4 +1,5 @@
 import type { Replay } from "@bench/sim";
+import type { EventResults } from "./results.js";
 
 export class ReplayLoadError extends Error {}
 
@@ -49,4 +50,27 @@ export async function fetchReplay(url: string, fetchFn: typeof fetch = fetch): P
   const res = await fetchFn(url);
   if (!res.ok) throw new ReplayLoadError(`HTTP ${res.status} fetching ${url}`);
   return decodeReplay(await res.arrayBuffer());
+}
+
+/** `/results/gp-1/qualify/replay.json.gz` has its event's results at `/results/gp-1/event-results.json`. */
+export function eventResultsUrl(replayUrl: string): string | null {
+  const m = replayUrl.match(/^(.*\/results\/[^/]+)\/[^/]+\/replay\.json(\.gz)?(\?.*)?$/);
+  return m ? `${m[1]}/event-results.json` : null;
+}
+
+/** The event's results and build manifests, or null when they are not published next to the replay. */
+export async function fetchEventResults(
+  replayUrl: string,
+  fetchFn: typeof fetch = fetch,
+): Promise<EventResults | null> {
+  const url = eventResultsUrl(replayUrl);
+  if (!url) return null;
+  try {
+    const res = await fetchFn(url);
+    if (!res.ok) return null;
+    const data = (await res.json()) as EventResults;
+    return Array.isArray(data?.rows) ? data : null;
+  } catch {
+    return null;
+  }
 }

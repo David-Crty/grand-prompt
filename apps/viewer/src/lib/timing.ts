@@ -10,6 +10,8 @@ export interface StandingRow {
   progress: number;
   status: string;
   finished: boolean;
+  /** Finished on a deleted lap. */
+  deleted: boolean;
   out: boolean;
   /** Seconds behind the leader, when on the same lap. */
   gap: number | null;
@@ -100,6 +102,7 @@ export function liveStandings(cars: CarIndex[], t: number): StandingRow[] {
       progress: it.p,
       status: it.status,
       finished: it.g === 0 || it.g === 2,
+      deleted: it.g === 2,
       out,
       gap,
       interval,

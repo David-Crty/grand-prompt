@@ -5,6 +5,7 @@ import {
   type CarModelFile,
   type CarPart,
   REAR_WING_SPAN_PER_WIDTH,
+  splitStripe,
   TYRE_RADIUS_PER_WHEELBASE,
 } from "../src/lib/carmodel.js";
 import {
@@ -86,9 +87,10 @@ describe("procedural car parts", () => {
 
   it("builds a three-element rear wing ending at the tail", () => {
     const w = buildRearWing(-2.8, 1, 1);
-    expect(w.painted).toHaveLength(4);
+    expect(w.painted).toHaveLength(2);
+    expect(w.endplates).toHaveLength(2);
     expect(w.carbon).toHaveLength(3);
-    const all = [...w.painted, ...w.carbon];
+    const all = [...w.painted, ...w.endplates, ...w.carbon];
     for (const s of all) expect(signedVolume(s)).toBeGreaterThan(0);
     expect(extent(all, 0)[0]).toBeCloseTo(-2.8, 6);
     expect(extent(all, 1)[1]).toBeLessThanOrEqual(1);
@@ -98,7 +100,7 @@ describe("procedural car parts", () => {
 
 describe("car model", () => {
   const m = buildCarMesh(5.6, 2, 3.6);
-  const chassis = [...m.body, ...m.detail];
+  const chassis = [...m.body, ...m.livery, ...m.detail];
 
   it("fits the replay's length and width, with 2026 tyre and wing proportions", () => {
     const [rear, front] = extent(chassis, 0);
@@ -109,13 +111,16 @@ describe("car model", () => {
     expect(extent(m.wheel.right, 1)[1]).toBeCloseTo(m.wheelRadius, 6);
     expect(extent(chassis, 1)[0]).toBeGreaterThanOrEqual(-1e-6);
     expect(m.trackHalf + extent(m.wheel.right, 2)[1]).toBeLessThanOrEqual(1.001);
-    const flap = m.body.at(-4)!;
+    const flap = m.body.at(-2)!;
     expect(extent([flap], 2)[1]).toBeCloseTo((REAR_WING_SPAN_PER_WIDTH * 2) / 2, 5);
   });
 
   it("has every role, paints the body, and mirrors the left side", () => {
     expect(m.upright.right).toHaveLength(1);
     expect(m.body.every((p) => p.color === null)).toBe(true);
+    expect(m.livery.every((p) => p.role === "livery" && p.color === null)).toBe(true);
+    const stripe = m.livery.reduce((n, p) => n + p.indices.length, 0);
+    expect(stripe).toBeGreaterThan(0);
     expect(m.detail.every((p) => typeof p.color === "string")).toBe(true);
     for (const [r, l] of [
       [m.wheel.right, m.wheel.left],
@@ -133,6 +138,22 @@ describe("car model", () => {
     );
     expect(tris).toBeLessThan(3500);
     expect(CAR_MODEL.triangles).toBeLessThan(3000);
+  });
+
+  it("splits the stripe off by facing and distance from the centreline", () => {
+    // Two triangles: one flat on top at the centreline, one facing sideways.
+    const part: CarPart = {
+      role: "body",
+      color: null,
+      positions: new Float32Array([0, 1, -0.05, 1, 1, 0, 0, 1, 0.05, 0, 0, 0.5, 0, 1, 0.5, 1, 0, 0.5]),
+      indices: new Uint16Array([0, 2, 1, 3, 4, 5]),
+    };
+    const { stripe, rest } = splitStripe(part, 0.1);
+    expect(Array.from(stripe.indices)).toEqual([0, 2, 1]);
+    expect(Array.from(rest.indices)).toEqual([3, 4, 5]);
+    expect(stripe.role).toBe("livery");
+    // Facing down: not part of the stripe.
+    expect(splitStripe({ ...part, indices: new Uint16Array([0, 1, 2]) }, 0.1).stripe.indices).toHaveLength(0);
   });
 
   it("keeps a model with no overhang unscaled along x", () => {
