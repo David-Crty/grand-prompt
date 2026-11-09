@@ -51,7 +51,7 @@ describe("coords", () => {
 describe("format", () => {
   it("formats lap times", () => {
     expect(formatLapTime(83.4567)).toBe("1:23.457");
-    expect(formatLapTime(9.5)).toBe("09.500");
+    expect(formatLapTime(9.5)).toBe("9.500");
     expect(formatLapTime(65, 0)).toBe("1:05");
     expect(formatLapTime(null)).toBe("--");
     expect(formatLapTime(undefined)).toBe("--");

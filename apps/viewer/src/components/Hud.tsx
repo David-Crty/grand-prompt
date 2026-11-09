@@ -7,8 +7,10 @@ import {
   GhostNote,
   IncidentPin,
   MiniMap,
+  PackLabel,
   RaceToast,
   SessionHeader,
+  StartBoard,
   TimingTower,
   ToastStack,
   TransportBar,
@@ -20,6 +22,7 @@ import { mapCars, mapPins } from "../lib/hud.js";
 import { type RaceMessage, TOAST_KIND } from "../lib/messages.js";
 import { buildMinimap } from "../lib/minimap.js";
 import type { ViewerModel } from "../lib/model.js";
+import { type LaunchBoard, type Pack, packGroups } from "../lib/pack.js";
 import { SPEEDS } from "../lib/params.js";
 import type { StandingRow } from "../lib/timing.js";
 
@@ -37,6 +40,10 @@ export interface HudSnapshot {
   toasts: RaceMessage[];
   /** Cars that retired in the last few seconds, tinted on the tower. */
   justOut: Set<string>;
+  /** The pack of ghost cars drawn with one label, if any. */
+  pack: (Pack & { others: string[] }) | null;
+  /** The start board while it is up (ghost start). */
+  launch: LaunchBoard | null;
   fpsMs: number;
   stats: { jsMs: number; calls: number; tris: number };
 }
@@ -219,15 +226,26 @@ export function Labels({
   snap,
   mode,
   register,
+  registerPack,
 }: {
   model: ViewerModel;
   snap: HudSnapshot;
   mode: CameraMode;
   register: (k: number, el: HTMLDivElement | null) => void;
+  registerPack: (el: HTMLDivElement | null) => void;
 }) {
   const rows = new Map(snap.rows.map((r) => [r.id, r]));
+  const groups = snap.pack
+    ? packGroups(snap.pack, snap.pack.others).map((g) => g.flatMap((id) => model.entries.get(id) ?? []))
+    : [];
+  const more = snap.pack && snap.pack.others.length < snap.pack.ids.length;
   return (
     <div className="labels">
+      <div className="label-anchor" ref={registerPack} style={{ display: "none" }}>
+        {groups.length ? (
+          <PackLabel title={more ? `Pack · ${snap.pack!.others.length} more` : "Pack"} groups={groups} />
+        ) : null}
+      </div>
       {model.cars.map((c, k) => {
         const row = rows.get(c.car.id);
         const entry = model.entries.get(c.car.id);
@@ -249,6 +267,21 @@ export function Labels({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+export function Start({ model, snap }: { model: ViewerModel; snap: HudSnapshot }) {
+  const b = snap.launch;
+  if (!b) return null;
+  const rows = b.rows.flatMap((r) => {
+    const entry = model.entries.get(r.id);
+    return entry ? [{ entry, distance: r.distance }] : [];
+  });
+  const same = b.same.map((g) => g.flatMap((id) => model.entries.get(id) ?? []));
+  return (
+    <div className="hud-start">
+      <StartBoard t={snap.t} rows={rows} scale={b.scale} same={same} />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import type * as THREE from "three";
 import type { Vec3 } from "../lib/coords.js";
 import type { CarSample } from "../lib/frames.js";
+import type { Pack } from "../lib/pack.js";
 import type { CameraMode } from "../lib/params.js";
 import type { PlaybackClock } from "../lib/playback.js";
 import type { StandingRow } from "../lib/timing.js";
@@ -12,6 +13,8 @@ export interface CarHandles {
   wheelRadius: number;
   marker: THREE.Object3D;
   trail: THREE.Mesh;
+  /** Draw the car translucent (a ghost overlapping another run) or solid. Never moves it. */
+  setGhost: (on: boolean) => void;
 }
 
 /** Mutable per-frame state shared by the render loop and the HUD (which polls it). */
@@ -26,6 +29,10 @@ export interface LiveState {
   samples: CarSample[];
   cars: (CarHandles | null)[];
   labels: (HTMLDivElement | null)[];
+  /** Overlapping cars this frame (ghost race), and the one pack drawn with a single label. */
+  packs: Pack[];
+  labelPack: (Pack & { others: string[] }) | null;
+  packLabel: HTMLDivElement | null;
   cam: {
     pos: Vec3;
     look: Vec3;

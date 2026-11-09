@@ -2082,8 +2082,25 @@ fieldset.gp-seg {
   text-align: right;
   font-size: 15px;
 }
-.gp-pack__item { display: inline-flex; align-items: center; gap: 1px; }
-.gp-pack__count { color: var(--text-100); }
-.gp-pack__same { font-size: 11px; color: var(--text-300); margin-left: 4px; white-space: nowrap; }
-.gp-pack--row { flex-direction: row; align-items: center; gap: 4px; }
-.gp-launch__title { color: var(--text-100); }
+.gp-pack__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+}
+.gp-pack__count {
+  color: var(--text-100);
+}
+.gp-pack__same {
+  font-size: 11px;
+  color: var(--text-300);
+  margin-left: 4px;
+  white-space: nowrap;
+}
+.gp-pack--row {
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+}
+.gp-launch__title {
+  color: var(--text-100);
+}

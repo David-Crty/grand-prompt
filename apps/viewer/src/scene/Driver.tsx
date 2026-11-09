@@ -17,6 +17,7 @@ import { damp, dampAngle, type Vec3 } from "../lib/coords.js";
 import { sampleCar } from "../lib/frames.js";
 import { type LabelBox, stackLabels } from "../lib/labels.js";
 import type { ViewerModel } from "../lib/model.js";
+import { carPlacement, findPacks, ghostIds, labelPack, PACK_LENGTHS } from "../lib/pack.js";
 import { liveStandings } from "../lib/timing.js";
 import { trailRibbon } from "../lib/trail.js";
 import { TRAIL_POINTS } from "./Cars.js";
@@ -62,13 +63,27 @@ export function Driver({
     });
     L.rows = liveStandings(model.cars, t, model.totalLaps);
     const mapMode = L.mode === "map";
+    // Ghost race: overlapping runs are drawn translucent and labelled as one pack; positions are never touched.
+    L.packs = model.ghost
+      ? findPacks(
+          model.cars.map((c, k) => {
+            const s = L.samples[k]!;
+            return { id: c.car.id, x: s.x, y: s.y, progress: s.progress, ended: s.ended };
+          }),
+          PACK_LENGTHS * model.replay.header.car.length,
+        )
+      : [];
+    const ghosts = ghostIds(L.packs, L.focusId);
+    L.labelPack = mapMode ? null : labelPack(L.packs, L.focusId);
 
     model.cars.forEach((c, k) => {
       const h = L.cars[k];
       const s = L.samples[k]!;
       if (!h) return;
-      h.group.position.set(s.x, 0, -s.y);
-      h.group.rotation.y = s.yaw;
+      const at = carPlacement(s);
+      h.group.position.set(...at.position);
+      h.group.rotation.y = at.yaw;
+      h.setGhost(ghosts.has(c.car.id));
       for (const p of h.steer) p.rotation.y = s.steer * maxSteer;
       const spin =
         (L.wheelSpin[k] ?? 0) -
@@ -196,8 +211,32 @@ export function Driver({
 
     const half = { w: size.width / 2, h: size.height / 2 };
     const boxes: LabelBox[] = [];
-    const shown: number[] = [];
-    model.cars.forEach((_, k) => {
+    const shown: HTMLDivElement[] = [];
+    const inPack = new Set(L.labelPack?.others ?? []);
+    const place = (el: HTMLDivElement, x: number, y: number, d: number) => {
+      const tag = (el.firstElementChild as HTMLElement | null) ?? el;
+      boxes.push({ x, y: y - 6, w: tag.offsetWidth || 120, h: tag.offsetHeight || 20, priority: -d });
+      shown.push(el);
+      el.style.zIndex = String(10000 - Math.min(9999, Math.round(d)));
+    };
+    const pl = L.packLabel;
+    if (pl) {
+      const members = L.labelPack
+        ? model.cars.flatMap((c, k) => (inPack.has(c.car.id) ? [L.samples[k]!] : []))
+        : [];
+      let visible = members.length > 0;
+      if (visible) {
+        const cx = members.reduce((a, m) => a + m.x, 0) / members.length;
+        const cy = members.reduce((a, m) => a + m.y, 0) / members.length;
+        tmp.v.set(cx, 2.6, -cy);
+        const d = cam.position.distanceTo(tmp.v);
+        tmp.v.project(cam);
+        visible = tmp.v.z <= 1 && Math.abs(tmp.v.x) <= 1.1 && Math.abs(tmp.v.y) <= 1.1;
+        if (visible) place(pl, tmp.v.x * half.w + half.w, -tmp.v.y * half.h + half.h, d);
+      }
+      pl.style.display = visible ? "" : "none";
+    }
+    model.cars.forEach((c, k) => {
       const el = L.labels[k];
       if (!el) return;
       const s = L.samples[k]!;
@@ -209,20 +248,16 @@ export function Driver({
         Math.abs(tmp.v.x) > 1.1 ||
         Math.abs(tmp.v.y) > 1.1 ||
         ((L.mode === "onboard" || L.mode === "chase") && k === focusIdx) ||
+        inPack.has(c.car.id) ||
         (!mapMode && d > 900);
       el.style.display = hidden ? "none" : "";
       if (hidden) return;
-      const x = tmp.v.x * half.w + half.w;
-      const y = -tmp.v.y * half.h + half.h;
-      const tag = (el.firstElementChild as HTMLElement | null) ?? el;
-      boxes.push({ x, y: y - 6, w: tag.offsetWidth || 120, h: tag.offsetHeight || 20, priority: -d });
-      shown.push(k);
-      el.style.zIndex = String(10000 - Math.min(9999, Math.round(d)));
+      place(el, tmp.v.x * half.w + half.w, -tmp.v.y * half.h + half.h, d);
     });
     const offs = stackLabels(boxes);
-    shown.forEach((k, n) => {
+    shown.forEach((el, n) => {
       const b = boxes[n]!;
-      L.labels[k]!.style.transform = `translate(${b.x.toFixed(1)}px, ${(b.y + offs[n]!).toFixed(1)}px)`;
+      el.style.transform = `translate(${b.x.toFixed(1)}px, ${(b.y + offs[n]!).toFixed(1)}px)`;
     });
 
     const fps = L.fps;

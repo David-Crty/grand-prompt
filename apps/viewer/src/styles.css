@@ -69,6 +69,7 @@ button {
 
 /* HUD layout (desktop): tower top-left, session and messages top-right, followed car bottom-left, transport. */
 .hud-tower,
+.hud-start,
 .hud-topright,
 .hud-focus,
 .hud-transport {
@@ -98,6 +99,11 @@ button {
 
 .hud-map svg {
   display: block;
+}
+
+.hud-start {
+  left: 388px;
+  top: 24px;
 }
 
 .hud-topright {

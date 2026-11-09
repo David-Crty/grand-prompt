@@ -5,12 +5,22 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type * as THREE from "three";
 import { Analysis } from "./components/Analysis.js";
 import { Classification } from "./components/Classification.js";
-import { Focus, Help, type HudSnapshot, Labels, TopRight, Tower, Transport } from "./components/Hud.js";
+import {
+  Focus,
+  Help,
+  type HudSnapshot,
+  Labels,
+  Start,
+  TopRight,
+  Tower,
+  Transport,
+} from "./components/Hud.js";
 import { clampZoom, stepZoom } from "./lib/camera.js";
 import { lapInfoAt, overallBestAt } from "./lib/frames.js";
 import { justOut } from "./lib/hud.js";
 import { visibleToasts } from "./lib/messages.js";
 import type { ViewerModel } from "./lib/model.js";
+import { launchBoard, startBoardVisible } from "./lib/pack.js";
 import { CAMERA_MODES, type CameraMode, stepSpeed, type ViewerParams } from "./lib/params.js";
 import { PlaybackClock } from "./lib/playback.js";
 import { MARKER_LEAD } from "./lib/timeline.js";
@@ -49,6 +59,9 @@ export function Viewer({
       samples: [],
       cars: [],
       labels: [],
+      packs: [],
+      labelPack: null,
+      packLabel: null,
       cam: {
         pos: [0, 50, 50],
         look: [0, 0, 0],
@@ -74,7 +87,8 @@ export function Viewer({
   const [fps, setFps] = useState(params.fps);
   const [help, setHelp] = useState(false);
   const [gapMode, setGapMode] = useState<GapMode>("gap");
-  const [ghostOpen, setGhostOpen] = useState(false);
+  // null: shown on its own while the start board is up; true or false once the viewer has toggled it.
+  const [ghostOpen, setGhostOpen] = useState<boolean | null>(null);
   const [classif, setClassif] = useState(false);
   const autoShown = useRef(false);
   const [snap, setSnap] = useState<HudSnapshot | null>(null);
@@ -109,6 +123,10 @@ export function Viewer({
       const t = L.clock.t;
       const k = model.cars.findIndex((c) => c.car.id === L.focusId);
       const best = overallBestAt(model.cars, t);
+      const board =
+        model.ghost && L.samples.length === model.cars.length
+          ? launchBoard(model.cars.map((c, j) => ({ id: c.car.id, ...L.samples[j]! })))
+          : null;
       setSnap({
         t,
         playing: L.clock.playing,
@@ -121,6 +139,8 @@ export function Viewer({
         fastestId: best?.id ?? null,
         toasts: visibleToasts(model.messages, t, L.clock.speed, 3),
         justOut: justOut(model.cars, t),
+        pack: L.labelPack,
+        launch: board && startBoardVisible(t, board.spread) ? board : null,
         fpsMs: L.fps.avgMs,
         stats: { jsMs: L.fps.jsMs, calls: L.fps.calls, tris: L.fps.tris },
       });
@@ -261,6 +281,10 @@ export function Viewer({
   const registerLabel = useCallback((k: number, el: HTMLDivElement | null) => {
     live.current.labels[k] = el;
   }, []);
+  const registerPack = useCallback((el: HTMLDivElement | null) => {
+    live.current.packLabel = el;
+  }, []);
+  const ghostShown = ghostOpen ?? snap?.launch != null;
 
   const onSeek = useCallback((t: number) => live.current.clock.seek(t), []);
   const cursorS = useMemo(() => snap?.focus?.s ?? null, [snap]);
@@ -295,7 +319,9 @@ export function Viewer({
         <Cars model={model} live={live} />
         <Driver model={model} live={live} lightRef={lightRef} />
       </Canvas>
-      {snap ? <Labels model={model} snap={snap} mode={mode} register={registerLabel} /> : null}
+      {snap ? (
+        <Labels model={model} snap={snap} mode={mode} register={registerLabel} registerPack={registerPack} />
+      ) : null}
       {snap && hud ? (
         <>
           <Tower model={model} snap={snap} mode={gapMode} onMode={setGapMode} onFocus={focusCar} />
@@ -305,11 +331,12 @@ export function Viewer({
             mode={mode}
             backHref={backHref}
             backLabel={backLabel}
-            ghostOpen={ghostOpen}
-            onGhost={() => setGhostOpen((v) => !v)}
+            ghostOpen={ghostShown}
+            onGhost={() => setGhostOpen(!ghostShown)}
             onWhy={onWhy}
           />
           <Focus model={model} snap={snap} />
+          {snap.launch ? <Start model={model} snap={snap} /> : null}
           <Transport
             model={model}
             snap={snap}
