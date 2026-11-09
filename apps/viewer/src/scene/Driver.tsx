@@ -122,7 +122,7 @@ export function Driver({
     let pose: Pose;
     if (L.mode === "tv") {
       const a = L.samples[focusIdx]!;
-      const insets = hudInsets(size.width);
+      const insets = hudInsets(size.width, L.insetBottom);
       const aspect =
         Math.max(50, size.width - insets.left - insets.right) /
         Math.max(50, size.height - insets.top - insets.bottom);
@@ -174,7 +174,7 @@ export function Driver({
       } else if (L.mode === "onboard") {
         pose = onboardPose(a);
       } else {
-        pose = mapPose(model.bounds, size.width, size.height, hudInsets(size.width));
+        pose = mapPose(model.bounds, size.width, size.height, hudInsets(size.width, L.insetBottom));
       }
     }
 
@@ -214,7 +214,7 @@ export function Driver({
     const shown: HTMLDivElement[] = [];
     const inPack = new Set(L.labelPack?.others ?? []);
     const place = (el: HTMLDivElement, x: number, y: number, d: number) => {
-      const tag = (el.firstElementChild as HTMLElement | null) ?? el;
+      const tag = el.querySelector<HTMLElement>(".gp-clabel, .gp-pack, .gp-pin") ?? el;
       boxes.push({ x, y: y - 6, w: tag.offsetWidth || 120, h: tag.offsetHeight || 20, priority: -d });
       shown.push(el);
       el.style.zIndex = String(10000 - Math.min(9999, Math.round(d)));
@@ -290,7 +290,9 @@ export function Driver({
   return null;
 }
 
-function hudInsets(width: number): Insets {
+/** Screen space the HUD covers, so the TV and map cameras frame cars in what is left. */
+function hudInsets(width: number, sheet: number | null): Insets {
+  if (width < 600) return { left: 12, right: 12, top: 170, bottom: sheet ?? 200 };
   const wide = width > 760;
   return { left: wide ? 372 : 16, right: wide ? 24 : 16, top: wide ? 24 : 150, bottom: wide ? 76 : 90 };
 }

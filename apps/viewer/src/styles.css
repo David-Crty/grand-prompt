@@ -579,3 +579,104 @@ button {
 .analysis__sectors td .gp-sector {
   min-width: 52px;
 }
+
+/* Labels can be tapped or clicked to follow the car. */
+.label-hit {
+  all: unset;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+/* Phone layout (below 600 px). */
+.viewer.is-phone canvas {
+  touch-action: none;
+}
+
+.phone > * {
+  z-index: 3;
+}
+
+.phone-strip,
+.phone-start,
+.phone-note,
+.phone-toast {
+  position: absolute;
+  z-index: 3;
+  top: 60px;
+}
+
+.phone-strip,
+.phone-start {
+  left: 8px;
+}
+
+.phone-start .gp-launch {
+  width: 236px;
+}
+
+.phone-note {
+  right: 8px;
+}
+
+.phone-toast {
+  left: 148px;
+  right: 8px;
+}
+
+.phone-focus {
+  all: unset;
+  display: block;
+  width: 100%;
+  cursor: pointer;
+}
+
+.phone-sheet__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 16px 8px;
+}
+
+.phone-sheet__title {
+  color: var(--text-100);
+}
+
+.phone-sheet__hint {
+  font-size: 12px;
+  padding: 0 16px;
+  margin: 6px 0 0;
+}
+
+.result-sheet {
+  padding: 4px 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.result-sheet__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.result-sheet__head h2 {
+  margin: 0;
+  font-size: 17px;
+  flex: 1;
+}
+
+.analysis-sheet {
+  padding: 4px 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.analysis-sheet .analysis__head h2 {
+  font-size: 17px;
+}
+
+.gp-dock .gp-seg--touch button {
+  padding: 0 10px;
+}

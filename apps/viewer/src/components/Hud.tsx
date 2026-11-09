@@ -322,14 +322,18 @@ export function Labels({
   model,
   snap,
   mode,
+  phone = false,
   register,
   registerPack,
+  onFocus,
 }: {
   model: ViewerModel;
   snap: HudSnapshot;
   mode: CameraMode;
+  phone?: boolean;
   register: (k: number, el: HTMLDivElement | null) => void;
   registerPack: (el: HTMLDivElement | null) => void;
+  onFocus: (id: string) => void;
 }) {
   const rows = new Map(snap.rows.map((r) => [r.id, r]));
   const groups = snap.pack
@@ -340,7 +344,11 @@ export function Labels({
     <div className="labels">
       <div className="label-anchor" ref={registerPack} style={{ display: "none" }}>
         {groups.length ? (
-          <PackLabel title={more ? `Pack · ${snap.pack!.others.length} more` : "Pack"} groups={groups} />
+          <PackLabel
+            title={more ? `Pack · ${snap.pack!.others.length} more` : "Pack"}
+            groups={groups}
+            layout={phone ? "row" : "list"}
+          />
         ) : null}
       </div>
       {model.cars.map((c, k) => {
@@ -354,13 +362,20 @@ export function Labels({
           </div>
         ) : (
           <div key={c.car.id} className="label-anchor" ref={(el) => register(k, el)}>
-            <CarLabel
-              entry={entry}
-              position={row?.position ?? null}
-              focused={c.car.id === snap.focusId}
-              out={row?.out ?? false}
-              name={mode !== "map"}
-            />
+            <button
+              type="button"
+              className="label-hit"
+              onClick={() => onFocus(c.car.id)}
+              aria-label={`Follow ${entry.name}`}
+            >
+              <CarLabel
+                entry={entry}
+                position={row?.position ?? null}
+                focused={c.car.id === snap.focusId}
+                out={row?.out ?? false}
+                name={mode !== "map" && !phone}
+              />
+            </button>
           </div>
         );
       })}

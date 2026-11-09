@@ -2245,3 +2245,107 @@ fieldset.gp-seg {
   stroke-dasharray: 2 2;
   stroke-opacity: 0.7;
 }
+/* phone */
+.gp-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 52px;
+  border-radius: 0;
+  border-width: 0 0 1px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px 0 4px;
+}
+.gp-bar__track {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+.gp-bar__track .gp-session__name {
+  font-size: 14px;
+  line-height: 16px;
+}
+.gp-bar__ghost {
+  height: 20px;
+}
+.gp-bar__lap {
+  font-weight: 700;
+  font-size: 17px;
+}
+.gp-bar__clock {
+  font-size: 20px;
+}
+.gp-sheet--open {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.gp-sheet__handle {
+  border: 0;
+  background: none;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  height: 18px;
+  cursor: pointer;
+  flex: none;
+}
+.gp-sheet__body {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  padding-bottom: 16px;
+}
+.gp-sheet__scrim {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 5;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  background: rgba(7, 8, 10, 0.45);
+}
+.gp-dock {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  background: var(--hud-panel-solid);
+  border-top: 1px solid var(--line-200);
+  border-radius: var(--radius-4) var(--radius-4) 0 0;
+  box-shadow: var(--shadow-sheet);
+}
+.gp-dock__timeline {
+  padding: 2px 16px 0;
+}
+.gp-dock__controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px 14px;
+}
+.gp-dock__speed {
+  padding: 0 10px;
+  min-width: 52px;
+}
+.gp-note--short {
+  width: 130px;
+  padding: 8px;
+  font-size: 12px;
+  line-height: 16px;
+}
+.gp-note--short p {
+  margin: 6px 0 0;
+}

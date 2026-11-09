@@ -5,6 +5,7 @@ import { decodeReplay, fetchEventResults, fetchReplay } from "./lib/load.js";
 import { buildModel } from "./lib/model.js";
 import { eventOf, paramsForReplay, parseParams } from "./lib/params.js";
 import type { EventResults } from "./lib/results.js";
+import { PHONE_QUERY } from "./usePhone.js";
 import { Viewer } from "./Viewer.js";
 
 export function App() {
@@ -76,7 +77,9 @@ export function App() {
     };
   }, []);
 
-  const model = useMemo(() => (replay ? buildModel(replay) : null), [replay]);
+  // Phones draw half the trees (performance, constraint 9); decided once, so a resize never rebuilds the scene.
+  const trees = useMemo(() => (window.matchMedia?.(PHONE_QUERY).matches ? 700 : 1400), []);
+  const model = useMemo(() => (replay ? buildModel(replay, trees) : null), [replay, trees]);
 
   return (
     <>

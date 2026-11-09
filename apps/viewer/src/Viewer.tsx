@@ -16,14 +16,16 @@ import {
   Tower,
   Transport,
 } from "./components/Hud.js";
+import { INCIDENT_SHEET_PX, PhoneHud, type PhoneSheet } from "./components/PhoneHud.js";
 import { clampZoom, stepZoom } from "./lib/camera.js";
 import { lapInfoAt, overallBestAt } from "./lib/frames.js";
+import { cycleSpeed, pinchFactor, swipeDir } from "./lib/gestures.js";
 import { justOut } from "./lib/hud.js";
 import type { Incident } from "./lib/incidents.js";
 import { visibleToasts } from "./lib/messages.js";
 import type { ViewerModel } from "./lib/model.js";
 import { launchBoard, startBoardVisible } from "./lib/pack.js";
-import { CAMERA_MODES, type CameraMode, stepSpeed, type ViewerParams } from "./lib/params.js";
+import { CAMERA_MODES, type CameraMode, SPEEDS, stepSpeed, type ViewerParams } from "./lib/params.js";
 import { PlaybackClock } from "./lib/playback.js";
 import type { EventResults } from "./lib/results.js";
 import { MARKER_LEAD } from "./lib/timeline.js";
@@ -32,6 +34,7 @@ import { Driver } from "./scene/Driver.js";
 import { IncidentRing } from "./scene/IncidentRing.js";
 import type { LiveState } from "./scene/live.js";
 import { World } from "./scene/World.js";
+import { usePhone } from "./usePhone.js";
 
 export function Viewer({
   model,
@@ -69,6 +72,7 @@ export function Viewer({
       packs: [],
       labelPack: null,
       packLabel: null,
+      insetBottom: null,
       cam: {
         pos: [0, 50, 50],
         look: [0, 0, 0],
@@ -99,6 +103,11 @@ export function Viewer({
   const [classif, setClassif] = useState(false);
   // Incident replay: the card, the banner, slow motion and the ring on the ground, until Exit.
   const [incident, setIncident] = useState<Incident | null>(null);
+  const phone = usePhone();
+  const [sheet, setSheet] = useState<PhoneSheet | null>(null);
+  const phoneRef = useRef(phone);
+  phoneRef.current = phone;
+  live.current.insetBottom = phone && sheet === "incident" ? INCIDENT_SHEET_PX : null;
   const autoShown = useRef(false);
   const [snap, setSnap] = useState<HudSnapshot | null>(null);
 
@@ -155,7 +164,8 @@ export function Viewer({
       });
       if (L.clock.atEnd && !autoShown.current) {
         autoShown.current = true;
-        setClassif(true);
+        if (phoneRef.current) setSheet("result");
+        else setClassif(true);
       }
     };
     const id = window.setInterval(tick, 66);
@@ -322,17 +332,70 @@ export function Viewer({
       const inc = model.incidents.find((i) => i.carId === carId);
       if (!inc) return;
       setIncident(inc);
+      if (phoneRef.current) setSheet("incident");
       replayIncident(inc);
     },
     [model, replayIncident],
   );
   const exitIncident = useCallback(() => {
     setIncident(null);
+    setSheet((s) => (s === "incident" ? null : s));
     live.current.clock.speed = 1;
   }, []);
 
+  // Phone gestures on the scene: a sideways flick changes car, two fingers zoom the TV camera.
+  const touch = useRef<{
+    pts: Map<number, { x: number; y: number }>;
+    x0: number;
+    y0: number;
+    t0: number;
+    d0: number;
+  }>({
+    pts: new Map(),
+    x0: 0,
+    y0: 0,
+    t0: 0,
+    d0: 0,
+  });
+  const spread = () => {
+    const [a, b] = [...touch.current.pts.values()];
+    return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0;
+  };
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (!phone || !(e.target instanceof HTMLCanvasElement)) return;
+    const g = touch.current;
+    g.pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (g.pts.size === 1) Object.assign(g, { x0: e.clientX, y0: e.clientY, t0: performance.now() });
+    if (g.pts.size === 2) g.d0 = spread();
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    const g = touch.current;
+    if (!g.pts.has(e.pointerId)) return;
+    g.pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (g.pts.size === 2 && live.current.mode === "tv") {
+      const d = spread();
+      setZoom(live.current.tvZoom * pinchFactor(g.d0, d));
+      g.d0 = d;
+    }
+  };
+  const onPointerUp = (e: React.PointerEvent) => {
+    const g = touch.current;
+    if (!g.pts.has(e.pointerId)) return;
+    const single = g.pts.size === 1;
+    g.pts.delete(e.pointerId);
+    if (!single) return;
+    const dir = swipeDir(e.clientX - g.x0, e.clientY - g.y0, performance.now() - g.t0);
+    if (dir) cycleCar(dir);
+  };
+
   return (
-    <div className="viewer gp">
+    <div
+      className={`viewer gp${phone ? " is-phone" : ""}`}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+    >
       <Canvas
         shadows="percentage"
         dpr={[1, 2]}
@@ -345,9 +408,46 @@ export function Viewer({
         {incident ? <IncidentRing x={incident.x} y={incident.y} /> : null}
       </Canvas>
       {snap ? (
-        <Labels model={model} snap={snap} mode={mode} register={registerLabel} registerPack={registerPack} />
+        <Labels
+          model={model}
+          snap={snap}
+          mode={mode}
+          phone={phone}
+          register={registerLabel}
+          registerPack={registerPack}
+          onFocus={focusCar}
+        />
       ) : null}
-      {snap && hud ? (
+      {snap && hud && phone ? (
+        <PhoneHud
+          model={model}
+          snap={snap}
+          mode={mode}
+          gapMode={gapMode}
+          sheet={sheet}
+          incident={incident}
+          results={results}
+          backHref={backHref}
+          backLabel={backLabel}
+          ghostOpen={ghostShown}
+          onGhost={() => setGhostOpen(!ghostShown)}
+          onSheet={setSheet}
+          onFocus={focusCar}
+          onGapMode={setGapMode}
+          onMode={setMode}
+          onToggle={() => live.current.clock.toggle()}
+          onSpeed={() => {
+            const c = live.current.clock;
+            c.speed = cycleSpeed(SPEEDS, c.speed);
+          }}
+          onSeek={onSeek}
+          onMarker={seekMarker}
+          onWhy={onWhy}
+          onReplay={replayIncident}
+          onExitIncident={exitIncident}
+        />
+      ) : null}
+      {snap && hud && !phone ? (
         <>
           <Tower
             model={model}
@@ -394,7 +494,7 @@ export function Viewer({
           />
         </>
       ) : null}
-      {analysis && snap ? (
+      {analysis && snap && !phone ? (
         <div className="hud-analysis">
           <Analysis
             model={model}
@@ -405,7 +505,9 @@ export function Viewer({
           />
         </div>
       ) : null}
-      {classif ? <Classification model={model} results={results} onClose={() => setClassif(false)} /> : null}
+      {classif && !phone ? (
+        <Classification model={model} results={results} onClose={() => setClassif(false)} />
+      ) : null}
       {help ? <Help onClose={() => setHelp(false)} /> : null}
       {fps && snap ? (
         <div className="fps">

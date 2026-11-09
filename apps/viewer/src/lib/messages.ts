@@ -23,6 +23,8 @@ export interface RaceMessage {
   color: string;
   kind: MessageKind;
   text: string;
+  /** The phone's shorter wording, when there is one ("Out · before Turn 4"). */
+  short?: string;
   lap: number;
 }
 
@@ -93,6 +95,7 @@ export function raceMessages(cars: CarIndex[], corners: Corner[] = [], ghost = t
           ...onLap,
           kind: "crash",
           text: join(`Crashed at ${impactKmh(c, e.value ?? 0)} km/h`, where(c, e.t, corners)),
+          short: join("Out", where(c, e.t, corners)),
         });
         break;
       case "impact":

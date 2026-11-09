@@ -76,7 +76,25 @@ export function SessionHeader({
 }
 
 /** What a ghost race is, shown under the badge: the runs are overlaid and nothing is moved. */
-export function GhostNote({ count, onClose }: { count: number; onClose?: () => void }) {
+export function GhostNote({
+  count,
+  short = false,
+  onClose,
+}: {
+  count: number;
+  /** The phone's three-line version. */
+  short?: boolean;
+  onClose?: () => void;
+}) {
+  if (short)
+    return (
+      <div className="gp-panel gp-panel--solid gp-note gp-note--short" role="note">
+        <StatusBadge kind="ghost" icon="ghost">
+          Ghost race
+        </StatusBadge>
+        <p>Each car ran alone. The runs are overlaid; nothing is moved.</p>
+      </div>
+    );
   return (
     <div className="gp-panel gp-note" role="note">
       <div className="gp-note__head">
@@ -645,5 +663,107 @@ export function MiniMap({
         </g>
       ))}
     </svg>
+  );
+}
+
+// ------------------------------------------------------------------ phone
+
+/** The phone's header bar: back, track and event, ghost badge, lap and clock. */
+export function SessionBar({
+  backHref,
+  backLabel,
+  track,
+  sub,
+  lap,
+  t,
+  ghost,
+  ghostOpen = false,
+  onGhost,
+}: {
+  backHref?: string;
+  backLabel?: string;
+  track: string;
+  /** "gp-1 · Race". */
+  sub: string;
+  /** "L1/5" or "FINAL". */
+  lap: string;
+  t: number;
+  ghost: boolean;
+  ghostOpen?: boolean;
+  onGhost?: () => void;
+}) {
+  return (
+    <header className="gp-bar gp-panel gp-panel--solid">
+      {backHref ? (
+        <a
+          href={backHref}
+          className="gp-iconbtn gp-iconbtn--touch"
+          aria-label={`Back to ${backLabel ?? "the race list"}`}
+        >
+          <Icon name="back" size={20} />
+        </a>
+      ) : null}
+      <div className="gp-bar__track">
+        <span className="gp-session__name">{track}</span>
+        <span className="gp-session__sub">{sub}</span>
+      </div>
+      {ghost ? (
+        <button
+          type="button"
+          className="gp-badge gp-badge--ghost gp-bar__ghost"
+          aria-expanded={ghostOpen}
+          onClick={onGhost}
+        >
+          <Icon name="ghost" />
+          Ghost
+        </button>
+      ) : null}
+      <span className="gp-c gp-bar__lap">{lap}</span>
+      <span className="gp-session__clock gp-c gp-bar__clock">{formatClock(t)}</span>
+    </header>
+  );
+}
+
+/**
+ * A bottom sheet. `top` is where its top edge sits (px from the top of the screen), so the scene above stays
+ * visible; tapping the handle or the dimmed area above closes it.
+ */
+export function Sheet({
+  top,
+  label,
+  dim = true,
+  onClose,
+  children,
+}: {
+  /** px, or any CSS length ("calc(100% - 430px)"). */
+  top: number | string;
+  label: string;
+  dim?: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <>
+      {dim ? (
+        <button
+          type="button"
+          className="gp-sheet__scrim"
+          aria-label="Close"
+          onClick={onClose}
+          style={{ height: top }}
+        />
+      ) : null}
+      <section className="gp-sheet gp-sheet--open" style={{ top }} aria-label={label}>
+        <button
+          type="button"
+          className="gp-sheet__handle"
+          aria-label={`Close ${label.toLowerCase()}`}
+          onClick={onClose}
+        >
+          <span className="gp-sheet__grab" />
+        </button>
+        <div className="gp-sheet__body">{children}</div>
+      </section>
+    </>
   );
 }

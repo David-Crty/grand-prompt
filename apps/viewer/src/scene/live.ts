@@ -33,6 +33,8 @@ export interface LiveState {
   packs: Pack[];
   labelPack: (Pack & { others: string[] }) | null;
   packLabel: HTMLDivElement | null;
+  /** Height (px) of a bottom sheet the TV camera should frame the car above, or null. */
+  insetBottom: number | null;
   cam: {
     pos: Vec3;
     look: Vec3;
