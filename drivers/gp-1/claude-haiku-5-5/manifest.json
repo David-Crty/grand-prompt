@@ -1,0 +1,32 @@
+{
+  "model": "Claude Haiku 5.5",
+  "provider": "anthropic",
+  "mode": "agentic",
+  "promptVersion": "agentic-0.3",
+  "ddkVersion": "0.1.0",
+  "simVersion": "0.1.0",
+  "usage": {
+    "inputTokens": 509472,
+    "outputTokens": 12181,
+    "costUsd": 0.01722118,
+    "wallTimeS": 69,
+    "practiceRuns": 8
+  },
+  "settings": {
+    "modelId": "claude-haiku-5-5",
+    "cli": "claude",
+    "practiceTracks": [
+      "monaco",
+      "silverstone",
+      "portimao"
+    ],
+    "eventTrack": "barcelona",
+    "sandbox": "bubblewrap",
+    "timeLimitMin": 30,
+    "outcome": "ok",
+    "driverSource": "driver.js",
+    "turns": 15,
+    "cliError": null,
+    "effort": "cli-default"
+  }
+}

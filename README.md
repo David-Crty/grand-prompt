@@ -15,7 +15,9 @@ pnpm bench race drivers/proto-gp-1/*/driver.js --track barcelona --laps 5
 pnpm --filter @bench/viewer dev     # http://localhost:5173/ lists every replay under results/
 ```
 
-Run `pnpm bench --help` for every command and `pnpm bench tracks` for the circuits.
+Run `pnpm bench --help` for every command and `pnpm bench tracks` for the circuits. `make` lists
+shortcuts for the common ones: `make gates`, `make dev`, `make build NAME=gp-1`,
+`make event NAME=gp-1`, `make race NAME=gp-1 TRACK=monaco`.
 
 ## Building drivers with LLMs
 
@@ -38,7 +40,9 @@ pnpm bench event run my-gp                               # qualifying + race on 
   own workspace is writable (D18).
 - Output: `drivers/<name>/<model>/{driver.js,manifest.json}` (tokens, cost, wall time, practice
   runs, outcome) and `results/<name>/event.json`. Build logs stay in `results/<name>/<model>/build/`.
-- Options: `--practice-tracks a,b,c`, `--event-track id`, `--budget n`, `--timeout min`,
+- Reasoning effort is `medium` for every model (`"effort"` in `models.json`, per model or for all;
+  `--effort` overrides it) (D21).
+- Options: `--practice-tracks a,b,c`, `--event-track id`, `--budget n`, `--timeout min`, `--effort level`,
   `--jobs n`, `--laps n`, `--dry-run`. Requires `bwrap`, `jq` and the CLIs, logged in.
 - Don't edit the script while a build is running: bash reads it from disk as it goes.
 

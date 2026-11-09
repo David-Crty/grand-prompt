@@ -1,0 +1,31 @@
+{
+  "model": "GPT-6.1 Terra",
+  "provider": "openai",
+  "mode": "agentic",
+  "promptVersion": "agentic-0.3",
+  "ddkVersion": "0.1.0",
+  "simVersion": "0.1.0",
+  "usage": {
+    "inputTokens": 564942,
+    "outputTokens": 2634,
+    "wallTimeS": 93,
+    "practiceRuns": 10
+  },
+  "settings": {
+    "modelId": "gpt-6.1-terra",
+    "cli": "codex",
+    "practiceTracks": [
+      "monaco",
+      "silverstone",
+      "portimao"
+    ],
+    "eventTrack": "barcelona",
+    "sandbox": "bubblewrap",
+    "timeLimitMin": 30,
+    "outcome": "ok",
+    "driverSource": "driver.js",
+    "turns": 1,
+    "cliError": null,
+    "effort": "low"
+  }
+}

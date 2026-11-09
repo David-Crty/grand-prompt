@@ -1,0 +1,32 @@
+{
+  "model": "Claude Fable 5.1",
+  "provider": "anthropic",
+  "mode": "agentic",
+  "promptVersion": "agentic-0.3",
+  "ddkVersion": "0.1.0",
+  "simVersion": "0.1.0",
+  "usage": {
+    "inputTokens": 1236984,
+    "outputTokens": 39842,
+    "costUsd": 3.8349914999999997,
+    "wallTimeS": 687,
+    "practiceRuns": 10
+  },
+  "settings": {
+    "modelId": "claude-fable-5-1",
+    "cli": "claude",
+    "practiceTracks": [
+      "monaco",
+      "silverstone",
+      "portimao"
+    ],
+    "eventTrack": "barcelona",
+    "sandbox": "bubblewrap",
+    "timeLimitMin": 30,
+    "outcome": "ok",
+    "driverSource": "driver.js",
+    "turns": 21,
+    "cliError": null,
+    "effort": "cli-default"
+  }
+}

@@ -21,6 +21,8 @@ usage: scripts/build-drivers.sh <name> [options]
   --timeout <min>     wall-time limit per model in minutes, told to the model (default 30)
   --only <list>       comma-separated providers or model ids to build (default: all)
   --models <file>     model list (default models.json)
+  --effort <level>    reasoning effort for every model: low, medium, high, xhigh, max
+                      (default: "effort" in the model list, else medium; a model entry may override it)
   --port <n>          practice service port (default 8787; an already running service is reused)
   --dry-run           print what would run, start nothing
   --check             check the sandbox, the practice service and each CLI without running a model
@@ -31,7 +33,7 @@ REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 NAME="${1:-}"
 [[ -z "$NAME" || "$NAME" == -* ]] && { usage; exit 2; }
 shift
-PRACTICE=monaco,silverstone,portimao EVENT_TRACK=barcelona LAPS=5 BUDGET="" JOBS=0 TIMEOUT=30 ONLY="" MODELS="$REPO/models.json" PORT=8787 DRY=0 CHECK=0
+PRACTICE=monaco,silverstone,portimao EVENT_TRACK=barcelona LAPS=5 BUDGET="" JOBS=0 TIMEOUT=30 ONLY="" MODELS="$REPO/models.json" EFFORT_FLAG="" PORT=8787 DRY=0 CHECK=0
 while (($#)); do
   case "$1" in
     --practice-tracks) PRACTICE=$2; shift 2 ;;
@@ -42,6 +44,7 @@ while (($#)); do
     --timeout) TIMEOUT=$2; shift 2 ;;
     --only) ONLY=$2; shift 2 ;;
     --models) MODELS=$2; shift 2 ;;
+    --effort) EFFORT_FLAG=$2; shift 2 ;;
     --port) PORT=$2; shift 2 ;;
     --dry-run) DRY=1; shift ;;
     --check) CHECK=1; shift ;;
@@ -64,6 +67,9 @@ done
 [[ "$TIMEOUT" =~ ^[1-9][0-9]*$ ]] || die "--timeout is a number of minutes: '$TIMEOUT'"
 [[ "$JOBS" =~ ^[0-9]+$ ]] || die "--jobs is a number: '$JOBS'"
 [[ -f "$MODELS" ]] || die "no model list at $MODELS"
+DEFAULT_EFFORT=${EFFORT_FLAG:-$(jq -r '.effort // "medium"' "$MODELS")}
+valid_effort() { [[ "$1" =~ ^(low|medium|high|xhigh|max)$ ]]; }
+valid_effort "$DEFAULT_EFFORT" || die "unknown effort '$DEFAULT_EFFORT' (low, medium, high, xhigh, max)"
 for c in jq bwrap curl node pnpm; do command -v "$c" >/dev/null || die "$c is required"; done
 
 OUT="$REPO/drivers/$NAME"
@@ -134,17 +140,17 @@ sandbox_args() { # workspace
 
 # The command a provider's CLI runs inside the sandbox. Each runs with its own permission
 # prompts off: nobody is there to answer them, and the bubblewrap sandbox is the boundary.
-cli_cmd() { # provider model
+cli_cmd() { # provider model effort
   case "$1" in
     claude)
-      printf '%s\0' claude -p "$PROMPT" --model "$2" --output-format json \
+      printf '%s\0' claude -p "$PROMPT" --model "$2" --effort "$3" --output-format json \
         --setting-sources project,local --strict-mcp-config \
         --permission-mode dontAsk --allowedTools Read Edit Write Bash Glob Grep \
         --disallowedTools WebSearch WebFetch Agent
       ;;
     codex)
       printf '%s\0' codex exec --json --skip-git-repo-check --ephemeral --ignore-user-config \
-        --dangerously-bypass-approvals-and-sandbox -m "$2" "$PROMPT"
+        -c "model_reasoning_effort=\"$3\"" --dangerously-bypass-approvals-and-sandbox -m "$2" "$PROMPT"
       ;;
     gemini)
       printf '%s\0' gemini -p "$PROMPT" -m "$2" --output-format json --yolo
@@ -215,8 +221,8 @@ is_clean_tested() { # workspace file
   return 1
 }
 
-build_one() { # provider id name
-  local provider=$1 id=$2 name=$3 slug ws logs start end deadline
+build_one() { # provider id name effort
+  local provider=$1 id=$2 name=$3 effort=$4 slug ws logs start end deadline
   slug=$(slugify "$id")
   ws="$WS_ROOT/$slug"
   logs="$RES/$slug/build"
@@ -227,8 +233,8 @@ build_one() { # provider id name
   printf '%s\n' "$PROMPT" >"$logs/prompt.txt"
   local sb=() cmd=()
   mapfile -d '' sb < <(sandbox_args "$ws")
-  mapfile -d '' cmd < <(cli_cmd "$provider" "$id")
-  log "$slug: started ($provider, until $deadline)"
+  mapfile -d '' cmd < <(cli_cmd "$provider" "$id" "$effort")
+  log "$slug: started ($provider, effort $effort, until $deadline)"
   start=$(date +%s)
   local code=0
   timeout --kill-after=30s "${TIMEOUT}m" bwrap "${sb[@]}" "${cmd[@]}" </dev/null >"$logs/output.json" 2>"$logs/stderr.txt" &
@@ -260,13 +266,13 @@ build_one() { # provider id name
   mkdir -p "$OUT/$slug"
   cp "$ws/$source" "$OUT/$slug/driver.js"
   jq -n --arg model "$name" --arg id "$id" --arg provider "$(provider_org "$provider")" --arg cli "$provider" \
-    --arg pv "$PROMPT_VERSION" --arg ddk "$DDK_VERSION" --arg sim "$SIM_VERSION" --arg outcome "$outcome" --arg source "$source" \
+    --arg pv "$PROMPT_VERSION" --arg ddk "$DDK_VERSION" --arg sim "$SIM_VERSION" --arg outcome "$outcome" --arg source "$source" --arg effort "$effort" \
     --arg practice "$PRACTICE" --arg event "$EVENT_TRACK" --arg timeout "$TIMEOUT" --argjson runs "$runs" --argjson wall $((end - start)) \
     --argjson u "$(usage_json "$provider" "$logs/output.json")" '{
       model: $model, provider: $provider, mode: "agentic", promptVersion: $pv, ddkVersion: $ddk, simVersion: $sim,
       usage: ({inputTokens: $u.inputTokens, outputTokens: $u.outputTokens, costUsd: $u.costUsd,
                wallTimeS: $wall, practiceRuns: $runs} | with_entries(select(.value != null))),
-      settings: {modelId: $id, cli: $cli, practiceTracks: ($practice | split(",")), eventTrack: $event, sandbox: "bubblewrap", timeLimitMin: ($timeout | tonumber), outcome: $outcome, driverSource: $source,
+      settings: {modelId: $id, cli: $cli, practiceTracks: ($practice | split(",")), eventTrack: $event, sandbox: "bubblewrap", timeLimitMin: ($timeout | tonumber), effort: (if $cli == "gemini" then null else $effort end), outcome: $outcome, driverSource: $source,
                  turns: $u.turns, cliError: $u.error}
     }' >"$OUT/$slug/manifest.json"
   log "$slug: done ($outcome, $((end - start)) s, $runs practice runs, driver from $source)"
@@ -275,9 +281,9 @@ build_one() { # provider id name
 # --- plan --------------------------------------------------------------------------------------
 plan=()
 skipped=()
-for provider in $(jq -r 'keys_unsorted[]' "$MODELS"); do
+for provider in $(jq -r 'to_entries[] | select(.value | type == "array") | .key' "$MODELS"); do
   cli=$(cli_for "$provider") || die "unknown provider '$provider' in $MODELS (claude, codex, gemini)"
-  while IFS=$'\t' read -r id name; do
+  while IFS=$'\t' read -r id name effort; do
     [[ -z "$id" ]] && continue
     wanted "$provider" "$id" || continue
     if ! command -v "$cli" >/dev/null; then
@@ -285,8 +291,10 @@ for provider in $(jq -r 'keys_unsorted[]' "$MODELS"); do
       continue
     fi
     ((CHECK)) || [[ ! -e "$OUT/$(slugify "$id")" ]] || die "$OUT/$(slugify "$id") already exists; pick another name or remove it"
-    plan+=("$provider"$'\t'"$id"$'\t'"$name")
-  done < <(jq -r --arg p "$provider" '.[$p][] | [.id, (.name // .id)] | @tsv' "$MODELS")
+    [[ -n "$EFFORT_FLAG" || -z "$effort" ]] && effort=$DEFAULT_EFFORT
+    valid_effort "$effort" || die "$id: unknown effort '$effort'"
+    plan+=("$provider"$'\t'"$id"$'\t'"$name"$'\t'"$effort")
+  done < <(jq -r --arg p "$provider" '.[$p][] | [.id, (.name // .id), (.effort // "")] | @tsv' "$MODELS")
 done
 ((${#skipped[@]})) && printf 'skipping %s\n' "${skipped[@]}"
 ((${#plan[@]})) || die "nothing to build"
@@ -296,12 +304,13 @@ echo "building ${#plan[@]} drivers into drivers/$NAME/ (practice on $PRACTICE, e
 printf '  %s\n' "${plan[@]//$'\t'/  }"
 if ((DRY)); then
   ws=/tmp/example
+  PROMPT=$PROMPT_TEMPLATE
   mapfile -d '' sb < <(sandbox_args "$ws")
-  IFS=$'\t' read -r p i _ <<<"${plan[0]}"
-  mapfile -d '' cmd < <(cli_cmd "$p" "$i")
-  echo "sandbox for the first model:"
-  printf ' %q' bwrap "${sb[@]}" "${cmd[@]:0:3}"
-  echo ' ...'
+  IFS=$'\t' read -r p i _ e <<<"${plan[0]}"
+  mapfile -d '' cmd < <(cli_cmd "$p" "$i" "$e")
+  echo "command for the first model, in its sandbox:"
+  for c in "${cmd[@]}"; do [[ "$c" == "$PROMPT" ]] && printf ' <prompt>' || printf ' %q' "$c"; done
+  echo
   exit 0
 fi
 
@@ -387,8 +396,8 @@ for entry in "${plan[@]}"; do
     for b in "${builders[@]}"; do kill -0 "$b" 2>/dev/null && alive+=("$b"); done
     builders=("${alive[@]}")
   done
-  IFS=$'\t' read -r p i n <<<"$entry"
-  build_one "$p" "$i" "$n" &
+  IFS=$'\t' read -r p i n e <<<"$entry"
+  build_one "$p" "$i" "$n" "$e" &
   builders+=($!)
 done
 ((${#builders[@]})) && wait "${builders[@]}"

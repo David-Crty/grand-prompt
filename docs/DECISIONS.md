@@ -230,3 +230,12 @@ qualifying and the 5-lap race, and `event reproduce` matches. Opus qualified on 
 - Workspaces are created one at a time before any model starts, because each registers its token
   by rewriting `results/agentic/tokens.json`; concurrent registrations lost a token in the first
   build. Ctrl-C now stops every model run, not only the script.
+
+## D21. Reasoning effort is set explicitly, medium by default (2026-11-09)
+
+- `models.json` has `"effort": "medium"`; an entry may override it and `--effort` overrides all.
+  It goes to `claude --effort` and to Codex as `-c model_reasoning_effort=…`, and the manifest
+  records it. The Gemini CLI has no such flag.
+- Before this, `gp-1` ran at whatever each CLI defaulted to: the script skips the owner's user
+  settings, so the Claude models ran at the CLI default and Codex at each model's own default
+  (Sol and Luna medium, Terra and Astra low). Its manifests record that.

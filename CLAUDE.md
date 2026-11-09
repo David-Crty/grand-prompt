@@ -12,11 +12,12 @@ or deviation.
 - First agentic trial (D17): four Claude models on `proto-gp-1`. It is not a ranking (unequal
   budgets, isolation by instruction only), but it showed that drivers tuned to the event circuit
   crash elsewhere and that the house driver is far off the pace.
-- Current format (D18 to D20): models from `models.json` build through their own CLIs in a
-  bubblewrap sandbox, practise on monaco, silverstone and portimao (10 shared runs, 30 min,
-  deadline in the prompt) and race on `barcelona`, which they never see. No OpenRouter: the
+- Current format (D18 to D21): models from `models.json` build through their own CLIs in a
+  bubblewrap sandbox at `medium` effort, practise on monaco, silverstone and portimao (10 shared
+  runs, 30 min, deadline in the prompt) and race on `barcelona`, which they never see.
+- `gp-1` (8 models) is built but not raced; it ran before effort was set (D21). No OpenRouter: the
   owner has no account; `bench oneshot` exists but is unused.
-- **Not done:** a full build with this format, a house driver fast enough to be a meaningful
+- **Not done:** a build at a fixed effort, a house driver fast enough to be a meaningful
   reference (it crashes on the real circuits), Gemini model ids in `models.json` (the Gemini CLI
   is not installed), and freezing the API for a season (PLAN 6.5). Ask before freezing.
 - Open viewer issue: ghost cars all start at s = 0 and overlap for about 11 s. A visual offset
@@ -44,6 +45,7 @@ or deviation.
 - `docs/`: PHYSICS, REPLAY_FORMAT, TRACK_FORMAT, DECISIONS.
 
 ## Commands
+`make` lists shortcuts over all of these (`make gates`, `make build NAME=…`, `make race NAME=… TRACK=…`).
 ```bash
 pnpm bench --help
 pnpm bench race ddk/baseline-driver.js --reference --laps 3   # -> results/race/proto-ring-NNN/
@@ -56,7 +58,7 @@ scripts/build-drivers.sh <name> --check   # sandbox and CLIs, no model run
 scripts/build-drivers.sh <name>           # one driver per models.json entry -> drivers/<name>/
 ```
 
-## Quality gates (run all before calling work done)
+## Quality gates (run all before calling work done, or `make gates`)
 ```bash
 pnpm lint && pnpm typecheck && pnpm coverage && pnpm determinism && pnpm --filter @bench/viewer build
 ```
@@ -69,6 +71,10 @@ pnpm lint && pnpm typecheck && pnpm coverage && pnpm determinism && pnpm --filte
   in `packages/sim/src/version.ts`, and recheck `scripts/plausibility.ts` against PLAN 5.3.
 - After physics changes, the exploit tests (`reference-driver/test/exploits.test.ts`) must
   still show that no known exploit beats the house driver. LLM drivers do beat it (D17).
+
+## Git
+The project is in early development: work and commit directly on `main`. Don't create feature
+branches or merge requests unless the owner asks for one. Run the quality gates before each commit.
 
 ## Conventions and gotchas
 - Determinism: no `Date`, `Math.random` or wall clock in the sim. The sandbox's wall-clock
