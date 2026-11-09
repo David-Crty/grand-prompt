@@ -313,4 +313,10 @@ qualifying and the 5-lap race, and `event reproduce` matches. Opus qualified on 
 - The redesign was planned in six phases (foundations, desktop HUD, ghost start, incidents, classification and
   analysis, phone); the owner asked for the replay viewer as one pull request instead of commits on `main`.
   The ghost start (issue 1) follows option A plus B: translucent packs, a pack label and a start board, never a
-  moved car.
+  moved car; a test checks that every car is drawn at its replay sample.
+- Words come from the data, so the same replay always says the same thing: corners are numbered from the line
+  by curvature (`lib/corners.ts`), and an incident sentence is built from the car's frames (spin onset, coming
+  to rest, wrong-way driving, rejoining, how it ended; `lib/incidents.ts`).
+- Build cost is what the CLI reported, or tokens × list price from the committed `prices.json`, marked as an
+  estimate (an upper bound: no cache discount). `prices.json` starts empty; an estimate needs a dated price.
+- The points column (10-8-6-5-4-3-2-1) is display only, the design's proposal, until season standings exist.

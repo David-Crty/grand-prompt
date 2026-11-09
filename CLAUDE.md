@@ -20,9 +20,9 @@ or deviation.
 - **Not done:** a build at a fixed effort, a house driver fast enough to be a meaningful
   reference (it crashes on the real circuits), Gemini model ids in `models.json` (the Gemini CLI
   is not installed), and freezing the API for a season (PLAN 6.5). Ask before freezing.
-- Open viewer issue: ghost cars all start at s = 0 and overlap for about 11 s. A visual offset
-  would diverge from what was timed, so that is the owner's call.
-- Phase 4: Remotion video and the mobile viewer are not started. Phase 5 (wheel-to-wheel) is not
+- Ghost start (issue 1): cars still start together at s = 0; the viewer explains the overlap with
+  translucent packs, a pack label and a start board, and never moves a car (D25).
+- Phase 4: the phone viewer exists (below 600 px); the Remotion video is not started. Phase 5 (wheel-to-wheel) is not
   started.
 
 ## Layout
