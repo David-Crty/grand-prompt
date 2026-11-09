@@ -1,0 +1,32 @@
+{
+  "id": "proto-ow",
+  "version": 1,
+  "public": {
+    "mass": 800,
+    "wheelbase": 3.6,
+    "width": 2.0,
+    "length": 5.6,
+    "weightFront": 0.45,
+    "maxSteer": 0.35,
+    "steerRate": 1.6,
+    "throttleRate": 10,
+    "brakeRate": 16,
+    "maxPower": 740000
+  },
+  "hidden": {
+    "cgHeight": 0.3,
+    "yawInertia": 1100,
+    "CdA": 1.35,
+    "ClA": 3.6,
+    "aeroBalanceFront": 0.4,
+    "airDensity": 1.225,
+    "tireFront": { "B": 17, "C": 1.55, "mu": 1.75 },
+    "tireRear": { "B": 19, "C": 1.55, "mu": 1.75 },
+    "loadSensitivity": 0.06,
+    "slidingFriction": 0.95,
+    "maxBrakeForce": 34000,
+    "brakeBiasFront": 0.58,
+    "maxDriveForce": 14000,
+    "rollingResistance": 0.015
+  }
+}
