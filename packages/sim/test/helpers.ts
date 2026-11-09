@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { CarConfig, Controls, DriverRuntime, Telemetry, TrackFile, TrackInfo } from "../src/index.js";
-import { buildTrack, Track, trackFileFromBuilt } from "../src/index.js";
+import { Track } from "../src/index.js";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 
@@ -37,29 +37,32 @@ export function circleFile(r: number, width = 12, points = 72): TrackFile {
   };
 }
 
-/** Long thin oval: two 400 m straights 40 m apart joined by tight hairpins (parallel sections). */
+/**
+ * Stadium: two 400 m straights 36 m apart, joined by 18 m-radius hairpins, driven anticlockwise, so the return
+ * straight runs parallel on the left. Gravel on the left from 90% of the lap to 10% (wrapping past the line).
+ */
 export function hairpinOvalFile(): TrackFile {
-  const built = buildTrack(
-    [
-      { kind: "straight", length: 400, adjust: "a" },
-      { kind: "corner", angle: 180, radius: 20, transition: 0.01 },
-      { kind: "straight", length: 400 },
-      { kind: "corner", angle: 90, radius: 8, transition: 0.01 },
-      { kind: "straight", length: 10, adjust: "b" },
-      { kind: "corner", angle: 90, radius: 8, transition: 0.01 },
-    ],
-    { defaultWidth: 12, step: 4 },
-  );
-  return trackFileFromBuilt(built, {
+  const pts: [number, number, number, number][] = [];
+  const straight = 400;
+  const r = 18;
+  const step = 4;
+  for (let x = 0; x < straight; x += step) pts.push([x, 0, 6, 6]);
+  for (let a = 0; a < Math.PI; a += step / r)
+    pts.push([straight + r * Math.sin(a), r - r * Math.cos(a), 6, 6]);
+  for (let x = straight; x > 0; x -= step) pts.push([x, 2 * r, 6, 6]);
+  for (let a = 0; a < Math.PI; a += step / r) pts.push([-r * Math.sin(a), r + r * Math.cos(a), 6, 6]);
+  return {
     id: "oval",
     name: "Oval",
     version: 1,
+    closed: true,
+    points: pts,
     sectors: [0.3, 0.6],
     runoff: {
       default: { type: "grass", width: 15 },
       zones: [{ type: "gravel", width: 20, side: "left", from: 0.9, to: 0.1 }],
     },
-  });
+  };
 }
 
 /** Wrap plain functions as a DriverRuntime. */

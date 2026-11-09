@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -11,6 +11,7 @@ import {
   loadCar,
   loadDriverOrFailed,
   loadTrack,
+  registerToken,
   repoRoot,
   serve,
   table,
@@ -20,13 +21,13 @@ type Json = Record<string, unknown> & { text: string };
 const repo = new URL("../../../", import.meta.url).pathname.replace(/\/$/, "");
 
 describe("loading", () => {
-  it("finds the repo root without BENCH_ROOT and loads tracks/cars by path", () => {
+  it("finds the repo root without BENCH_ROOT and loads tracks by path", () => {
     const prev = process.env.BENCH_ROOT;
     delete process.env.BENCH_ROOT;
     try {
       expect(repoRoot()).toBe(repo);
       expect(loadTrack(join(repo, "tracks/proto-ring.json")).id).toBe("proto-ring");
-      expect(loadCar(join(repo, "cars/proto.json")).id).toBe("proto-ow");
+      expect(loadCar().id).toBe("proto-ow");
       expect(listEventDrivers("no-such-event")).toEqual([]);
     } finally {
       if (prev !== undefined) process.env.BENCH_ROOT = prev;
@@ -37,7 +38,6 @@ describe("loading", () => {
     writeFileSync(join(d, "manifest.json"), JSON.stringify({ model: "Model X" }));
     expect(driverIdentity(join(d, "driver.js")).name).toBe("Model X");
     const f = await loadDriverOrFailed(join(d, "missing.js"));
-    expect(f.source).toBe("");
     const rt = f.runtime as FailedDriver;
     expect(() => rt.init()).toThrow(/driver not found/);
     expect(rt.step()).toBeNull();
@@ -48,15 +48,13 @@ describe("loading", () => {
 describe("tables", () => {
   it("formats lap times, missing tokens and costs", () => {
     const res = {
-      event: { id: "e", name: "E", track: "t", seed: 1, infoLevel: "B" },
-      referenceLap: null,
+      event: { id: "e", name: "E", track: "t", seed: 1 },
       rows: [
         {
           position: 1,
           name: "A",
           manifest: { model: "A", usage: { costUsd: 1 } },
           lapTime: 70,
-          gapToReference: -1.5,
           status: "FINISHED",
         },
         {
@@ -64,17 +62,17 @@ describe("tables", () => {
           name: "B",
           manifest: { model: "B", usage: { outputTokens: 2000 } },
           lapTime: null,
-          gapToReference: null,
           status: "DNF: CRASHED",
         },
+        { position: 3, name: "C", manifest: null, lapTime: null, status: "DNF: STALLED" },
       ],
     } as unknown as EventResults;
     const t = eventTable(res);
-    expect(t).toMatch(/flying lap/);
+    expect(t).toMatch(/E \(e\) on t, flying lap, seed 1/);
     expect(t).toMatch(/\| 1:10\.000 /);
-    expect(t).toMatch(/\| -1\.500 /);
     expect(t).toMatch(/\| 2k /);
     expect(t).toMatch(/\$1\.00/);
+    expect(t).toMatch(/\| C +\| - +\| DNF: STALLED \| - +\| - /);
     expect(
       table([
         ["a", "bb"],
@@ -85,15 +83,13 @@ describe("tables", () => {
 });
 
 describe("practice service edge cases", () => {
-  it("validates TypeScript, sanitizes track names, needs a token", async () => {
+  it("validates TypeScript, keeps to the token's circuits, needs a token", async () => {
     const root = mkdtempSync(join(tmpdir(), "svc-"));
     const prev = process.env.BENCH_ROOT;
     process.env.BENCH_ROOT = root;
-    const { cpSync } = await import("node:fs");
     for (const dir of ["tracks", "cars", "ddk"])
       cpSync(join(repo, dir), join(root, dir), { recursive: true });
-    const { registerToken } = await import("../src/service.js");
-    const tok = registerToken("ts-model", 3);
+    const tok = registerToken("ts-model", 3, ["proto-ring", "monaco"]);
     const svc = await serve({ port: 0 });
     try {
       const post = (path: string, body?: unknown) =>
@@ -103,26 +99,21 @@ describe("practice service edge cases", () => {
       const ts =
         "export function step(t: { speed: number }) { return { throttle: 0.3, brake: 0, steer: 0 }; }";
       const v = (await (
-        await post("/validate", { token: tok, source: ts, filename: "x.ts", track: "../etc/passwd" })
+        await post("/validate", { token: tok, source: ts, filename: "x.ts" })
       ).json()) as Json;
       expect(v.ok).toBe(true);
-      const p = (await (
-        await post("/practice", {
-          token: tok,
-          source: readFileSync(join(repo, "ddk/baseline-driver.js"), "utf8"),
-        })
-      ).json()) as Json;
+      const sneaky = await post("/validate", { token: tok, source: ts, track: "../etc/passwd" });
+      expect(sneaky.status).toBe(403);
+      const base = readFileSync(join(repo, "ddk/baseline-driver.js"), "utf8");
+      const p = (await (await post("/practice", { token: tok, source: base })).json()) as Json;
       expect(p.ok).toBe(true);
       expect(p.text).toMatch(/FLYING LAP on proto-ring/);
-      const st = await (await fetch(`${svc.url}/status?token=${tok}`)).json();
-      expect(st).toMatchObject({ model: "ts-model", used: 1, left: 2 });
-      const limited = registerToken("limited", 1, undefined, ["monaco"]);
-      const base = readFileSync(join(repo, "ddk/baseline-driver.js"), "utf8");
-      const lp = (await (await post("/practice", { token: limited, source: base })).json()) as Json;
+      const lp = (await (
+        await post("/practice", { token: tok, source: base, track: "monaco" })
+      ).json()) as Json;
       expect(lp.text).toMatch(/FLYING LAP on monaco/);
-      expect((await post("/practice", { token: limited, source: base, track: "proto-ring" })).status).toBe(
-        403,
-      );
+      const st = await (await fetch(`${svc.url}/status?token=${tok}`)).json();
+      expect(st).toMatchObject({ model: "ts-model", used: 2, left: 1, tracks: ["proto-ring", "monaco"] });
     } finally {
       await svc.close();
       if (prev === undefined) delete process.env.BENCH_ROOT;

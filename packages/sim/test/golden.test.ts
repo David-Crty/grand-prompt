@@ -3,7 +3,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import * as baseline from "../../../ddk/baseline-driver.js";
-import { createReferenceDriver } from "../../reference-driver/src/driver.js";
 import { runSession, SIM_VERSION } from "../src/index.js";
 import { protoCar, protoRing } from "./helpers.js";
 
@@ -17,7 +16,6 @@ describe("golden replay hashes", () => {
       simVersion: SIM_VERSION,
       trackHash: protoRing().hash,
       baseline: run(baseline),
-      reference: run(createReferenceDriver()),
     };
     if (process.env.UPDATE_GOLDEN) writeFileSync(file, `${JSON.stringify(now, null, 2)}\n`);
     const golden = JSON.parse(readFileSync(file, "utf8"));

@@ -27,8 +27,6 @@ export interface ReplayHeader {
   car: { length: number; width: number; wheelbase: number };
   /** Run-up before the line: its length in seconds (the lap clock starts at `time`) and the speed at the line. */
   launch: { time: number; speed: number };
-  /** Optional reference lap (house driver) for "gap to reference". */
-  referenceLap?: number;
 }
 
 export interface ReplayCar {

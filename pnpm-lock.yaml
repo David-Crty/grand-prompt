@@ -166,39 +166,18 @@ importers:
 
   .:
     devDependencies:
-      '@bench/reference-driver':
-        specifier: workspace:*
-        version: link:packages/reference-driver
-      '@bench/sandbox':
-        specifier: workspace:*
-        version: link:packages/sandbox
-      '@bench/sim':
-        specifier: workspace:*
-        version: link:packages/sim
       '@biomejs/biome':
         specifier: ^2.6.6
         version: 2.6.6
       '@types/node':
         specifier: ^26.6.6
         version: 26.6.6
-      '@types/react':
-        specifier: ^19.3.0
-        version: 19.3.0
       '@vitest/coverage-v8':
         specifier: ^5.1.0
         version: 5.1.0(vitest@5.1.0)
-      esbuild:
-        specifier: ^0.28.2
-        version: 0.28.2
-      ink:
-        specifier: 8.0.0
-        version: 8.0.0(@types/react@19.3.0)(react@19.3.1)
       meshoptimizer:
         specifier: 1.1.1
         version: 1.1.1
-      react:
-        specifier: ^19.3.1
-        version: 19.3.1
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
@@ -251,17 +230,22 @@ importers:
 
   packages/cli:
     dependencies:
-      '@bench/reference-driver':
-        specifier: workspace:*
-        version: link:../reference-driver
       '@bench/sandbox':
         specifier: workspace:*
         version: link:../sandbox
       '@bench/sim':
         specifier: workspace:*
         version: link:../sim
-
-  packages/reference-driver: {}
+      ink:
+        specifier: 8.0.0
+        version: 8.0.0(@types/react@19.3.0)(react@19.3.1)
+      react:
+        specifier: ^19.3.1
+        version: 19.3.1
+    devDependencies:
+      '@types/react':
+        specifier: ^19.3.0
+        version: 19.3.0
 
   packages/sandbox:
     dependencies:

@@ -49,16 +49,6 @@ describe("math", () => {
     expect(mean).toBeLessThan(0.55);
   });
 
-  it("gaussian has unit variance", () => {
-    const p = new Prng(7);
-    const xs = Array.from({ length: 20000 }, () => p.gaussian());
-    const mean = xs.reduce((s, x) => s + x, 0) / xs.length;
-    const v = xs.reduce((s, x) => s + (x - mean) ** 2, 0) / xs.length;
-    expect(Math.abs(mean)).toBeLessThan(0.03);
-    expect(v).toBeGreaterThan(0.95);
-    expect(v).toBeLessThan(1.05);
-  });
-
   it("hashes are stable and sensitive", () => {
     const h = (x: number) => new Hasher().number(x).string("a").digest();
     expect(h(1)).toBe(h(1));

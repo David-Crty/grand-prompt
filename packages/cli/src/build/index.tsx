@@ -1,53 +1,23 @@
 /**
- * Build one driver per model listed in models.json, each written by the model's own coding CLI
+ * `bench build <name>`: one driver per model in models.json, each written by the model's own coding CLI
  * (claude, codex, gemini) running unattended in a bubblewrap sandbox that only sees its workspace.
  *
- *   pnpm build-drivers <name> [options]
- *
- * Output: drivers/<name>/<model-slug>/{driver.js,manifest.json}, plus results/<name>/event.json
- * so that `pnpm bench event run <name>` times them, on a circuit none of them practised on.
- * Logs go to results/<name>/<slug>/build/.
+ * Output: drivers/<name>/<slug>/{driver.js,manifest.json} and drivers/<name>/event.json, so that
+ * `bench event run <name>` times them on a circuit none of them practised on. Logs go to
+ * results/<name>/<slug>/build/.
  */
 import { type ChildProcess, spawn, spawnSync } from "node:child_process";
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  openSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { DDK_VERSION, SIM_VERSION } from "@bench/sim";
 import { render } from "ink";
-import {
-  cliCmd,
-  type Options,
-  PROVIDERS,
-  parseArgs,
-  planBuilds,
-  promptVersion,
-  sandboxArgs,
-  USAGE,
-  UsageError,
-} from "./lib.js";
-import {
-  buildAll,
-  type Context,
-  children,
-  Fatal,
-  makeWorkspace,
-  practiceStatus,
-  Store,
-  stopAll,
-} from "./run.js";
+import { readJson, repoRoot, trackPath, writeJson } from "../load.js";
+import { createWorkspace } from "../workspace.js";
+import { type BuildOptions, cliCmd, PROVIDERS, planBuilds, promptVersion, sandboxArgs } from "./lib.js";
+import { buildAll, type Context, children, makeWorkspace, practiceStatus, Store, stopAll } from "./run.js";
 import { App } from "./ui.js";
 
-const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const HOME = homedir();
 
 const has = (cmd: string) => spawnSync("sh", ["-c", `command -v ${cmd}`], { stdio: "ignore" }).status === 0;
@@ -68,64 +38,43 @@ function plainLog(text: string) {
   console.log(`[${t}] ${text}`);
 }
 
-let serve: ChildProcess | undefined;
-let wsRoot: string | undefined;
-
-function cleanup() {
-  stopAll();
-  if (serve?.pid) {
-    try {
-      process.kill(-serve.pid, "SIGTERM");
-    } catch {}
-  }
-  if (wsRoot) rmSync(wsRoot, { recursive: true, force: true });
-}
-
+/**
+ * The practice service, reused when one already answers on the port. It runs in its own process: practice
+ * runs are CPU-bound and would freeze the live view.
+ */
 async function startService(
-  opts: Options,
-  url: string,
+  repo: string,
+  port: number,
   logFile: string,
   say: (s: string) => void,
-): Promise<string> {
+): Promise<{ label: string; child?: ChildProcess }> {
+  const url = `http://127.0.0.1:${port}`;
   if (await serviceUp(url, 2000)) {
     say(`reusing the practice service on ${url}`);
-    return `practice service ${url} (reused)`;
+    return { label: `practice service ${url} (reused)` };
   }
   const fd = openSync(logFile, "w");
-  serve = spawn("pnpm", ["-s", "bench", "serve", "--port", String(opts.port)], {
-    cwd: REPO,
+  const child = spawn("pnpm", ["-s", "bench", "serve", "--port", String(port)], {
+    cwd: repo,
     detached: true,
     stdio: ["ignore", fd, fd],
   });
   for (let i = 0; i < 60 && !(await serviceUp(url, 1000)); i++) await sleep(500);
   if (!(await serviceUp(url, 2000))) {
     const tail = readFileSync(logFile, "utf8").trim().split("\n").slice(-3).join("\n");
-    throw new Fatal(`practice service did not start: ${tail}`);
+    throw new Error(`practice service did not start: ${tail}`);
   }
   say(`practice service on ${url}`);
-  return `practice service ${url}`;
+  return { label: `practice service ${url}`, child };
 }
 
 /** Checks the sandbox hides what it should and that each provider's CLI runs inside it. */
-async function check(
-  opts: Options,
-  plan: ReturnType<typeof planBuilds>["plan"],
-  url: string,
-): Promise<number> {
+function check(repo: string, opts: BuildOptions, providers: string[], wsRoot: string, url: string): number {
   let fail = 0;
-  for (const p of [...new Set(plan.map((e) => e.provider))]) {
-    const ws = join(wsRoot!, `check-${p}`);
-    spawnSync(
-      "pnpm",
-      ["-s", "bench", "workspace", ws, "--model", `check-${p}`, "--track", opts.practice.join(",")].concat([
-        "--service-url",
-        url,
-        "--budget",
-        "1",
-      ]),
-      { cwd: REPO, stdio: "ignore" },
-    );
-    const cli = PROVIDERS[p].cli;
+  for (const p of providers) {
+    const ws = join(wsRoot, `check-${p}`);
+    createWorkspace(ws, { model: `check-${p}`, serviceUrl: url, tracks: opts.practice, budget: 1 });
+    const cli = PROVIDERS[p as keyof typeof PROVIDERS].cli;
     const probe = `
       set -e
       [[ -z "$(ls -A "$1" 2>/dev/null)" ]] || { echo "repo visible"; exit 1; }
@@ -135,7 +84,7 @@ async function check(
       [[ -f TASK.md ]] || { echo "workspace missing"; exit 1; }
       node bench.mjs status >/dev/null || { echo "practice service unreachable"; exit 1; }
       "$2" --version >/dev/null 2>&1 || { echo "$2 --version failed"; exit 1; }`;
-    const r = spawnSync("bwrap", [...sandboxArgs(ws, REPO, HOME), "bash", "-c", probe, "_", REPO, cli], {
+    const r = spawnSync("bwrap", [...sandboxArgs(ws, repo, HOME), "bash", "-c", probe, "_", repo, cli], {
       encoding: "utf8",
     });
     if (r.status === 0) plainLog(`check ${p}: ok (repo hidden, practice service reachable, ${cli} runs)`);
@@ -147,36 +96,23 @@ async function check(
   return fail;
 }
 
-async function main(): Promise<number> {
-  let opts: Options;
-  try {
-    const parsed = parseArgs(process.argv.slice(2), join(REPO, "models.json"));
-    if (parsed === "help") {
-      process.stdout.write(USAGE);
-      return 0;
-    }
-    opts = parsed;
-  } catch (e) {
-    if (!(e instanceof UsageError)) throw e;
-    process.stderr.write(`error: ${e.message}\n${USAGE}`);
-    return 2;
-  }
+export async function build(opts: BuildOptions): Promise<number> {
+  const repo = repoRoot();
   for (const t of [...opts.practice, opts.eventTrack])
-    if (!existsSync(join(REPO, "tracks", `${t}.json`)))
-      throw new Fatal(`unknown track '${t}' (see: pnpm bench tracks)`);
-  if (!existsSync(opts.models)) throw new Fatal(`no model list at ${opts.models}`);
-  for (const c of ["bwrap", "node", "pnpm"]) if (!has(c)) throw new Fatal(`${c} is required`);
+    if (!existsSync(trackPath(t))) throw new Error(`unknown track '${t}' (see: bench tracks)`);
+  if (!existsSync(opts.models)) throw new Error(`no model list at ${opts.models}`);
+  for (const c of ["bwrap", "node", "pnpm"]) if (!has(c)) throw new Error(`${c} is required`);
 
-  const out = join(REPO, "drivers", opts.name);
-  const res = join(REPO, "results", opts.name);
+  const out = join(repo, "drivers", opts.name);
+  const res = join(repo, "results", opts.name);
   const url = `http://127.0.0.1:${opts.port}`;
-  const { plan, skipped } = planBuilds(JSON.parse(readFileSync(opts.models, "utf8")), opts, has);
+  const { plan, skipped } = planBuilds(readJson(opts.models), opts, has);
   for (const s of skipped) console.log(`skipping ${s}`);
-  if (!plan.length) throw new Fatal("nothing to build");
+  if (!plan.length) throw new Error("nothing to build");
   if (!opts.check)
     for (const e of plan)
       if (existsSync(join(out, e.slug)))
-        throw new Fatal(`${join(out, e.slug)} already exists; pick another name or remove it`);
+        throw new Error(`${join(out, e.slug)} already exists; pick another name or remove it`);
 
   const jobs = opts.jobs || plan.length;
   const live = !opts.plain && !opts.check && !opts.dryRun && process.stdout.isTTY === true;
@@ -187,7 +123,7 @@ async function main(): Promise<number> {
     );
     for (const e of plan) console.log(`  ${e.provider}  ${e.id}  ${e.name}  ${e.effort}`);
   }
-  const promptTemplate = readFileSync(join(REPO, "ddk/PROMPT_LAUNCH.md"), "utf8").replace(/\n$/, "");
+  const promptTemplate = readFileSync(join(repo, "ddk/PROMPT_LAUNCH.md"), "utf8").replace(/\n$/, "");
   if (opts.dryRun) {
     const e = plan[0]!;
     const cmd = cliCmd(e.provider, e.id, e.effort, promptTemplate);
@@ -196,29 +132,35 @@ async function main(): Promise<number> {
     return 0;
   }
 
-  if (!opts.check) {
-    mkdirSync(res, { recursive: true });
-    mkdirSync(out, { recursive: true });
-    const event = join(res, "event.json");
-    if (!existsSync(event)) {
-      const cfg = {
-        id: opts.name,
-        name: opts.name,
-        track: opts.eventTrack,
-      };
-      writeFileSync(event, `${JSON.stringify({ ...cfg, seed: 2026, infoLevel: "B" }, null, 2)}\n`);
+  const wsRoot = mkdtempSync(join(tmpdir(), `bench-build-${opts.name}.`));
+  let service: ChildProcess | undefined;
+  const cleanup = () => {
+    stopAll();
+    if (service?.pid) {
+      try {
+        process.kill(-service.pid, "SIGTERM");
+      } catch {}
+      service.unref();
     }
-  }
-  wsRoot = mkdtempSync(join(tmpdir(), `bench-build-${opts.name}.`));
+    rmSync(wsRoot, { recursive: true, force: true });
+  };
 
   if (opts.check) {
-    await startService(opts, url, join(wsRoot, "serve.log"), plainLog);
-    return check(opts, plan, url);
+    try {
+      service = (await startService(repo, opts.port, join(wsRoot, "serve.log"), plainLog)).child;
+      return check(repo, opts, [...new Set(plan.map((e) => e.provider))], wsRoot, url);
+    } finally {
+      cleanup();
+    }
   }
+
+  mkdirSync(res, { recursive: true });
+  const event = join(out, "event.json");
+  if (!existsSync(event)) writeJson(event, { name: opts.name, track: opts.eventTrack, seed: 2026 });
 
   const store = new Store(plan);
   const ctx: Context = {
-    repo: REPO,
+    repo,
     home: HOME,
     opts,
     wsRoot,
@@ -226,10 +168,10 @@ async function main(): Promise<number> {
     res,
     url,
     promptTemplate,
-    promptVersion: promptVersion(readFileSync(join(REPO, "ddk/PROMPT_AGENTIC.md"), "utf8")),
+    promptVersion: promptVersion(readFileSync(join(repo, "ddk/PROMPT_AGENTIC.md"), "utf8")),
     simVersion: SIM_VERSION,
     ddkVersion: DDK_VERSION,
-    baseline: join(REPO, "ddk/baseline-driver.js"),
+    baseline: join(repo, "ddk/baseline-driver.js"),
     store,
   };
 
@@ -264,7 +206,9 @@ async function main(): Promise<number> {
     : undefined;
 
   try {
-    store.service = await startService(opts, url, join(res, "serve.log"), (s) => store.say(s));
+    const svc = await startService(repo, opts.port, join(res, "serve.log"), (s) => store.say(s));
+    service = svc.child;
+    store.service = svc.label;
     for (const e of plan) {
       if (store.aborting) break;
       makeWorkspace(ctx, e);
@@ -272,7 +216,7 @@ async function main(): Promise<number> {
     for (const e of plan) {
       if (store.aborting) break;
       const s = practiceStatus(join(wsRoot, e.slug));
-      if (!s) throw new Fatal(`${e.slug}: the practice service does not know its token`);
+      if (!s) throw new Error(`${e.slug}: the practice service does not know its token`);
       store.update(e.slug, { state: "queued", budget: s.budget });
     }
     if (!store.aborting) {
@@ -285,6 +229,11 @@ async function main(): Promise<number> {
     ink?.unmount();
     await ink?.waitUntilExit();
     unsubscribe();
+    process.off("SIGINT", abort);
+    process.off("SIGTERM", abort);
+    cleanup();
+    // A model's leftover process must not keep the command alive.
+    if (children.size) setTimeout(() => process.exit(store.aborting ? 130 : 1), 1000).unref();
   }
   if (store.aborting) return 130;
 
@@ -293,14 +242,3 @@ async function main(): Promise<number> {
   console.log(`time them: pnpm bench event run ${opts.name}`);
   return 0;
 }
-
-main()
-  .catch((e) => {
-    process.stderr.write(`error: ${e instanceof Fatal ? e.message : (e?.stack ?? e)}\n`);
-    return 1;
-  })
-  .then((code) => {
-    cleanup();
-    if (children.size) setTimeout(() => process.exit(code), 1000);
-    else process.exit(code);
-  });

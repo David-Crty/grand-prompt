@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildTrack, PeriodicSpline, Track, trackFileHash } from "../src/index.js";
+import { PeriodicSpline, Track, trackFileHash } from "../src/index.js";
 import { circleFile, hairpinOvalFile, protoRing, protoRingFile } from "./helpers.js";
 
 describe("PeriodicSpline", () => {
@@ -58,7 +58,7 @@ describe("Track", () => {
 
   it("local projection never snaps onto a nearby parallel section", () => {
     const t = Track.fromFile(hairpinOvalFile());
-    // A point on the first straight, offset 15 m towards the parallel return straight (40 m away).
+    // A point on the first straight, offset 15 m towards the parallel return straight (36 m away).
     const s0 = 200;
     const w = t.toWorld(s0, 15);
     const global = t.project(w.x, w.y);
@@ -112,7 +112,7 @@ describe("Track", () => {
 
   it("clips runoff where another section runs close by", () => {
     const t = Track.fromFile(hairpinOvalFile());
-    // straights are 40 m apart centre to centre, widths 6 + 6: barrier halfway in the 28 m gap
+    // straights are 36 m apart centre to centre, widths 6 + 6: barrier halfway in the 24 m gap
     const i = t.indexAt(200);
     const inner = t.runoffWidthLeft[i]!;
     expect(inner).toBeLessThan(15);
@@ -164,54 +164,5 @@ describe("Track", () => {
     expect(Math.min(...widths)).toBeGreaterThanOrEqual(12);
     expect(Math.max(...widths)).toBeLessThanOrEqual(15.01);
     expect(trackFileHash(protoRingFile())).toBe(t.hash);
-  });
-});
-
-describe("buildTrack", () => {
-  it("closes the loop", () => {
-    const b = buildTrack(
-      [
-        { kind: "straight", length: 100, adjust: "a" },
-        { kind: "corner", angle: 90, radius: 30 },
-        { kind: "straight", length: 50, adjust: "b" },
-        { kind: "corner", angle: 90, radius: 30 },
-        { kind: "straight", length: 100 },
-        { kind: "corner", angle: 90, radius: 30 },
-        { kind: "straight", length: 50 },
-        { kind: "corner", angle: 90, radius: 30, transition: 200 },
-      ],
-      { defaultWidth: 10 },
-    );
-    expect(b.closureError).toBeLessThan(1e-6);
-    expect(b.points.length).toBeGreaterThan(50);
-  });
-
-  it("rejects parallel adjustable straights and impossible closure", () => {
-    const loop = (a: number) =>
-      buildTrack(
-        [
-          { kind: "straight", length: a, adjust: "a" },
-          { kind: "corner", angle: 180, radius: 30 },
-          { kind: "straight", length: 100, adjust: "b" },
-          { kind: "corner", angle: 180, radius: 30 },
-        ],
-        { defaultWidth: 10 },
-      );
-    expect(() => loop(100)).toThrow(/parallel/);
-    expect(() =>
-      buildTrack(
-        [
-          { kind: "straight", length: 20, adjust: "a" },
-          { kind: "corner", angle: 90, radius: 30 },
-          { kind: "straight", length: 400, adjust: "b" },
-          { kind: "corner", angle: 90, radius: 30 },
-          { kind: "straight", length: 500, label: "long" },
-          { kind: "corner", angle: 90, radius: 30 },
-          { kind: "straight", length: 5 },
-          { kind: "corner", angle: 90, radius: 30 },
-        ],
-        { defaultWidth: 10 },
-      ),
-    ).toThrow(/too short/);
   });
 });

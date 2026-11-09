@@ -11,32 +11,18 @@ export const PROVIDERS: Record<Provider, { cli: string; org: string }> = {
 
 export const EFFORTS = ["low", "medium", "high", "xhigh", "max"];
 
-export const USAGE = `usage: pnpm build-drivers <name> [options]
-
-  --practice-tracks <a,b,c>   circuits the models may practise on (default monaco,silverstone,portimao)
-  --event-track <id>  circuit of the event, never shown in practice (default barcelona)
-  --budget <n>        practice runs per model, shared across circuits (default: bench workspace default)
-  --jobs <n>          models built in parallel (default 0: all at once)
-  --timeout <min>     wall-time limit per model in minutes, told to the model (default 30)
-  --only <list>       comma-separated providers or model ids to build (default: all)
-  --models <file>     model list (default models.json)
-  --effort <level>    reasoning effort for every model: low, medium, high, xhigh, max
-                      (default: "effort" in the model list, else medium; a model entry may override it)
-  --port <n>          practice service port (default 8787; an already running service is reused)
-  --plain             log lines instead of the live view (the default when stdout is not a terminal)
-  --dry-run           print what would run, start nothing
-  --check             check the sandbox, the practice service and each CLI without running a model
-`;
-
-export class UsageError extends Error {}
-
-export interface Options {
+export interface BuildOptions {
+  /** The event: drivers go to drivers/<name>/, logs to results/<name>/. */
   name: string;
   practice: string[];
   eventTrack: string;
+  /** Practice runs per model, shared across circuits (default: the workspace default). */
   budget: number | undefined;
+  /** Models built in parallel; 0 is all at once. */
   jobs: number;
+  /** Wall-time limit per model, minutes, stated in the prompt. */
   timeout: number;
+  /** Providers or model ids to build; empty is all. */
   only: string[];
   models: string;
   effort: string | undefined;
@@ -46,66 +32,48 @@ export interface Options {
   check: boolean;
 }
 
-const VALUE_FLAGS = [
-  "--practice-tracks",
-  "--event-track",
-  "--budget",
-  "--jobs",
-  "--timeout",
-  "--only",
-  "--models",
-  "--effort",
-  "--port",
-];
+export const BUILD_DEFAULTS = {
+  practice: ["monaco", "silverstone", "portimao"],
+  eventTrack: "barcelona",
+  timeout: 30,
+  port: 8787,
+};
 
-function count(flag: string, v: string, min: number): number {
-  if (!/^[0-9]+$/.test(v) || Number(v) < min) throw new UsageError(`${flag} is a number ≥ ${min}: '${v}'`);
+/** A whole number at least `min`, or undefined when the flag is absent. */
+export function count(flag: string, v: string | undefined, min: number): number | undefined {
+  if (v === undefined) return undefined;
+  if (!/^[0-9]+$/.test(v) || Number(v) < min) throw new Error(`${flag} is a number ≥ ${min}: '${v}'`);
   return Number(v);
 }
 
-/** Parses the command line; returns "help" for -h/--help. */
-export function parseArgs(argv: string[], defaultModels: string): Options | "help" {
-  if (argv.includes("-h") || argv.includes("--help")) return "help";
-  const [name, ...rest] = argv;
-  if (!name || name.startsWith("-")) throw new UsageError("missing <name>");
+/** Validated build options from the command line's values. */
+export function buildOptions(
+  name: string | undefined,
+  v: Record<string, string | boolean | undefined>,
+  defaultModels: string,
+): BuildOptions {
+  if (!name) throw new Error("build: missing <name>");
   if (!/^[a-z0-9][a-z0-9-]*$/.test(name))
-    throw new UsageError(`name must be lowercase letters, digits and dashes: '${name}'`);
-  const o: Options = {
+    throw new Error(`name must be lowercase letters, digits and dashes: '${name}'`);
+  const str = (k: string) => (typeof v[k] === "string" ? (v[k] as string) : undefined);
+  const list = (k: string) => str(k)?.split(",").filter(Boolean);
+  const o: BuildOptions = {
     name,
-    practice: ["monaco", "silverstone", "portimao"],
-    eventTrack: "barcelona",
-    budget: undefined,
-    jobs: 0,
-    timeout: 30,
-    only: [],
-    models: defaultModels,
-    effort: undefined,
-    port: 8787,
-    plain: false,
-    dryRun: false,
-    check: false,
+    practice: list("practice-tracks") ?? BUILD_DEFAULTS.practice,
+    eventTrack: str("event-track") ?? BUILD_DEFAULTS.eventTrack,
+    budget: count("--budget", str("budget"), 1),
+    jobs: count("--jobs", str("jobs"), 0) ?? 0,
+    timeout: count("--timeout", str("timeout"), 1) ?? BUILD_DEFAULTS.timeout,
+    only: list("only") ?? [],
+    models: str("models") ?? defaultModels,
+    effort: str("effort"),
+    port: count("--port", str("port"), 1) ?? BUILD_DEFAULTS.port,
+    plain: v.plain === true,
+    dryRun: v["dry-run"] === true,
+    check: v.check === true,
   };
-  for (let i = 0; i < rest.length; i++) {
-    const flag = rest[i]!;
-    if (flag === "--dry-run") o.dryRun = true;
-    else if (flag === "--check") o.check = true;
-    else if (flag === "--plain") o.plain = true;
-    else if (VALUE_FLAGS.includes(flag)) {
-      const v = rest[++i];
-      if (v === undefined) throw new UsageError(`${flag} needs a value`);
-      if (flag === "--practice-tracks") o.practice = v.split(",").filter(Boolean);
-      else if (flag === "--event-track") o.eventTrack = v;
-      else if (flag === "--budget") o.budget = count(flag, v, 1);
-      else if (flag === "--jobs") o.jobs = count(flag, v, 0);
-      else if (flag === "--timeout") o.timeout = count(flag, v, 1);
-      else if (flag === "--only") o.only = v.split(",").filter(Boolean);
-      else if (flag === "--models") o.models = v;
-      else if (flag === "--effort") o.effort = v;
-      else o.port = count(flag, v, 1);
-    } else throw new UsageError(`unknown option: ${flag}`);
-  }
   if (o.practice.includes(o.eventTrack))
-    throw new UsageError(`the event track '${o.eventTrack}' must not be a practice track`);
+    throw new Error(`the event track '${o.eventTrack}' must not be a practice track`);
   return o;
 }
 
@@ -132,7 +100,7 @@ interface ModelList {
 /** One entry per wanted model; models whose CLI is missing go to `skipped`. */
 export function planBuilds(
   models: ModelList,
-  opts: Pick<Options, "only" | "effort">,
+  opts: Pick<BuildOptions, "only" | "effort">,
   hasCli: (cli: string) => boolean,
 ): { plan: PlanEntry[]; skipped: string[] } {
   const fallback = opts.effort ?? models.effort ?? "medium";
@@ -457,7 +425,7 @@ export function outcomeOf(
 
 export interface ManifestInput {
   entry: PlanEntry;
-  opts: Pick<Options, "practice" | "eventTrack" | "timeout">;
+  opts: Pick<BuildOptions, "practice" | "eventTrack" | "timeout">;
   promptVersion: string;
   ddkVersion: string;
   simVersion: string;
@@ -515,11 +483,6 @@ export function hhmm(ms: number): string {
 export function clock(s: number): string {
   const t = Math.max(0, Math.floor(s));
   return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
-}
-
-export function lapTime(t: number): string {
-  const m = Math.floor(t / 60);
-  return `${m}:${(t - m * 60).toFixed(3).padStart(6, "0")}`;
 }
 
 export function tokens(n: number | null): string {

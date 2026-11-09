@@ -13,7 +13,6 @@ import {
   readReplay,
   readTokens,
   registerToken,
-  replayInfo,
   run,
   serve,
   USAGE,
@@ -45,9 +44,6 @@ function file(rel: string, content: string): string {
 beforeAll(() => {
   root = mkdtempSync(join(tmpdir(), "bench-root-"));
   for (const d of ["tracks", "cars", "ddk"]) cpSync(join(repo, d), join(root, d), { recursive: true });
-  cpSync(join(repo, "packages/reference-driver/src"), join(root, "packages/reference-driver/src"), {
-    recursive: true,
-  });
   prevRoot = process.env.BENCH_ROOT;
   process.env.BENCH_ROOT = root;
 });
@@ -64,7 +60,11 @@ describe("argument handling", () => {
   it("rejects bad input", async () => {
     await expect(cli("frobnicate")).rejects.toThrow(/unknown command/);
     await expect(cli("practice")).rejects.toThrow(/missing <driver>/);
-    await expect(cli("validate", "x.js", "--info", "C")).rejects.toThrow(/--info/);
+    await expect(cli("validate", "x.js", "--seed", "abc")).rejects.toThrow(/--seed is a number/);
+    await expect(cli("build")).rejects.toThrow(/missing <name>/);
+    await expect(cli("build", "x", "--event-track", "monaco")).rejects.toThrow(
+      /must not be a practice track/,
+    );
     await expect(cli("event", "explode", "x")).rejects.toThrow(/unknown event subcommand/);
     await expect(cli("workspace", "/tmp/nope")).rejects.toThrow(/--model/);
     await expect(cli("practice", "missing.js")).rejects.toThrow(/driver not found/);
@@ -132,32 +132,19 @@ describe("practice", () => {
 });
 
 describe("qualify", () => {
-  it("runs a session with the reference and writes a replay", async () => {
+  it("runs a session and writes a replay", async () => {
     const out = join(root, "results/q0");
     const a = file("drivers/adhoc/alpha/driver.js", slower);
     file("drivers/adhoc/alpha/manifest.json", JSON.stringify({ model: "alpha-model" }));
-    const r = await cli(
-      "qualify",
-      a,
-      join(root, "ddk/baseline-driver.js"),
-      "--reference",
-      "--out",
-      out,
-      "--seed",
-      "9",
-    );
+    const r = await cli("qualify", a, join(root, "ddk/baseline-driver.js"), "--out", out, "--seed", "9");
     expect(r.out).toMatch(/FLYING LAP on proto-ring/);
-    expect(r.out).toMatch(/P1 Reference \(house\)/);
-    expect(r.out).toMatch(/gap to reference/);
-    expect(r.out).toMatch(/alpha-model: \+\d/);
+    expect(r.out).toMatch(/P1 baseline-driver/);
+    expect(r.out).toMatch(/P2 alpha-model/);
     const replay = readReplay(join(out, "replay.json.gz"));
-    expect(replay.cars).toHaveLength(3);
-    expect(replay.header.referenceLap).toBeGreaterThan(60);
+    expect(replay.cars).toHaveLength(2);
     expect(replay.header.seed).toBe(9);
-    expect(replayInfo(join(out, "replay.json.gz")).text).toMatch(/flying lap on proto-ring, 3 cars/);
     writeFileSync(join(out, "plain.json"), JSON.stringify(replay));
     expect(readReplay(join(out, "plain.json")).header.stateHash).toBe(replay.header.stateHash);
-    expect((await cli("replay", join(out, "replay.json.gz"))).out).toMatch(/hash/);
   });
   it("lists the circuits and runs on one picked by id", async () => {
     const list = (await cli("tracks")).out;
@@ -185,52 +172,44 @@ describe("qualify", () => {
   });
 });
 
+describe("tracks import", () => {
+  it("rebuilds the committed circuits byte for byte from tracks/sources/", async () => {
+    const r = await cli("tracks", "import");
+    for (const id of ["monaco", "portimao", "silverstone", "barcelona"]) {
+      expect(r.out).toMatch(new RegExp(`^${id}: \\d+ points, \\d+ m`, "m"));
+      expect(readFileSync(join(root, `tracks/${id}.json`), "utf8")).toBe(
+        readFileSync(join(repo, `tracks/${id}.json`), "utf8"),
+      );
+    }
+  });
+});
+
 describe("events: run, reproduce, leaderboard", () => {
   it("runs an event end to end and reproduces it from the stored hashes", async () => {
     const ev = "ev-test";
-    file(
-      `results/${ev}/event.json`,
-      JSON.stringify({
-        id: ev,
-        name: "Test GP",
-        track: "proto-ring",
-        seed: 4,
-        infoLevel: "B",
-      }),
-    );
+    file(`drivers/${ev}/event.json`, JSON.stringify({ name: "Test GP", track: "proto-ring", seed: 4 }));
     file(`drivers/${ev}/model-a/driver.js`, baselineSrc);
+    file(
+      `drivers/${ev}/model-a/manifest.json`,
+      JSON.stringify({ model: "Model A", usage: { inputTokens: 30000, outputTokens: 12000, costUsd: 0.42 } }),
+    );
     file(`drivers/${ev}/model-b/driver.js`, slower);
-    file(`drivers/${ev}/model-b/manifest.json`, JSON.stringify({ model: "Model B", mode: "agentic" }));
     file(`drivers/${ev}/model-c/driver.js`, "export function step( {");
     file(`drivers/${ev}/not-a-driver/readme.txt`, "x");
-    file(
-      `results/${ev}/model-a/manifest.json`,
-      JSON.stringify({
-        model: "Model A",
-        mode: "one-shot",
-        usage: { inputTokens: 30000, outputTokens: 12000, costUsd: 0.42 },
-      }),
-    );
     const r = await cli("event", "run", ev);
-    expect(r.out).toMatch(/Test GP \(ev-test\)/);
-    expect(r.out).toMatch(/Model A/);
-    expect(r.out).toMatch(/Model B +\| agentic/);
+    expect(r.out).toMatch(/Test GP \(ev-test\) on proto-ring/);
+    expect(r.out).toMatch(/\| 1 +\| Model A +\| 1:\d\d\.\d{3} \| FINISHED/);
     expect(r.out).toMatch(/\$0\.42/);
     expect(r.out).toMatch(/42k/);
     const res = JSON.parse(
       readFileSync(join(root, `results/${ev}/event-results.json`), "utf8"),
     ) as EventResults;
+    expect(res.event).toMatchObject({ id: ev, name: "Test GP", track: "proto-ring", seed: 4 });
     expect(res.rows.map((x) => x.slug)).toEqual(["model-a", "model-b", "model-c"]);
+    expect(res.rows[0]!.manifest?.usage?.costUsd).toBe(0.42);
+    expect(res.rows[1]!.manifest).toBeNull();
     expect(res.rows[2]!.status).toBe("DNF: ECU FAILURE");
-    expect(res.reference).toBe(false);
-    expect(res.referenceLap).toBeNull();
-    expect(res.rows[0]!.gapToReference).toBeNull();
-    expect(r.out).not.toMatch(/Gap to ref|reference lap|Reference/);
-    const m = JSON.parse(readFileSync(join(root, `results/${ev}/model-a/manifest.json`), "utf8"));
-    expect(m.results.stateHash).toBe(res.rows[0]!.stateHash);
-    expect(m.driverHash).toBe(res.rows[0]!.driverHash);
-    const mb = JSON.parse(readFileSync(join(root, `results/${ev}/model-b/manifest.json`), "utf8"));
-    expect(mb.driverHash).toBe(res.rows[1]!.driverHash);
+    expect(existsSync(join(root, `results/${ev}/qualify/replay.json.gz`))).toBe(true);
 
     const rep = await cli("event", "reproduce", ev);
     expect(rep.code).toBe(0);
@@ -238,7 +217,6 @@ describe("events: run, reproduce, leaderboard", () => {
 
     res.stateHash = "0000";
     res.simVersion = "0.0.0";
-    delete res.reference;
     writeFileSync(join(root, `results/${ev}/event-results.json`), JSON.stringify(res));
     const bad = await cli("event", "reproduce", ev);
     expect(bad.code).toBe(3);
@@ -249,6 +227,7 @@ describe("events: run, reproduce, leaderboard", () => {
     expect(lb.out).toMatch(/# Leaderboard/);
     expect(lb.out).toMatch(/\| 1 +\| Model A +\| 10 /);
     expect(existsSync(join(root, "results/leaderboard.md"))).toBe(true);
+    await expect(cli("event", "run", "nope")).rejects.toThrow(/no event 'nope'/);
   });
   it("leaderboard on an empty directory", () => {
     expect(leaderboard(mkdtempSync(join(tmpdir(), "empty-"))).text).toMatch(/no event-results/);
@@ -318,8 +297,7 @@ describe("agentic workspace and practice service", () => {
       expect((await fetch(`${svc.url}/status?token=nope`)).status).toBe(403);
       expect((await fetch(`${svc.url}/other`)).status).toBe(404);
       expect((await post("/practice", "{not json")).status).toBe(400);
-      const t2 = registerToken("m2", 5, "fixed-token");
-      expect(t2).toBe("fixed-token");
+      const t2 = registerToken("m2", 5, ["proto-ring"]);
       const big = await post("/practice", { token: t2, source: "x".repeat(3 * 1024 * 1024) });
       expect(big.status).toBe(400);
     } finally {
@@ -349,12 +327,13 @@ describe("agentic workspace and practice service", () => {
       join(root, "ws/cmd"),
       "--model",
       "m3",
+      "--track",
+      "monaco",
       "--budget",
       "3",
-      "--token",
-      "tok3",
     );
-    expect(r.out).toMatch(/practice token: tok3/);
+    const token = r.out.match(/practice token: (\w+)/)![1]!;
+    expect(readTokens()[token]).toMatchObject({ model: "m3", budget: 3, tracks: ["monaco"] });
   });
 });
 
@@ -362,8 +341,7 @@ describe("driver identity", () => {
   it("uses the folder name or the manifest", () => {
     expect(driverIdentity("/x/drivers/ev/gpt-x/driver.js")).toEqual({ id: "gpt-x", name: "gpt-x" });
     expect(driverIdentity("/x/foo/my-driver.ts").id).toBe("my-driver");
-    expect(driverIdentity("/x/pkg/src/driver.ts").id).toBe("pkg");
-    file("drivers/named/n1/manifest.json", JSON.stringify({ name: "Nice Name" }));
+    file("drivers/named/n1/manifest.json", JSON.stringify({ model: "Nice Name" }));
     expect(driverIdentity(join(root, "drivers/named/n1/driver.js")).name).toBe("Nice Name");
   });
 });

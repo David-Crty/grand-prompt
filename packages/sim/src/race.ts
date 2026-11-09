@@ -1,4 +1,4 @@
-import { clamp, Hasher, loopDelta, Prng, wrapAngle, wrapS } from "./math.js";
+import { clamp, Hasher, loopDelta, wrapAngle, wrapS } from "./math.js";
 import type { Track } from "./track/track.js";
 import type { CarConfig, Controls, DriverRuntime, Surface, SurfaceOrBarrier, Telemetry } from "./types.js";
 import { carSpec, initialState, SURFACES, speedOf, VehicleModel, type VehicleState } from "./vehicle.js";
@@ -39,9 +39,6 @@ export interface SessionConfig {
   seed: number;
   /** Seconds the car may run after the line before TIME UP (default LAP_TIME_LIMIT). */
   timeLimit?: number;
-  infoLevel?: "A" | "B";
-  /** Standard deviations of sensor noise (0 = off). */
-  sensorNoise?: { position: number; speed: number };
   recordTelemetry?: boolean;
 }
 
@@ -155,7 +152,6 @@ export class CarSim {
   status: CarStatus = "RUNNING";
   private readonly halfWidth: number;
   private readonly timeLimit: number;
-  private readonly prng: Prng;
   private readonly hasher = new Hasher();
 
   private segIndex: number;
@@ -202,7 +198,6 @@ export class CarSim {
     this.model = new VehicleModel(car);
     this.halfWidth = car.public.width / 2;
     this.timeLimit = LAUNCH_TIME + (cfg.timeLimit ?? LAP_TIME_LIMIT);
-    this.prng = new Prng(cfg.seed ^ 0x5eed);
     const v0 = launchSpeed(track);
     this.maxSpeed = v0;
     const start = track.toWorld(0, 0);
@@ -276,7 +271,7 @@ export class CarSim {
   /** Run the driver's init. Returns false if it failed (car is then DNF). */
   init(): boolean {
     try {
-      this.entry.runtime.init(this.track.toInfo(), carSpec(this.car, this.cfg.infoLevel ?? "B"));
+      this.entry.runtime.init(this.track.toInfo(), carSpec(this.car));
       return true;
     } catch (e) {
       const msg = `init failed: ${errMsg(e)}`;
@@ -288,9 +283,6 @@ export class CarSim {
 
   telemetryNow(): Telemetry {
     const st = this.state;
-    const noise = this.cfg.sensorNoise;
-    const np = noise?.position ? () => this.prng.gaussian() * noise.position : () => 0;
-    const nv = noise?.speed ? () => this.prng.gaussian() * noise.speed : () => 0;
     const surf: Surface = this.surface === "barrier" ? "gravel" : this.surface;
     return {
       t: this.t,
@@ -298,14 +290,14 @@ export class CarSim {
       lapTime: this.t - LAUNCH_TIME,
       sector: this.sectorsDone + 1,
       s: this.s,
-      n: this.n + np(),
+      n: this.n,
       headingError: wrapAngle(st.yaw - this.trackHeading),
-      x: st.x + np(),
-      y: st.y + np(),
+      x: st.x,
+      y: st.y,
       yaw: wrapAngle(st.yaw),
-      speed: speedOf(st) + nv(),
-      vx: st.vx + nv(),
-      vy: st.vy + nv(),
+      speed: speedOf(st),
+      vx: st.vx,
+      vy: st.vy,
       yawRate: st.yawRate,
       ax: st.ax,
       ay: st.ay,

@@ -193,7 +193,6 @@ export function makeReplay(cars: ReplayCar[], track = stadiumTrack(), frameRate 
       launch: { time: 0, speed: 50 },
       stateHash: "x",
       car: { length: 5.6, width: 2, wheelbase: 3.6 },
-      referenceLap: 20,
     },
     track,
     cars,

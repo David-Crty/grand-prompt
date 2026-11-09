@@ -1,6 +1,7 @@
+import { fmtTime } from "@bench/sim";
 import { Box, Static, Text, type TextProps, useInput, useStdin, useWindowSize } from "ink";
 import { type ReactNode, useEffect, useState, useSyncExternalStore } from "react";
-import { clock, lapTime, tokens } from "./lib.js";
+import { clock, tokens } from "./lib.js";
 import type { ModelView, Store } from "./run.js";
 
 const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
@@ -75,7 +76,7 @@ function Line({ width, children, ...props }: { width: number; children: ReactNod
 function lastRun(m: ModelView): string {
   const r = m.runs[m.runs.length - 1];
   if (!r) return "";
-  return `${r.track.slice(0, 11)} ${r.clean && r.lapTime !== null ? lapTime(r.lapTime) : r.status.toLowerCase()}`;
+  return `${r.track.slice(0, 11)} ${r.clean && r.lapTime !== null ? fmtTime(r.lapTime) : r.status.toLowerCase()}`;
 }
 
 function detail(m: ModelView): string {

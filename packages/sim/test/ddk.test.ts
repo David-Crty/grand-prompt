@@ -24,7 +24,8 @@ describe("ddk/driver.d.ts matches the sim", () => {
     expect(fields("TrackInfo")).toEqual(Object.keys(info).sort());
     expect(fields("TrackSample")).toEqual(Object.keys(info.samples[0]!).sort());
   });
-  it("CarSpec", () => expect(fields("CarSpec")).toEqual(Object.keys(carSpec(protoCar(), "A")).sort()));
+  it("CarSpec", () =>
+    expect(fields("CarSpec")).toEqual([...Object.keys(carSpec(protoCar())), "hidden"].sort()));
   it("Controls", () => expect(fields("Controls")).toEqual(["brake", "steer", "throttle"]));
   it("car-public.json is the public section", () => {
     const pub = JSON.parse(readFileSync(new URL("../../../ddk/car-public.json", import.meta.url), "utf8"));

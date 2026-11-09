@@ -10,8 +10,12 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@bench/sim": "workspace:*",
     "@bench/sandbox": "workspace:*",
-    "@bench/reference-driver": "workspace:*"
+    "@bench/sim": "workspace:*",
+    "ink": "8.0.0",
+    "react": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0"
   }
 }

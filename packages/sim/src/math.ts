@@ -55,14 +55,6 @@ export class Prng {
   next(): number {
     return this.nextUint32() / 4294967296;
   }
-
-  /** Standard normal (Box-Muller). */
-  gaussian(): number {
-    let u = this.next();
-    if (u < 1e-12) u = 1e-12;
-    const v = this.next();
-    return Math.sqrt(-2 * Math.log(u)) * Math.cos(TAU * v);
-  }
 }
 
 /**

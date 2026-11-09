@@ -1,7 +1,6 @@
 // Feature tests: full simulations through race control.
 import { describe, expect, it } from "vitest";
 import * as baseline from "../../../ddk/baseline-driver.js";
-import { createReferenceDriver } from "../../reference-driver/src/driver.js";
 import {
   CarSim,
   type Controls,
@@ -26,36 +25,13 @@ const runOne = (
   track = protoRing(),
 ) => new CarSim(track, car, { id: "x", name: "x", runtime }, cfg(c)).run();
 
-describe("baseline and reference drivers (phase 1 acceptance)", () => {
+describe("the DDK baseline", () => {
   it("the DDK baseline sets a valid flying lap", () => {
     const r = runOne(baseline).result;
     expect(r.status).toBe("FINISHED");
     expect(r.lap!.valid).toBe(true);
     expect(r.lapTime).toBe(r.lap!.time);
     expect(r.lapTime!).toBeLessThan(120);
-  });
-
-  it("the reference driver is much faster than the baseline and reaches the plausibility targets", () => {
-    const run = runOne(createReferenceDriver(), { recordTelemetry: true, infoLevel: "A" });
-    const r = run.result;
-    expect(r.status).toBe("FINISHED");
-    expect(r.offTracks).toBe(0);
-    const base = runOne(baseline).result;
-    expect(base.lapTime! - r.lapTime!).toBeGreaterThan(10);
-    expect(r.maxSpeed * 3.6).toBeGreaterThan(320);
-    const tl = run.telemetry!;
-    const g = 9.81;
-    expect(Math.min(...tl.ax) / g).toBeLessThan(-4.3);
-    expect(Math.max(...tl.ay.map(Math.abs)) / g).toBeGreaterThan(3.3);
-    expect(tl.surface.every((s) => s === "track" || s === "kerb")).toBe(true);
-    expect(tl.t.length).toBe(tl.speed.length);
-    expect(tl.n.length).toBe(tl.t.length);
-  });
-
-  it("a slower reference pace gives a slower lap", () => {
-    const fast = runOne(createReferenceDriver(), { infoLevel: "A" }).result.lapTime!;
-    const slow = runOne(createReferenceDriver({ pace: 0.9 })).result.lapTime!;
-    expect(slow).toBeGreaterThan(fast + 1);
   });
 });
 
@@ -270,21 +246,5 @@ describe("telemetry", () => {
     expect(last.throttle).toBeCloseTo(0.5);
     expect(last.lapTime).toBeCloseTo(last.t - LAUNCH_TIME);
     expect(Math.abs(last.headingError)).toBeLessThan(0.01);
-  });
-
-  it("sensor noise is seeded: same seed same noise, different seed different noise", () => {
-    const collect = (seed: number) => {
-      const xs: number[] = [];
-      runOne(
-        fnDriver((t) => {
-          xs.push(t.x, t.speed);
-          return { throttle: 0.5, brake: 0, steer: 0 };
-        }),
-        { timeLimit: 1, seed, sensorNoise: { position: 0.1, speed: 0.1 } },
-      );
-      return xs;
-    };
-    expect(collect(1)).toEqual(collect(1));
-    expect(collect(1)).not.toEqual(collect(2));
   });
 });

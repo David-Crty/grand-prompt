@@ -4,31 +4,91 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   buildManifest,
+  buildOptions,
+  cliCmd,
+  clock,
+  fillPrompt,
+  hhmm,
   isCleanTested,
   lastCleanRun,
   outcomeOf,
   parseActivity,
-  parseArgs,
   parseUsage,
   planBuilds,
+  promptVersion,
   readRuns,
-  UsageError,
+  sandboxArgs,
+  tokens,
   unwrapShell,
-} from "./lib.js";
+} from "../src/build/lib.js";
 
-describe("parseArgs", () => {
+describe("buildOptions", () => {
   it("applies defaults and options", () => {
-    const o = parseArgs(["gp-2", "--jobs", "2", "--only", "codex,claude-haiku-5-5", "--dry-run"], "m.json");
+    const o = buildOptions("gp-2", { jobs: "2", only: "codex,claude-haiku-5-5", "dry-run": true }, "m.json");
     expect(o).toMatchObject({ name: "gp-2", jobs: 2, only: ["codex", "claude-haiku-5-5"], dryRun: true });
-    expect(o).toMatchObject({ eventTrack: "barcelona", timeout: 30, models: "m.json" });
+    expect(o).toMatchObject({ eventTrack: "barcelona", timeout: 30, models: "m.json", port: 8787 });
+    expect(buildOptions("x", { "practice-tracks": "a,b", budget: "3" }, "m")).toMatchObject({
+      practice: ["a", "b"],
+      budget: 3,
+    });
   });
   it("rejects bad input", () => {
-    expect(() => parseArgs([], "m")).toThrow(UsageError);
-    expect(() => parseArgs(["Bad_Name"], "m")).toThrow(/lowercase/);
-    expect(() => parseArgs(["x", "--timeout", "0"], "m")).toThrow(/number/);
-    expect(() => parseArgs(["x", "--event-track", "monaco"], "m")).toThrow(/practice track/);
-    expect(() => parseArgs(["x", "--wat"], "m")).toThrow(/unknown option/);
-    expect(parseArgs(["--help"], "m")).toBe("help");
+    expect(() => buildOptions(undefined, {}, "m")).toThrow(/missing <name>/);
+    expect(() => buildOptions("Bad_Name", {}, "m")).toThrow(/lowercase/);
+    expect(() => buildOptions("x", { timeout: "0" }, "m")).toThrow(/number/);
+    expect(() => buildOptions("x", { "event-track": "monaco" }, "m")).toThrow(/practice track/);
+  });
+});
+
+describe("sandbox and CLI command lines", () => {
+  it("hides the repo, the other workspaces and the session histories", () => {
+    const home = mkdtempSync(join(tmpdir(), "home-"));
+    for (const d of ["Codes", ".claude/projects", ".codex/sessions"])
+      mkdirSync(join(home, d), { recursive: true });
+    writeFileSync(join(home, ".claude.json"), "{}");
+    writeFileSync(join(home, ".claude/CLAUDE.md"), "secret");
+    const a = sandboxArgs("/ws/m", "/repo", home).join(" ");
+    expect(a).toMatch(/^--ro-bind \/ \/ /);
+    expect(a).toContain("--tmpfs /repo");
+    expect(a).toContain(`--tmpfs ${home}/Codes`);
+    expect(a).toContain(`--bind ${home}/.claude ${home}/.claude`);
+    expect(a).toContain(`--bind ${home}/.claude.json ${home}/.claude.json`);
+    expect(a).toContain(`--tmpfs ${home}/.claude/projects`);
+    expect(a).toContain(`--ro-bind /dev/null ${home}/.claude/CLAUDE.md`);
+    expect(a).toMatch(/--bind \/ws\/m \/tmp\/ws --chdir \/tmp\/ws$/);
+    expect(a).not.toContain(".gemini");
+  });
+  it("runs each provider's CLI unattended with the model and effort", () => {
+    const claude = cliCmd("claude", "claude-x", "high", "P");
+    expect(claude.slice(0, 7)).toEqual(["claude", "-p", "P", "--model", "claude-x", "--effort", "high"]);
+    expect(claude).toContain("stream-json");
+    expect(cliCmd("codex", "gpt-x", "low", "P")).toContain('model_reasoning_effort="low"');
+    expect(cliCmd("gemini", "g", "medium", "P")).toEqual([
+      "gemini",
+      "-p",
+      "P",
+      "-m",
+      "g",
+      "--output-format",
+      "json",
+      "--yolo",
+    ]);
+  });
+});
+
+describe("prompt and formatting", () => {
+  it("fills the launch prompt and reads the brief's version", () => {
+    expect(fillPrompt("{{TIME_LIMIT}} min, until {{DEADLINE}}", 30, "14:05")).toBe("30 min, until 14:05");
+    expect(promptVersion("<!-- prompt version: agentic-0.4 -->")).toBe("agentic-0.4");
+    expect(promptVersion("none")).toBe("");
+    expect(hhmm(new Date(2026, 0, 1, 9, 5).getTime())).toBe("09:05");
+    expect(clock(125.9)).toBe("2:05");
+    expect([tokens(null), tokens(999), tokens(12_345), tokens(2_500_000)]).toEqual([
+      "–",
+      "999",
+      "12k",
+      "2.5M",
+    ]);
   });
 });
 

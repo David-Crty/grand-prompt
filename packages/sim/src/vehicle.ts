@@ -48,10 +48,9 @@ export function speedOf(s: VehicleState): number {
   return Math.hypot(s.vx, s.vy);
 }
 
-export function carSpec(car: CarConfig, infoLevel: "A" | "B"): CarSpec {
-  const spec: CarSpec = { infoLevel, ...car.public };
-  if (infoLevel === "A") spec.hidden = structuredClone(car.hidden);
-  return spec;
+/** What a driver's init receives: the public parameters only (information level B). */
+export function carSpec(car: CarConfig): CarSpec {
+  return { infoLevel: "B", ...car.public };
 }
 
 /** Precomputed per-car constants. */

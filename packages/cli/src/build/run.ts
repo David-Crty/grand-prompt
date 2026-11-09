@@ -1,4 +1,4 @@
-import { type ChildProcess, spawn, spawnSync } from "node:child_process";
+import { type ChildProcess, spawn } from "node:child_process";
 import {
   cpSync,
   createWriteStream,
@@ -10,14 +10,17 @@ import {
 } from "node:fs";
 import { constants } from "node:os";
 import { join } from "node:path";
+import { readJson } from "../load.js";
+import { readTokens } from "../service.js";
+import { createWorkspace } from "../workspace.js";
 import {
+  type BuildOptions,
   buildManifest,
   cliCmd,
   fillPrompt,
   hhmm,
   isCleanTested,
   lastCleanRun,
-  type Options,
   outcomeOf,
   type PlanEntry,
   parseActivity,
@@ -108,12 +111,10 @@ export class Store {
   }
 }
 
-export class Fatal extends Error {}
-
 export interface Context {
   repo: string;
   home: string;
-  opts: Options;
+  opts: BuildOptions;
   wsRoot: string;
   out: string;
   res: string;
@@ -148,23 +149,21 @@ export function stopAll(signal: NodeJS.Signals = "SIGTERM") {
  * rewriting results/agentic/tokens.json, so concurrent registrations would drop each other.
  */
 export function makeWorkspace(ctx: Context, e: PlanEntry) {
-  const ws = join(ctx.wsRoot, e.slug);
-  const logs = join(ctx.res, e.slug, "build");
-  mkdirSync(logs, { recursive: true });
+  mkdirSync(join(ctx.res, e.slug, "build"), { recursive: true });
   ctx.store.update(e.slug, { state: "workspace" });
-  const args = ["-s", "bench", "workspace", ws, "--model", e.slug, "--track", ctx.opts.practice.join(",")];
-  args.push("--service-url", ctx.url);
-  if (ctx.opts.budget) args.push("--budget", String(ctx.opts.budget));
-  const r = spawnSync("pnpm", args, { cwd: ctx.repo, encoding: "utf8" });
-  writeFileSync(join(logs, "workspace.txt"), `${r.stdout ?? ""}${r.stderr ?? ""}`);
-  if (r.status !== 0) throw new Fatal(`${e.slug}: workspace failed, see ${join(logs, "workspace.txt")}`);
+  createWorkspace(join(ctx.wsRoot, e.slug), {
+    model: e.slug,
+    serviceUrl: ctx.url,
+    tracks: ctx.opts.practice,
+    budget: ctx.opts.budget,
+  });
 }
 
-/** `bench.mjs status` in the workspace: runs used and budget, or null if the service refuses. */
+/** Practice runs used and budget of a workspace's token, or null if the service does not know it. */
 export function practiceStatus(ws: string): { used: number; budget: number } | null {
-  const r = spawnSync("node", ["bench.mjs", "status"], { cwd: ws, encoding: "utf8" });
-  const m = `${r.stdout}${r.stderr}`.match(/used (\d+) of (\d+)/);
-  return r.status === 0 && m ? { used: Number(m[1]), budget: Number(m[2]) } : null;
+  const { token } = readJson<{ token: string }>(join(ws, ".bench.json"));
+  const rec = readTokens()[token];
+  return rec ? { used: rec.used, budget: rec.budget } : null;
 }
 
 export async function buildOne(ctx: Context, e: PlanEntry): Promise<void> {

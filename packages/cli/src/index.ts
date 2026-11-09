@@ -1,110 +1,123 @@
+import { join } from "node:path";
 import { parseArgs } from "node:util";
-import {
-  type EventConfig,
-  eventPaths,
-  leaderboard,
-  listTracks,
-  practice,
-  qualify,
-  replayInfo,
-  reproduceEvent,
-  runEvent,
-  validate,
-} from "./commands.js";
-import { readJson } from "./load.js";
-import { buildOneshotPrompt, runOneshot } from "./oneshot.js";
+import { buildOptions, count } from "./build/lib.js";
+import { leaderboard, reproduceEvent, runEvent } from "./event.js";
+import { repoRoot } from "./load.js";
 import { serve } from "./service.js";
+import { practice, qualify, validate } from "./session.js";
+import { importTracks, listTracks } from "./tracks.js";
 import { createWorkspace } from "./workspace.js";
 
-export * from "./commands.js";
+export * from "./build/lib.js";
+export * from "./event.js";
 export * from "./load.js";
-export * from "./oneshot.js";
 export * from "./service.js";
+export * from "./session.js";
+export * from "./tracks.js";
 export * from "./workspace.js";
 
 export const USAGE = `bench <command> [options]
 
-  validate <driver>                        load, init and run 10 s; report errors and timings
-  practice <driver>                        one flying lap: lap/sector times, telemetry.csv, summary.json
-  qualify <driver...> [--seed S]           one flying lap per driver (ghost mode); replay.json.gz, results.json
-  event run <event-id> [--reference]       the flying lap of drivers/<event-id>/*/driver.js
-  event reproduce <event-id>               re-run an event and verify every state hash
-  oneshot <event-id> --model <id> [--slug s] [--prompt-only]
-                                           one-shot submission via OpenRouter (OPENROUTER_API_KEY)
-  leaderboard [results-dir]                aggregate event results (default: results/)
-  replay <replay.json.gz>                  print replay header and classification
-  tracks                                   list the circuits in tracks/ (ids for --track)
-  serve [--port P]                         practice service for agentic runs (keeps hidden params out of the workspace)
-  workspace <dir> --model <slug> [--track a,b,c] [--budget N, default 10] [--service-url U]
-                                           create an isolated agentic workspace (DDK + practice client)
+tracks
+  tracks                         the circuits in tracks/ (ids for --track)
+  tracks import                  rebuild the imported circuits from tracks/sources/
 
-common options:
-  --track <id|path>    track id in tracks/ (see 'bench tracks') or a JSON path (default proto-ring)
-  --car <path>         car config (default cars/proto.json)
+drivers
+  validate <driver>              load, init and run 10 s; errors, budget use and timings
+  practice <driver>              one flying lap with telemetry.csv, summary.json and a replay
+  build <name>                   one driver per model in models.json, each by its own CLI in a sandbox
+      --practice-tracks <a,b,c>  practice circuits (default monaco,silverstone,portimao)
+      --event-track <id>         the event circuit, never practised on (default barcelona)
+      --budget <n>               practice runs per model, shared across circuits (default 10)
+      --jobs <n>                 models built at once (default all)
+      --timeout <min>            wall-time limit per model, stated in its prompt (default 30)
+      --only <list>              providers or model ids to build
+      --models <file>            model list (default models.json)
+      --effort <level>           low, medium, high, xhigh or max for every model (default: models.json)
+      --plain                    log lines instead of the live view
+      --dry-run                  print the command for the first model, run nothing
+      --check                    check the sandbox, the practice service and each CLI, run no model
+
+races
+  qualify <driver...>            one flying lap per driver, replayed together
+  event run <event>              the flying lap of drivers/<event>/*/driver.js on the event's circuit
+  event reproduce <event>        re-run an event and check every state hash
+  leaderboard [dir]              standings over every event under dir (default results/)
+
+practice service (what build runs for each model)
+  serve [--port n]               the service that runs practice laps outside the workspace (default 8787)
+  workspace <dir> --model <slug> --track <a,b,c> [--budget n] [--service-url url]
+
+options
+  --track <id|path>    circuit id (see 'bench tracks') or track file (default proto-ring)
   --seed <n>           seed (default 1)
-  --info <A|B>         information level (default B: hidden constants not passed to drivers)
-  --out <dir>          output directory
-  --reference          add the house reference driver to qualify/event run (off by default)
+  --out <dir>          output directory (default results/<command>/<name>-NNN)
 `;
 
+const OPTIONS = {
+  track: { type: "string" },
+  seed: { type: "string" },
+  out: { type: "string" },
+  port: { type: "string" },
+  budget: { type: "string" },
+  model: { type: "string" },
+  "service-url": { type: "string" },
+  "practice-tracks": { type: "string" },
+  "event-track": { type: "string" },
+  jobs: { type: "string" },
+  timeout: { type: "string" },
+  only: { type: "string" },
+  models: { type: "string" },
+  effort: { type: "string" },
+  plain: { type: "boolean" },
+  "dry-run": { type: "boolean" },
+  check: { type: "boolean" },
+  help: { type: "boolean", short: "h" },
+} as const;
+
 export async function run(argv: string[], out: (s: string) => void): Promise<number> {
-  const { values, positionals } = parseArgs({
-    args: argv,
-    allowPositionals: true,
-    options: {
-      track: { type: "string", default: "proto-ring" },
-      car: { type: "string" },
-      seed: { type: "string" },
-      info: { type: "string" },
-      out: { type: "string" },
-      reference: { type: "boolean", default: false },
-      port: { type: "string" },
-      budget: { type: "string" },
-      model: { type: "string" },
-      "service-url": { type: "string" },
-      slug: { type: "string" },
-      "prompt-only": { type: "boolean", default: false },
-      token: { type: "string" },
-      help: { type: "boolean", short: "h", default: false },
-    },
-  });
+  const { values, positionals } = parseArgs({ args: argv, allowPositionals: true, options: OPTIONS });
   const [cmd, ...rest] = positionals;
   if (values.help || !cmd) {
     out(USAGE);
-    return cmd || values.help ? 0 : 1;
+    return values.help ? 0 : 1;
   }
-  const info = values.info?.toUpperCase();
-  if (info && info !== "A" && info !== "B") throw new Error("--info must be A or B");
-  const common = {
-    track: values.track!,
-    car: values.car,
-    seed: values.seed ? Number(values.seed) : undefined,
-    infoLevel: info as "A" | "B" | undefined,
-    out: values.out,
-  };
   const need = (n: number, what: string) => {
     if (rest.length < n) throw new Error(`${cmd}: missing ${what}\n\n${USAGE}`);
   };
+  const opts = {
+    track: values.track ?? "proto-ring",
+    seed: count("--seed", values.seed, 0),
+    out: values.out,
+  };
   switch (cmd) {
+    case "tracks":
+      if (rest[0] === "import") out(importTracks().text);
+      else out(listTracks().text);
+      return 0;
     case "validate": {
       need(1, "<driver>");
-      const r = await validate(rest[0]!, common);
+      const r = await validate(rest[0]!, opts);
       out(r.text);
       return r.ok ? 0 : 2;
     }
-    case "practice": {
+    case "practice":
       need(1, "<driver>");
-      out((await practice(rest[0]!, common)).text);
+      out((await practice(rest[0]!, opts)).text);
       return 0;
+    case "build": {
+      const o = buildOptions(rest[0], values, join(repoRoot(), "models.json"));
+      const { build } = await import("./build/index.js");
+      return build(o);
     }
     case "qualify":
       need(1, "<driver...>");
-      out((await qualify(rest, { ...common, reference: values.reference })).text);
+      out((await qualify(rest, opts)).text);
       return 0;
     case "event": {
-      need(2, "run|reproduce <event-id>");
+      need(2, "run|reproduce <event>");
       if (rest[0] === "run") {
-        out((await runEvent(rest[1]!, { reference: values.reference })).text);
+        out((await runEvent(rest[1]!)).text);
         return 0;
       }
       if (rest[0] === "reproduce") {
@@ -114,34 +127,11 @@ export async function run(argv: string[], out: (s: string) => void): Promise<num
       }
       throw new Error(`unknown event subcommand '${rest[0]}'`);
     }
-    case "oneshot": {
-      need(1, "<event-id>");
-      if (values["prompt-only"]) {
-        out(buildOneshotPrompt(readJson<EventConfig>(eventPaths(rest[0]!).config)));
-        return 0;
-      }
-      if (!values.model) throw new Error("oneshot: --model <provider/model> is required");
-      const slug =
-        values.slug ??
-        values.model
-          .replace(/^[^/]*\//, "")
-          .replace(/[^a-z0-9._-]+/gi, "-")
-          .toLowerCase();
-      out((await runOneshot({ event: rest[0]!, model: values.model, slug })).text);
-      return 0;
-    }
     case "leaderboard":
-      out(leaderboard(rest[0] ?? "results").text);
-      return 0;
-    case "replay":
-      need(1, "<replay>");
-      out(replayInfo(rest[0]!).text);
-      return 0;
-    case "tracks":
-      out(listTracks().text);
+      out(leaderboard(rest[0] ?? join(repoRoot(), "results")).text);
       return 0;
     case "serve": {
-      const s = await serve({ port: Number(values.port ?? 8787) });
+      const s = await serve({ port: count("--port", values.port, 1) ?? 8787 });
       out(`practice service listening on ${s.url}\n`);
       return 0;
     }
@@ -151,9 +141,8 @@ export async function run(argv: string[], out: (s: string) => void): Promise<num
       const w = createWorkspace(rest[0]!, {
         model: values.model,
         serviceUrl: values["service-url"] ?? "http://127.0.0.1:8787",
-        token: values.token,
-        tracks: values.track!.split(",").filter(Boolean),
-        budget: values.budget ? Number(values.budget) : undefined,
+        tracks: (values.track ?? "").split(",").filter(Boolean),
+        budget: count("--budget", values.budget, 1),
       });
       out(`workspace ready: ${w.dir}\npractice token: ${w.token}\n`);
       return 0;
