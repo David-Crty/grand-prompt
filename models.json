@@ -1,0 +1,15 @@
+{
+  "claude": [
+    { "id": "claude-opus-5-5", "name": "Claude Opus 5.5" },
+    { "id": "claude-fable-5-1", "name": "Claude Fable 5.1" },
+    { "id": "claude-sonnet-5-5", "name": "Claude Sonnet 5.5" },
+    { "id": "claude-haiku-5-5", "name": "Claude Haiku 5.5" }
+  ],
+  "codex": [
+    { "id": "gpt-6.1-sol", "name": "GPT-6.1 Sol" },
+    { "id": "gpt-6.1-terra", "name": "GPT-6.1 Terra" },
+    { "id": "gpt-6-astra", "name": "GPT-6 Astra" },
+    { "id": "gpt-6-luna", "name": "GPT-6 Luna" }
+  ],
+  "gemini": []
+}

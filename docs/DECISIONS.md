@@ -176,3 +176,57 @@ qualifying and the 5-lap race, and `event reproduce` matches. Opus qualified on 
   `validate` before each run, since five runs leave no room for load errors.
 - Tokens and wall time per entry are in each manifest's `settings`/`usage`; the Agent tool gives
   a total only, without an input/output split or a cost.
+
+## D18. Agentic builds through the vendors' own CLIs, sandboxed with bubblewrap (2026-11-09)
+
+- No OpenRouter: the owner has no account and does not want one. `scripts/build-drivers.sh <name>`
+  builds one driver per entry in `models.json` (provider -> list of `{id, name}`) by running that
+  provider's coding CLI headless in its workspace: `claude -p`, `codex exec`, `gemini -p`. Each
+  runs on the owner's own subscription. A provider whose CLI is missing is skipped.
+- Isolation is real now, not by instruction (the gap D17 found). Each CLI runs in `bwrap` with the
+  filesystem read-only, the repo, `~/Codes`, `~/bench-ws` and `/tmp` hidden, only its workspace
+  writable at `/tmp/ws`, and its own state dir writable so it can authenticate. Session
+  histories (`~/.claude/projects`, `~/.codex/sessions`, …) are empty tmpfs, since they hold earlier
+  transcripts with other models' drivers, and the user-level `CLAUDE.md`/`AGENTS.md`/`GEMINI.md`
+  are blanked. Claude also gets `--setting-sources project,local --strict-mcp-config` (no user
+  hooks or MCP servers), Codex `--ignore-user-config`.
+- Inside that sandbox each CLI runs with its own permission prompts off (Claude `dontAsk` with
+  an explicit tool list, Codex `--dangerously-bypass-approvals-and-sandbox`, Gemini `--yolo`):
+  nobody is there to answer, and nested sandboxes are unreliable. The bwrap boundary replaces them.
+- The network is not cut: the CLI needs its API and the practice service on localhost. "No web
+  search" stays a rule in the prompt; Claude's web tools are also disabled.
+- `ddk/PROMPT_LAUNCH.md` is the short launch prompt (read TASK.md, rules, run unattended, stop if
+  the practice service is unreachable). It is the same for every CLI.
+- Manifests record token usage from each CLI's JSON output (Claude also gives a cost), wall time,
+  practice runs and the outcome (ok, timeout, CLI exit code). Logs, practice runs and the final
+  driver stay in `results/<name>/<slug>/build/`.
+- `--check` validates the sandbox, the practice service and each CLI without running a model.
+- Gemini has no model ids in `models.json` yet: the Gemini CLI is not installed here and current
+  ids could not be confirmed.
+
+## D19. Practise on three circuits, race on an unseen one (2026-11-09)
+
+- Models practise on `monaco`, `silverstone` and `portimao` and the event runs on `barcelona`,
+  which no workspace contains. `TASK.md` (`agentic-0.3`) says the event circuit is none of the
+  practice ones. D17 showed why: a driver tuned to the event circuit wins there and crashes
+  elsewhere.
+- The practice budget is 10 runs, shared across circuits; the model picks the circuit per run
+  (`bench.mjs practice --track`). This supersedes D16's 5.
+- A token lists its circuits, and the service refuses any other one, so a model cannot practise
+  on the event circuit through the API either. `build-drivers.sh` refuses an event track that is
+  also a practice track.
+- Known limits: three real circuits are little to generalise from, Barcelona is a public
+  circuit the models may know, and the house driver crashes on the real circuits, so the
+  gap to reference is empty there.
+
+## D20. Builds have a known time limit and keep a tested driver (2026-11-09)
+
+- Each model gets 30 minutes by default (`--timeout <min>`), and the launch prompt states the
+  limit and the end time. Before this the CLI was cut off at a limit the model did not know.
+- The prompt asks the model to keep `driver.js` at its best tested version. If a model is cut
+  off anyway and its `driver.js` never completed a clean practice run, the script submits the
+  newest driver that did (`runs/NNN/driver.js`); the manifest records `driverSource`.
+- All models run in parallel by default: practice runs are about 3 s and the service queues them.
+- Workspaces are created one at a time before any model starts, because each registers its token
+  by rewriting `results/agentic/tokens.json`; concurrent registrations lost a token in the first
+  build. Ctrl-C now stops every model run, not only the script.
