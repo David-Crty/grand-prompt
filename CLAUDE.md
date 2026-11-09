@@ -34,7 +34,9 @@ or deviation.
 - `packages/reference-driver`: the internal house driver. It must never be copied into `ddk/`.
 - `apps/viewer`: Vite + R3F. It plays replays only and contains no physics. Pure logic lives in
   `src/lib` (tested), and the scene in `src/scene`. It serves `results/` at `/results/`, plus
-  `/results/index.json` (the race list, built per request by `server/results-index.ts`).
+  `/results/index.json` (the race list, built per request by `server/results-index.ts`). The car
+  mesh is `src/lib/car-model.gen.json`, generated from `cars/sources/*.stl` by
+  `scripts/import-car.ts` (D24).
 - `models.json` + `scripts/build-drivers.sh`: agentic builds through the claude/codex/gemini CLIs,
   each in a bubblewrap sandbox (D18). The launch prompt is `ddk/PROMPT_LAUNCH.md` (`{{TIME_LIMIT}}`
   and `{{DEADLINE}}` filled per model), the brief `ddk/PROMPT_AGENTIC.md` (copied as `TASK.md`).

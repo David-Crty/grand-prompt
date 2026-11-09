@@ -42,12 +42,17 @@ export function Cars({ model, live }: { model: ViewerModel; live: React.RefObjec
         for (const w of geo.wheels) {
           const pivot = new THREE.Group();
           pivot.position.set(w.x, geo.wheelRadius, w.z);
-          const mesh = new THREE.Mesh(geo.wheel, shared.wheel);
+          const mesh = new THREE.Mesh(w.right ? geo.wheel.right : geo.wheel.left, shared.wheel);
           mesh.castShadow = true;
           pivot.add(mesh);
           group.add(pivot);
           wheels.push(mesh);
-          if (w.front) steer.push(pivot);
+          if (w.front) {
+            const upright = new THREE.Mesh(w.right ? geo.upright.right : geo.upright.left, shared.detail);
+            upright.castShadow = true;
+            pivot.add(upright);
+            steer.push(pivot);
+          }
         }
         const marker = new THREE.Mesh(
           shared.marker,
@@ -83,7 +88,7 @@ export function Cars({ model, live }: { model: ViewerModel; live: React.RefObjec
         );
         trail.frustumCulled = false;
         trail.renderOrder = 1;
-        return { group, wheels, steer, marker, trail, paint };
+        return { group, wheels, steer, marker, trail, paint, wheelRadius: geo.wheelRadius };
       }),
     [model, geo, shared],
   );

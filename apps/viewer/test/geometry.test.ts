@@ -17,7 +17,6 @@ import {
   tvPose,
 } from "../src/lib/camera.js";
 import { indexCar } from "../src/lib/frames.js";
-import { loft, openWheelerSections } from "../src/lib/loft.js";
 import { buildMinimap } from "../src/lib/minimap.js";
 import {
   BARRIER_HEIGHT,
@@ -155,48 +154,6 @@ describe("track layout", () => {
     expect(buildGrandstands(stands).vertexCount).toBeGreaterThan(36 * 8 * stands.length);
     expect(buildGrandstands([]).vertexCount).toBe(0);
     expect(buildGantry(layout).vertexCount).toBe(36 * 9);
-  });
-});
-
-describe("loft", () => {
-  const signedVolume = (m: { positions: number[]; indices: number[] }) => {
-    let v = 0;
-    for (let k = 0; k < m.indices.length; k += 3) {
-      const [a, b, c] = [m.indices[k]!, m.indices[k + 1]!, m.indices[k + 2]!].map((i) => [
-        m.positions[i * 3]!,
-        m.positions[i * 3 + 1]!,
-        m.positions[i * 3 + 2]!,
-      ]) as [number[], number[], number[]];
-      v +=
-        (a[0]! * (b[1]! * c[2]! - b[2]! * c[1]!) -
-          a[1]! * (b[0]! * c[2]! - b[2]! * c[0]!) +
-          a[2]! * (b[0]! * c[1]! - b[1]! * c[0]!)) /
-        6;
-    }
-    return v;
-  };
-  it("produces closed, outward-wound bodies in either direction", () => {
-    const fwd = loft([
-      { x: 0, halfWidth: 1, bottom: 0, top: 1 },
-      { x: 2, halfWidth: 1, bottom: 0, top: 1 },
-    ]);
-    expect(signedVolume(fwd)).toBeCloseTo(4);
-    const back = loft([
-      { x: 2, halfWidth: 1, bottom: 0, top: 1, topScale: 1 },
-      { x: 0, halfWidth: 1, bottom: 0, top: 1 },
-    ]);
-    expect(signedVolume(back)).toBeCloseTo(4);
-    expect(() => loft([{ x: 0, halfWidth: 1, bottom: 0, top: 1 }])).toThrow();
-  });
-  it("describes an open-wheeler within the car's footprint", () => {
-    const s = openWheelerSections(5.6, 2);
-    for (const part of [s.tub, s.sidepods, s.engine]) {
-      for (const sec of part) {
-        expect(Math.abs(sec.x)).toBeLessThanOrEqual(2.8);
-        expect(sec.halfWidth).toBeLessThanOrEqual(1);
-      }
-      expect(signedVolume(loft(part))).toBeGreaterThan(0);
-    }
   });
 });
 

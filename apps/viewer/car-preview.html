@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Car preview (temporary)</title>
+<style>html,body{margin:0;height:100%;background:#8fa3b3;font:13px system-ui}#ui{position:fixed;top:8px;left:8px;background:#fffd;padding:6px 10px;border-radius:6px}</style>
+</head>
+<body>
+<div id="ui"><label><input id="anim" type="checkbox" checked> spin + steer</label> <button type="button" id="side">side</button> <button type="button" id="rear">rear</button> <button type="button" id="three">3/4</button> <button type="button" id="close">wheel</button> <span id="info"></span></div>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { buildCarGeometries } from "/src/scene/geometry.ts";
+
+const g = buildCarGeometries(5.6, 2.0, 3.6);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(devicePixelRatio);
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color("#8fa3b3");
+const camera = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.05, 200);
+const controls = new OrbitControls(camera, renderer.domElement);
+const views = {
+  three: [[-6, 3, 6], [-0.5, 0.5, 0]],
+  side: [[0, 0.6, 11], [0, 0.5, 0]],
+  rear: [[-7.5, 1.6, 0], [-2, 0.6, 0]],
+  close: [[1.8, 0.5, 2.8], [1.8, 0.37, 0.8]],
+};
+const setView = (k) => { camera.position.set(...views[k][0]); controls.target.set(...views[k][1]); };
+setView("three");
+for (const k of Object.keys(views)) document.getElementById(k).onclick = () => setView(k);
+scene.add(new THREE.HemisphereLight("#dfe9f3", "#4b5a3a", 1.2));
+const sun = new THREE.DirectionalLight("#fff", 2.2);
+sun.position.set(6, 14, 8); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -6, right: 6, top: 6, bottom: -6 });
+scene.add(sun);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.MeshStandardMaterial({ color: "#3d4045", roughness: 0.95 }));
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+const detailMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.1 });
+const wheelMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 });
+const car = new THREE.Group();
+for (const m of [new THREE.Mesh(g.body, new THREE.MeshStandardMaterial({ color: "#2a6fdb", roughness: 0.32, metalness: 0.25 })), new THREE.Mesh(g.detail, detailMat)]) { m.castShadow = m.receiveShadow = true; car.add(m); }
+const wheels = [], steer = [];
+for (const w of g.wheels) {
+  const pivot = new THREE.Group(); pivot.position.set(w.x, g.wheelRadius, w.z);
+  const mesh = new THREE.Mesh(w.right ? g.wheel.right : g.wheel.left, wheelMat); mesh.castShadow = true; pivot.add(mesh); wheels.push(mesh);
+  if (w.front) { const u = new THREE.Mesh(w.right ? g.upright.right : g.upright.left, detailMat); pivot.add(u); steer.push(pivot); }
+  car.add(pivot);
+}
+scene.add(car);
+let tris = 0; car.traverse((o) => { if (o.isMesh) tris += o.geometry.attributes.position.count / 3; });
+document.getElementById("info").textContent = `${tris} triangles`;
+const clock = new THREE.Clock(); let spin = 0;
+renderer.setAnimationLoop(() => {
+  const t = clock.getElapsedTime();
+  if (document.getElementById("anim").checked) { spin -= 0.06; for (const p of steer) p.rotation.y = Math.sin(t * 0.8) * 0.3; }
+  for (const w of wheels) w.rotation.z = spin;
+  controls.update(); renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>

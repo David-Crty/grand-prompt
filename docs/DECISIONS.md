@@ -265,3 +265,30 @@ qualifying and the 5-lap race, and `event reproduce` matches. Opus qualified on 
 - `event-results.json` records `reference`. Without it there is no reference lap, so the event
   table drops its "Gap to ref" column. `event reproduce` re-runs with whatever the stored event
   used, and results written before the field existed count as having run it, which they did.
+
+## D24. The viewer's car is an imported low-poly model, fitted to 2026 proportions (2026-11-09)
+
+- The procedural open-wheeler is replaced by the owner's STL (`cars/sources/f1-car-low-poly.stl`,
+  12.6k triangles). `scripts/import-car.ts` splits it into its connected parts, assigns each a
+  role (painted body, carbon/white detail, front upright) and decimates them with meshoptimizer
+  into `apps/viewer/src/lib/car-model.gen.json`. Only the right upright is stored; the left one
+  is mirrored.
+- Decimation: an absolute error of 0.01 source units (about 5 mm on the car) keeps 45% of the
+  triangles and is indistinguishable from the source in the viewer; at 0.02 curved parts turn
+  visibly polygonal. Re-run the script with `--error` to trade again. A whole car is about 5.4k
+  triangles.
+- The STL's wheels are dropped and rebuilt in `apps/viewer/src/lib/carparts.ts`: they are
+  sculpted rather than turned (the tyre is not round, and the hub disc sits about 1 cm off the
+  axle), so they wobbled when spun. The importer measures them (tyre radius by a circle fit,
+  width, rim and cover radii); the viewer turns a tyre, rim, cover and nut about the axle from
+  those, with five marks on the cover so rotation reads on screen.
+- Its rear wing is dropped too and rebuilt to the 2026 rules: three elements, no beam wing, plain
+  endplates rounded at the top, and two pylons into the underside of the mainplane. Mainplane
+  and pylons are carbon; flaps and endplates take the car's colour.
+- The source's proportions are off (wheels a quarter too large, the body tall and long), so it is
+  fitted, not scaled uniformly, to the replay's car: the axles land on the sim's wheelbase, the
+  overhangs are scaled to the overall length, width sets the lateral scale, and the tyre radius
+  is that of a 2026 car relative to its wheelbase (about 710 mm on 3.4 m). The body is scaled
+  vertically so the suspension meets the hubs, which leaves it about 12% taller than a real car;
+  the wing is raised by the same ratio so it sits level with the roll hoop. The sim's own car
+  (`cars/proto.json`) is unchanged.

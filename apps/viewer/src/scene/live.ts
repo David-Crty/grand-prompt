@@ -9,6 +9,7 @@ export interface CarHandles {
   group: THREE.Group;
   wheels: THREE.Object3D[];
   steer: THREE.Object3D[];
+  wheelRadius: number;
   marker: THREE.Object3D;
   trail: THREE.Mesh;
 }

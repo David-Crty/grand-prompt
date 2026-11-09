@@ -72,7 +72,7 @@ export function Driver({
       for (const p of h.steer) p.rotation.y = s.steer * maxSteer;
       const spin =
         (L.wheelSpin[k] ?? 0) -
-        (s.ended ? 0 : (s.speed * dt * L.clock.speed * (L.clock.playing ? 1 : 0)) / 0.36);
+        (s.ended ? 0 : (s.speed * dt * L.clock.speed * (L.clock.playing ? 1 : 0)) / h.wheelRadius);
       L.wheelSpin[k] = spin;
       for (const w of h.wheels) w.rotation.z = spin;
       h.marker.visible = mapMode;
