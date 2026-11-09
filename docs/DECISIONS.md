@@ -239,3 +239,29 @@ qualifying and the 5-lap race, and `event reproduce` matches. Opus qualified on 
 - Before this, `gp-1` ran at whatever each CLI defaulted to: the script skips the owner's user
   settings, so the Claude models ran at the CLI default and Codex at each model's own default
   (Sol and Luna medium, Terra and Astra low). Its manifests record that.
+
+## D22. The TV camera is one overhead shot that never cuts (2026-11-09)
+
+- The owner's reference is an overhead qualifying-lap comparison: a single camera straight down
+  on the cars, telephoto, rotating slowly after the direction of travel so a corner shows the car
+  turning on screen while the frame catches up. TV mode now does only that; the heli and
+  trackside shots, the cuts between them and the trackside camera placement are gone.
+- Zoom follows the traffic: the frame holds the focused car plus the nearest cars that fit within
+  `TV_MAX_SPAN` metres (`apps/viewer/src/lib/camera.ts`, the owner's knob), and is tightest
+  (`TV_MIN_SPAN`) alone. A car joins below 85% of the max and leaves above it, so one hovering at
+  the limit does not pump the zoom.
+- There is no auto-director any more: the TV camera stays on one car (the `?car=` one, else the
+  first) and changes only when the viewer picks another in the timing tower or with Tab / [ ].
+  The change pans to the new car; it does not cut.
+- A live zoom factor (slider in the control bar in TV mode, mouse wheel over the view, Z / X,
+  `?zoom=` in the URL) divides both spans, so it also changes the solo framing. It is clamped to
+  0.4–2.8×; the constants above stay the defaults at 1×.
+
+## D23. The house driver is out of generated races unless asked for (2026-11-09)
+
+- The owner does not want it on the grid: it is far off the pace and crashes on the real
+  circuits, so it only clutters the replay and the tower. `event run` and `make race` no longer
+  add it; `--reference` still does, for `race`, `qualify` and `event run`.
+- `event-results.json` records `reference`. Without it there is no reference lap, so the event
+  table drops its "Gap to ref" column. `event reproduce` re-runs with whatever the stored event
+  used, and results written before the field existed count as having run it, which they did.

@@ -13,6 +13,7 @@ import {
   Telemetry,
   TimingTower,
 } from "./components/Hud.js";
+import { clampZoom, stepZoom } from "./lib/camera.js";
 import { lapInfoAt, overallBestAt } from "./lib/frames.js";
 import { recentMessages } from "./lib/messages.js";
 import type { ViewerModel } from "./lib/model.js";
@@ -22,17 +23,6 @@ import { Cars } from "./scene/Cars.js";
 import { Driver } from "./scene/Driver.js";
 import type { LiveState } from "./scene/live.js";
 import { World } from "./scene/World.js";
-
-function shotLabel(live: LiveState, model: ViewerModel): string {
-  const s = live.shot;
-  if (!s) return "";
-  if (live.manualFocus) return "locked on car";
-  const row = live.rows.find((r) => r.id === s.primary);
-  if (s.reason === "battle" && row) return `battle for P${row.position - 1}`;
-  if (s.reason === "leader") return "race leader";
-  void model;
-  return row && (row.finished || row.out) ? "finish" : "on track";
-}
 
 export function Viewer({
   model,
@@ -56,9 +46,8 @@ export function Viewer({
       }),
       mode: params.cam ?? "tv",
       focusId: initialFocus,
-      manualFocus: params.car !== null && initialFocus === params.car,
       trails: params.trails,
-      shot: null,
+      tvZoom: clampZoom(params.zoom ?? 1),
       rows: [],
       samples: [],
       cars: [],
@@ -70,9 +59,9 @@ export function Viewer({
         heading: 0,
         init: false,
         key: "",
-        focusKey: "",
-        fromKey: "",
-        blendStart: 0,
+        offset: [0, 0],
+        span: 0,
+        framed: [],
       },
       wheelSpin: [],
       fps: { frames: 0, acc: 0, avgMs: 0, lastLog: 0, jsAcc: 0, jsMs: 0, calls: 0, tris: 0 },
@@ -80,6 +69,11 @@ export function Viewer({
   }
   const [mode, setModeState] = useState<CameraMode>(live.current.mode);
   const [trails, setTrails] = useState(params.trails);
+  const [zoom, setZoomState] = useState(live.current.tvZoom);
+  const setZoom = useCallback((z: number) => {
+    live.current.tvZoom = clampZoom(z);
+    setZoomState(live.current.tvZoom);
+  }, []);
   const [hud, setHud] = useState(params.hud);
   const [analysis, setAnalysis] = useState(params.analysis);
   const [fps, setFps] = useState(params.fps);
@@ -91,18 +85,12 @@ export function Viewer({
 
   const setMode = useCallback((m: CameraMode) => {
     live.current.mode = m;
-    if (m === "tv") live.current.manualFocus = false;
     setModeState(m);
   }, []);
 
-  const focusCar = useCallback(
-    (id: string) => {
-      live.current.focusId = id;
-      live.current.manualFocus = true;
-      void model;
-    },
-    [model],
-  );
+  const focusCar = useCallback((id: string) => {
+    live.current.focusId = id;
+  }, []);
 
   const cycleCar = useCallback(
     (dir: 1 | -1) => {
@@ -128,10 +116,9 @@ export function Viewer({
         rows: L.rows,
         focusId: L.focusId,
         focus: L.samples[k] ?? null,
+        samples: [...L.samples],
         lap: k >= 0 ? lapInfoAt(model.cars[k]!, t) : null,
         fastestId: best?.id ?? null,
-        shotLabel: shotLabel(L, model),
-        manual: L.manualFocus,
         messages: recentMessages(model.messages, t, w, 3),
         fpsMs: L.fps.avgMs,
         stats: { jsMs: L.fps.jsMs, calls: L.fps.calls, tris: L.fps.tris },
@@ -168,11 +155,6 @@ export function Viewer({
         case "[":
           cycleCar(-1);
           break;
-        case "d":
-        case "D":
-          L.manualFocus = false;
-          setMode("tv");
-          break;
         case " ":
           c.toggle();
           break;
@@ -196,6 +178,14 @@ export function Viewer({
           break;
         case "End":
           c.seek(c.duration);
+          break;
+        case "z":
+        case "Z":
+          setZoom(stepZoom(L.tvZoom, 1));
+          break;
+        case "x":
+        case "X":
+          setZoom(stepZoom(L.tvZoom, -1));
           break;
         case "t":
         case "T":
@@ -237,7 +227,18 @@ export function Viewer({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [cycleCar, setMode]);
+  }, [cycleCar, setMode, setZoom]);
+
+  useEffect(() => {
+    const onWheel = (e: WheelEvent) => {
+      if (live.current.mode !== "tv" || !(e.target instanceof HTMLCanvasElement)) return;
+      e.preventDefault();
+      const px = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+      setZoom(live.current.tvZoom * 2 ** (-px / 600));
+    };
+    window.addEventListener("wheel", onWheel, { passive: false });
+    return () => window.removeEventListener("wheel", onWheel);
+  }, [setZoom]);
 
   const registerLabel = useCallback((k: number, el: HTMLDivElement | null) => {
     live.current.labels[k] = el;
@@ -270,10 +271,13 @@ export function Viewer({
             snap={snap}
             mode={mode}
             trails={trails}
+            zoom={zoom}
+            onZoom={setZoom}
             onToggle={() => live.current.clock.toggle()}
             onSeek={onSeek}
-            onSpeed={(s) => {
-              live.current.clock.speed = s;
+            onSpeed={(dir) => {
+              const c = live.current.clock;
+              c.speed = stepSpeed(c.speed, dir);
             }}
             onMode={setMode}
             onTrails={() => {

@@ -99,7 +99,6 @@ describe("buildModel", () => {
     expect(m.duration).toBeCloseTo((2 * track.length) / 48, 0);
     expect(m.totalLaps).toBe(2);
     expect(m.trees).toHaveLength(100);
-    expect(m.cams.length).toBeGreaterThan(0);
     expect(m.traces).toHaveLength(2);
     expect(m.messages.length).toBeGreaterThan(0);
     const unseeded = buildModel({ ...r, header: { ...r.header, seed: 0 } }, 10);

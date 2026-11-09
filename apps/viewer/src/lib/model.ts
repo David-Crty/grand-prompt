@@ -7,10 +7,8 @@ import {
   type Grandstand,
   type Placement,
   placeGrandstands,
-  placeTrackside,
   placeTrees,
   type TrackLayout,
-  type TracksideCam,
   trackBounds,
 } from "./track.js";
 
@@ -21,7 +19,6 @@ export interface ViewerModel {
   layout: TrackLayout;
   duration: number;
   totalLaps: number;
-  cams: TracksideCam[];
   bounds: { minX: number; maxX: number; minY: number; maxY: number };
   messages: RaceMessage[];
   traces: LapTrace[];
@@ -39,7 +36,6 @@ export function buildModel(replay: Replay, treeCount = 1400): ViewerModel {
     layout,
     duration: replayDuration(replay),
     totalLaps: replay.header.session.laps,
-    cams: placeTrackside(layout),
     bounds: trackBounds(layout),
     messages: raceMessages(cars),
     traces: bestLapTraces(cars),

@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_DIRECTOR, directorStep, pickFocus, type Shot } from "../src/lib/director.js";
 import {
   frameAt,
   indexCar,
@@ -11,7 +10,7 @@ import {
   statusAt,
   timeAtProgress,
 } from "../src/lib/frames.js";
-import { leaderLap, liveStandings, type StandingRow, timeGap } from "../src/lib/timing.js";
+import { leaderLap, liveStandings, timeGap } from "../src/lib/timing.js";
 import { makeCar, makeReplay, stadiumTrack } from "./fixtures.js";
 
 const track = stadiumTrack();
@@ -148,98 +147,5 @@ describe("liveStandings", () => {
     const behind = indexCar(makeCar(track, { id: "y", speed: 50 }), 8, 10, L);
     expect(timeGap(ahead, behind, 0)).toEqual({ gap: 0, lapsDown: 0 });
     expect(timeGap(behind, ahead, 1)).toEqual({ gap: null, lapsDown: 0 });
-  });
-});
-
-function row(
-  id: string,
-  position: number,
-  interval: number | null,
-  extra: Partial<StandingRow> = {},
-): StandingRow {
-  return {
-    id,
-    index: position - 1,
-    position,
-    name: id,
-    color: "#fff",
-    progress: 0,
-    lap: 1,
-    status: "RUNNING",
-    finished: false,
-    out: false,
-    gap: interval,
-    interval,
-    lapsDown: 0,
-    gapText: "",
-    intervalText: "",
-    ...extra,
-  };
-}
-
-describe("director", () => {
-  it("follows the leader without battles, else the closest battle", () => {
-    expect(pickFocus([row("a", 1, null), row("b", 2, 3)])).toEqual({
-      primary: "a",
-      secondary: null,
-      reason: "leader",
-    });
-    expect(pickFocus([row("a", 1, null)]).reason).toBe("solo");
-    const f = pickFocus([
-      row("a", 1, null),
-      row("b", 2, 1.1),
-      row("c", 3, 0.2),
-      row("d", 4, 0.1, { lapsDown: 1 }),
-    ]);
-    expect(f).toEqual({ primary: "c", secondary: "b", reason: "battle" });
-    expect(pickFocus([row("a", 1, null, { finished: true }), row("b", 2, null, { out: true })])).toEqual({
-      primary: "a",
-      secondary: null,
-      reason: "solo",
-    });
-    expect(pickFocus([]).primary).toBe("");
-    expect(
-      pickFocus([row("a", 1, null, { finished: true }), row("b", 2, 0.3), row("c", 3, 0.1)]).primary,
-    ).toBe("c");
-  });
-
-  const ctx = (wallTime: number, over: Partial<Parameters<typeof directorStep>[2]> = {}) => ({
-    wallTime,
-    speed: 1,
-    nextCam: () => 3,
-    camPassed: () => false,
-    ...over,
-  });
-
-  it("holds shots, switches focus after the minimum hold and cuts to trackside", () => {
-    const leaderOnly = [row("a", 1, null), row("b", 2, 5)];
-    const battle = [row("a", 1, null), row("b", 2, 0.3)];
-    const s0 = directorStep(null, leaderOnly, ctx(0));
-    expect(s0).toMatchObject({ kind: "heli", primary: "a", start: 0 });
-    expect(directorStep(s0, battle, ctx(1))).toBe(s0);
-    const s1 = directorStep(s0, battle, ctx(DEFAULT_DIRECTOR.minHold + 0.1));
-    expect(s1).toMatchObject({ kind: "heli", primary: "b", secondary: "a" });
-    const s2 = directorStep(s1, battle, ctx(s1.start + DEFAULT_DIRECTOR.heliMax + 0.1));
-    expect(s2).toMatchObject({ kind: "trackside", cam: 3 });
-    expect(directorStep(s2, battle, ctx(s2.start + 1))).toBe(s2);
-    const s3 = directorStep(s2, battle, ctx(s2.start + 1, { camPassed: () => true }));
-    expect(s3.kind).toBe("heli");
-    const s4 = directorStep(s2, battle, ctx(s2.start + DEFAULT_DIRECTOR.tracksideMax));
-    expect(s4.kind).toBe("heli");
-    const fast = directorStep(s2, battle, ctx(s2.start + 1, { speed: 30 }));
-    expect(fast.kind).toBe("heli");
-    const noCam = directorStep(s1, battle, ctx(s1.start + 100, { nextCam: () => null }));
-    expect(noCam).toBe(s1);
-  });
-
-  it("leaves a finished car at once and honours a forced car", () => {
-    const s: Shot = { primary: "a", secondary: null, reason: "leader", kind: "heli", cam: -1, start: 0 };
-    const rows = [row("a", 1, null, { finished: true }), row("b", 2, null)];
-    expect(directorStep(s, rows, ctx(0.5)).primary).toBe("b");
-    expect(directorStep(s, [row("b", 1, null)], ctx(0.5)).primary).toBe("b");
-    const forced = directorStep(s, rows, ctx(0.5, { forced: "a" }));
-    expect(forced).toBe(s);
-    const forcedB = directorStep(s, rows, ctx(10, { forced: "b" }));
-    expect(forcedB.primary).toBe("b");
   });
 });

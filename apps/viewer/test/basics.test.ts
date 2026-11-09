@@ -114,7 +114,10 @@ describe("params", () => {
       trails: false,
       analysis: true,
       fps: true,
+      zoom: null,
     });
+    expect(parseParams("?zoom=1.5").zoom).toBe(1.5);
+    expect(parseParams("?zoom=-2").zoom).toBeNull();
   });
   it("defaults and rejects bad values", () => {
     const p = parseParams("?t=abc&cam=drone&speed=-1&t2=");
@@ -128,9 +131,10 @@ describe("params", () => {
   });
   it("steps through speeds", () => {
     expect(stepSpeed(1, 1)).toBe(2);
-    expect(stepSpeed(30, 1)).toBe(30);
-    expect(stepSpeed(1, -1)).toBe(0.5);
-    expect(stepSpeed(0.25, -1)).toBe(0.25);
+    expect(stepSpeed(16, 1)).toBe(32);
+    expect(stepSpeed(32, 1)).toBe(32);
+    expect(stepSpeed(2, -1)).toBe(1);
+    expect(stepSpeed(1, -1)).toBe(1);
     expect(stepSpeed(3, 1)).toBe(4);
   });
 });

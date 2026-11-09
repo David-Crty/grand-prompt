@@ -1,6 +1,5 @@
 import type * as THREE from "three";
 import type { Vec3 } from "../lib/coords.js";
-import type { Shot } from "../lib/director.js";
 import type { CarSample } from "../lib/frames.js";
 import type { CameraMode } from "../lib/params.js";
 import type { PlaybackClock } from "../lib/playback.js";
@@ -19,10 +18,9 @@ export interface LiveState {
   clock: PlaybackClock;
   mode: CameraMode;
   focusId: string;
-  /** The viewer picked the car; the TV director follows it instead of choosing. */
-  manualFocus: boolean;
   trails: boolean;
-  shot: Shot | null;
+  /** TV zoom factor: both framing spans are divided by it. */
+  tvZoom: number;
   rows: StandingRow[];
   samples: CarSample[];
   cars: (CarHandles | null)[];
@@ -34,10 +32,10 @@ export interface LiveState {
     heading: number;
     init: boolean;
     key: string;
-    /** Heli framing target ("primary|secondary") and the one it is blending away from. */
-    focusKey: string;
-    fromKey: string;
-    blendStart: number;
+    /** TV framing: where the frame centre sits relative to the focused car, and its width (m). */
+    offset: [number, number];
+    span: number;
+    framed: string[];
   };
   wheelSpin: number[];
   fps: {

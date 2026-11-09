@@ -191,6 +191,50 @@ button {
   color: #000;
 }
 
+.trackmap {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-top: 1px solid var(--line);
+}
+
+.tm-track {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.16);
+  stroke-width: 7;
+  stroke-linejoin: round;
+}
+
+.tm-line {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.55);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.tm-start {
+  stroke: #fff;
+  stroke-width: 2.5;
+}
+
+.tm-car {
+  cursor: pointer;
+}
+
+.tm-car circle {
+  stroke: rgba(0, 0, 0, 0.7);
+  stroke-width: 1.2;
+}
+
+.tm-car.focused circle {
+  stroke: #fff;
+  stroke-width: 2;
+}
+
+.tm-car.out {
+  opacity: 0.35;
+}
+
 .tower-foot {
   font-size: 10px;
   color: var(--muted);
@@ -326,12 +370,6 @@ button {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.tel-lock {
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  opacity: 0.8;
 }
 
 .tel-body {
@@ -517,6 +555,38 @@ button {
   flex: 1;
   accent-color: var(--accent);
   min-width: 80px;
+}
+
+.speed .speed-value {
+  min-width: 40px;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.speed button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.zoom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.zoom span {
+  min-width: 62px;
+  font-variant-numeric: tabular-nums;
+}
+
+.zoom input {
+  width: 110px;
+  accent-color: var(--accent);
 }
 
 .seg {

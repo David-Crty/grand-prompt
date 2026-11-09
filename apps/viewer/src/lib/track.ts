@@ -585,27 +585,6 @@ export function placeTrees(L: TrackLayout, count: number, seed = 7, avoid: Grand
   return out;
 }
 
-export interface TracksideCam {
-  s: number;
-  x: number;
-  y: number;
-  h: number;
-}
-
-/** Fixed TV cameras every `spacing` metres, alternating sides, just behind the barrier. */
-export function placeTrackside(L: TrackLayout, spacing = 230): TracksideCam[] {
-  const out: TracksideCam[] = [];
-  const count = Math.max(1, Math.floor(L.length / spacing));
-  for (let k = 0; k < count; k++) {
-    const s = (k + 0.5) * (L.length / count);
-    const p = pointAt(L, s);
-    const side = k % 2 === 0 ? 1 : -1;
-    const off = (side > 0 ? p.barrierL : p.barrierR) + 3;
-    out.push({ s, x: p.x + p.nx * off * side, y: p.y + p.ny * off * side, h: 4 + (k % 3) * 1.5 });
-  }
-  return out;
-}
-
 export function trackBounds(L: TrackLayout): { minX: number; maxX: number; minY: number; maxY: number } {
   let minX = Number.POSITIVE_INFINITY;
   let maxX = Number.NEGATIVE_INFINITY;

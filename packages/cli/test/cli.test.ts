@@ -235,8 +235,10 @@ describe("events: run, reproduce, leaderboard", () => {
     ) as EventResults;
     expect(res.rows.map((x) => x.slug)).toEqual(["model-a", "model-b", "model-c"]);
     expect(res.rows[2]!.raceStatus).toBe("DNF: ECU FAILURE");
-    expect(res.referenceLap).toBeGreaterThan(60);
-    expect(res.rows[0]!.gapToReference!).toBeGreaterThan(0);
+    expect(res.reference).toBe(false);
+    expect(res.referenceLap).toBeNull();
+    expect(res.rows[0]!.gapToReference).toBeNull();
+    expect(r.out).not.toMatch(/Gap to ref|reference lap|Reference/);
     const m = JSON.parse(readFileSync(join(root, `results/${ev}/model-a/manifest.json`), "utf8"));
     expect(m.results.raceHash).toBe(res.rows[0]!.raceHash);
     expect(m.driverHash).toBe(res.rows[0]!.driverHash);
@@ -249,6 +251,7 @@ describe("events: run, reproduce, leaderboard", () => {
 
     res.raceStateHash = "0000";
     res.simVersion = "0.0.0";
+    delete res.reference;
     writeFileSync(join(root, `results/${ev}/event-results.json`), JSON.stringify(res));
     const bad = await cli("event", "reproduce", ev);
     expect(bad.code).toBe(3);

@@ -283,10 +283,10 @@ export function World({
         color="#fff4e0"
         castShadow
         shadow-mapSize={[2048, 2048]}
-        shadow-camera-left={-110}
-        shadow-camera-right={110}
-        shadow-camera-top={110}
-        shadow-camera-bottom={-110}
+        shadow-camera-left={-150}
+        shadow-camera-right={150}
+        shadow-camera-top={150}
+        shadow-camera-bottom={-150}
         shadow-camera-near={1}
         shadow-camera-far={900}
         shadow-bias={-0.0004}

@@ -2,19 +2,18 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useMemo } from "react";
 import * as THREE from "three";
 import {
-  blendWeight,
-  cameraAhead,
-  cameraPassed,
   chasePose,
   fitFov,
-  heliPose,
+  type Insets,
   mapPose,
   onboardPose,
   type Pose,
-  tracksidePose,
+  TV_MAX_SPAN,
+  TV_MIN_SPAN,
+  tvFrame,
+  tvPose,
 } from "../lib/camera.js";
-import { damp, damp3, dampAngle, type Vec3 } from "../lib/coords.js";
-import { directorStep } from "../lib/director.js";
+import { damp, dampAngle, type Vec3 } from "../lib/coords.js";
 import { sampleCar } from "../lib/frames.js";
 import { type LabelBox, stackLabels } from "../lib/labels.js";
 import type { ViewerModel } from "../lib/model.js";
@@ -104,96 +103,76 @@ export function Driver({
       }
     });
 
-    let focusIdx = idOf.get(L.focusId) ?? 0;
+    const focusIdx = idOf.get(L.focusId) ?? 0;
     let pose: Pose;
-    let key: string = L.mode;
-    let lambda = 0;
     if (L.mode === "tv") {
-      L.shot = directorStep(L.shot, L.rows, {
-        wallTime: wall,
-        speed: L.clock.playing ? L.clock.speed : 1,
-        forced: L.manualFocus ? L.focusId : null,
-        nextCam: (id) => cameraAhead(model.cams, L.samples[idOf.get(id) ?? 0]!.s, model.layout.length),
-        camPassed: (ci, id) =>
-          cameraPassed(model.cams[ci]!.s, L.samples[idOf.get(id) ?? 0]!.s, model.layout.length),
-      });
-      const shot = L.shot;
-      focusIdx = idOf.get(shot.primary) ?? 0;
-      if (!L.manualFocus) L.focusId = shot.primary;
       const a = L.samples[focusIdx]!;
-      if (shot.kind === "trackside" && model.cams[shot.cam]) {
-        pose = tracksidePose(model.cams[shot.cam]!, a, shot.secondary ? 24 : 15);
-        key = `ts${shot.cam}`;
-        lambda = 14;
+      const insets = hudInsets(size.width);
+      const aspect =
+        Math.max(50, size.width - insets.left - insets.right) /
+        Math.max(50, size.height - insets.top - insets.bottom);
+      const fresh = !L.cam.init || L.cam.key !== "tv";
+      const rate = Math.max(1, L.clock.speed ** 0.5);
+      L.cam.heading = fresh ? a.yaw : dampAngle(L.cam.heading, a.yaw, 0.5 * rate, dt);
+      const others = model.cars.flatMap((c, k) => {
+        const o = L.samples[k]!;
+        return k === focusIdx || o.ended ? [] : [{ id: c.car.id, x: o.x, y: o.y }];
+      });
+      const prevFocus = L.cam.framed[0];
+      const frame = tvFrame(
+        { id: L.focusId, x: a.x, y: a.y },
+        others,
+        L.cam.heading,
+        aspect,
+        L.cam.framed,
+        TV_MAX_SPAN / L.tvZoom,
+        TV_MIN_SPAN / L.tvZoom,
+      );
+      const target: [number, number] = [frame.x - a.x, frame.y - a.y];
+      if (fresh) {
+        L.cam.offset = target;
+        L.cam.span = frame.span;
       } else {
-        const frameFor = (fkey: string) => {
-          const [p, q] = fkey.split("|");
-          const pa = L.samples[idOf.get(p ?? "") ?? focusIdx]!;
-          const qi = q ? idOf.get(q) : undefined;
-          if (qi !== undefined) {
-            const b = L.samples[qi]!;
-            const d = Math.hypot(b.x - pa.x, b.y - pa.y);
-            if (d < 90) return { x: (pa.x + b.x) / 2, y: (pa.y + b.y) / 2, spread: d };
-          }
-          return { x: pa.x, y: pa.y, spread: 0 };
-        };
-        const fkey = `${shot.primary}|${shot.secondary ?? ""}`;
-        const fresh = !L.cam.init || L.cam.key !== "heli";
-        if (fresh) {
-          L.cam.focusKey = fkey;
-          L.cam.fromKey = fkey;
-        } else if (fkey !== L.cam.focusKey) {
-          L.cam.fromKey = L.cam.focusKey;
-          L.cam.focusKey = fkey;
-          L.cam.blendStart = wall;
+        if (prevFocus !== undefined && prevFocus !== L.focusId) {
+          const p = L.samples[idOf.get(prevFocus) ?? focusIdx]!;
+          L.cam.offset = [p.x + L.cam.offset[0] - a.x, p.y + L.cam.offset[1] - a.y];
         }
-        const to = frameFor(fkey);
-        const from = frameFor(L.cam.fromKey);
-        const w = blendWeight(wall - L.cam.blendStart, 1.8);
-        const fx = from.x + (to.x - from.x) * w;
-        const fy = from.y + (to.y - from.y) * w;
-        const spread = from.spread + (to.spread - from.spread) * w;
-        L.cam.heading = fresh
-          ? a.yaw
-          : dampAngle(L.cam.heading, a.yaw, 0.5 * Math.max(1, L.clock.speed ** 0.5), dt);
-        pose = heliPose(fx, fy, L.cam.heading, spread);
-        key = "heli";
-        lambda = 0;
+        L.cam.offset = [
+          damp(L.cam.offset[0], target[0], 2.5 * rate, dt),
+          damp(L.cam.offset[1], target[1], 2.5 * rate, dt),
+        ];
+        L.cam.span = damp(L.cam.span, frame.span, 2.2 * rate, dt);
       }
+      L.cam.framed = frame.ids;
+      pose = tvPose(
+        { x: a.x + L.cam.offset[0], y: a.y + L.cam.offset[1], span: L.cam.span },
+        L.cam.heading,
+        size.width,
+        size.height,
+        insets,
+      );
     } else {
       const a = L.samples[focusIdx]!;
       if (L.mode === "chase") {
         L.cam.heading = L.cam.init && L.cam.key === "chase" ? dampAngle(L.cam.heading, a.yaw, 6, dt) : a.yaw;
         pose = chasePose(a, L.cam.heading);
-        lambda = 0;
       } else if (L.mode === "onboard") {
         pose = onboardPose(a);
       } else {
-        const wide = size.width > 760;
-        pose = mapPose(model.bounds, size.width, size.height, {
-          left: wide ? 372 : 16,
-          right: wide ? 24 : 16,
-          top: wide ? 24 : 150,
-          bottom: wide ? 76 : 90,
-        });
+        pose = mapPose(model.bounds, size.width, size.height, hudInsets(size.width));
       }
     }
 
-    if (L.mode !== "map") pose = { ...pose, fov: fitFov(pose.fov, size.width / Math.max(1, size.height)) };
-    const cut = !L.cam.init || key !== L.cam.key;
-    if (cut || lambda === 0) {
-      L.cam.pos = pose.pos;
-      L.cam.look = pose.look;
-      L.cam.fov = pose.fov;
-    } else {
-      L.cam.pos = key.startsWith("ts") ? pose.pos : damp3(L.cam.pos, pose.pos, lambda, dt);
-      L.cam.look = damp3(L.cam.look, pose.look, lambda, dt);
-      L.cam.fov = damp(L.cam.fov, pose.fov, 6, dt);
-    }
+    if (L.mode === "chase" || L.mode === "onboard")
+      pose = { ...pose, fov: fitFov(pose.fov, size.width / Math.max(1, size.height)) };
+    L.cam.pos = pose.pos;
+    L.cam.look = pose.look;
+    L.cam.fov = pose.fov;
     L.cam.init = true;
-    L.cam.key = key;
+    L.cam.key = L.mode;
     cam.position.set(...L.cam.pos);
-    cam.up.copy(L.mode === "map" ? MAP_UP : UP);
+    if (pose.up) cam.up.set(...pose.up);
+    else cam.up.copy(L.mode === "map" ? MAP_UP : UP);
     cam.lookAt(...(L.cam.look as Vec3));
     if (Math.abs(cam.fov - L.cam.fov) > 1e-3) {
       cam.fov = L.cam.fov;
@@ -205,7 +184,7 @@ export function Driver({
 
     const light = lightRef.current;
     if (light) {
-      const f = L.mode === "map" ? L.cam.look : toLook(L.samples[focusIdx]!);
+      const f = L.mode === "map" || L.mode === "tv" ? L.cam.look : toLook(L.samples[focusIdx]!);
       const snap = 4;
       const tx = Math.round(f[0] / snap) * snap;
       const tz = Math.round(f[2] / snap) * snap;
@@ -273,6 +252,11 @@ export function Driver({
     }
   });
   return null;
+}
+
+function hudInsets(width: number): Insets {
+  const wide = width > 760;
+  return { left: wide ? 372 : 16, right: wide ? 24 : 16, top: wide ? 24 : 150, bottom: wide ? 76 : 90 };
 }
 
 function toLook(s: { x: number; y: number }): Vec3 {

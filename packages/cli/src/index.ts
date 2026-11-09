@@ -28,7 +28,7 @@ export const USAGE = `bench <command> [options]
   practice <driver> [--laps N]             practice session: lap/sector times, telemetry.csv, summary.json
   qualify <driver...> [--attempts K]       out lap + K flying laps per driver (default K=1)
   race <driver...> --laps N [--seed S]     race (ghost mode); writes replay.json.gz and results.json
-  event run <event-id>                     qualifying + race for drivers/<event-id>/*/driver.js
+  event run <event-id> [--reference]       qualifying + race for drivers/<event-id>/*/driver.js
   event reproduce <event-id>               re-run an event and verify every state hash
   oneshot <event-id> --model <id> [--slug s] [--prompt-only]
                                            one-shot submission via OpenRouter (OPENROUTER_API_KEY)
@@ -45,7 +45,7 @@ common options:
   --seed <n>           seed (default 1)
   --info <A|B>         information level (default B: hidden constants not passed to drivers)
   --out <dir>          output directory
-  --reference          add the house reference driver to qualify/race
+  --reference          add the house reference driver to qualify/race/event run (off by default)
 `;
 
 export async function run(argv: string[], out: (s: string) => void): Promise<number> {
@@ -127,7 +127,7 @@ export async function run(argv: string[], out: (s: string) => void): Promise<num
     case "event": {
       need(2, "run|reproduce <event-id>");
       if (rest[0] === "run") {
-        out((await runEvent(rest[1]!)).text);
+        out((await runEvent(rest[1]!, { reference: values.reference })).text);
         return 0;
       }
       if (rest[0] === "reproduce") {

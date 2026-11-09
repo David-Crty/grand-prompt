@@ -1,6 +1,6 @@
 export const CAMERA_MODES = ["tv", "chase", "onboard", "map"] as const;
 export type CameraMode = (typeof CAMERA_MODES)[number];
-export const SPEEDS = [0.25, 0.5, 1, 2, 4, 8, 15, 30] as const;
+export const SPEEDS = [1, 2, 4, 8, 16, 32] as const;
 
 export interface ViewerParams {
   replay: string | null;
@@ -13,6 +13,8 @@ export interface ViewerParams {
   trails: boolean;
   analysis: boolean;
   fps: boolean;
+  /** TV zoom factor, or null for the default. */
+  zoom: number | null;
 }
 
 function flag(v: string | null): boolean | null {
@@ -31,6 +33,7 @@ export function parseParams(search: string): ViewerParams {
   const camRaw = q.get("cam");
   const cam = CAMERA_MODES.find((m) => m === camRaw) ?? null;
   const speed = num("speed");
+  const zoom = num("zoom");
   return {
     replay: q.get("replay"),
     t: num("t"),
@@ -42,6 +45,7 @@ export function parseParams(search: string): ViewerParams {
     trails: flag(q.get("trails")) ?? true,
     analysis: flag(q.get("analysis")) ?? false,
     fps: flag(q.get("fps")) ?? false,
+    zoom: zoom !== null && zoom > 0 ? zoom : null,
   };
 }
 

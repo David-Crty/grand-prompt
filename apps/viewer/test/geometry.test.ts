@@ -1,17 +1,24 @@
 import { describe, expect, it } from "vitest";
 import {
-  blendWeight,
-  cameraAhead,
-  cameraPassed,
   chasePose,
+  clampZoom,
   fitFov,
-  heliPose,
   mapPose,
   onboardPose,
-  tracksidePose,
+  stepZoom,
+  TV_JOIN,
+  TV_MARGIN,
+  TV_MAX_SPAN,
+  TV_MIN_SPAN,
+  TV_PAD,
+  TV_ZOOM_MAX,
+  TV_ZOOM_MIN,
+  tvFrame,
+  tvPose,
 } from "../src/lib/camera.js";
 import { indexCar } from "../src/lib/frames.js";
 import { loft, openWheelerSections } from "../src/lib/loft.js";
+import { buildMinimap } from "../src/lib/minimap.js";
 import {
   BARRIER_HEIGHT,
   buildBarriers,
@@ -25,7 +32,6 @@ import {
   KERB_WIDTH,
   MeshBuilder,
   placeGrandstands,
-  placeTrackside,
   placeTrees,
   pointAt,
   TrackProximity,
@@ -139,10 +145,6 @@ describe("track layout", () => {
       for (const g of stands)
         expect(Math.hypot(g.x - t.x, g.y - t.y)).toBeGreaterThanOrEqual(g.length / 2 + 12);
     }
-    const cams = placeTrackside(layout, 200);
-    expect(cams).toHaveLength(Math.floor(track.length / 200));
-    for (const c of cams) expect(prox.clearanceAt(c.x, c.y)).toBeGreaterThan(-6);
-    expect(placeTrackside(layout, 1e6)).toHaveLength(1);
     const b = trackBounds(layout);
     expect(b.minX).toBeLessThan(-60);
     expect(b.maxY).toBeGreaterThan(120);
@@ -224,24 +226,15 @@ describe("trail", () => {
 
 describe("camera", () => {
   const car = { x: 10, y: 20, yaw: 0 };
-  it("places chase, onboard and heli cameras relative to the car", () => {
+  it("places chase and onboard cameras relative to the car", () => {
     const ch = chasePose(car, 0);
     expect(ch.pos).toEqual([0.5, 3.2, -20]);
     expect(ch.look[0]).toBeGreaterThan(10);
     const ob = onboardPose(car);
     expect(ob.pos[0]).toBeLessThan(10);
     expect(ob.pos[1]).toBeGreaterThan(1);
-    const h0 = heliPose(10, 20, 0, 0);
-    const h1 = heliPose(10, 20, 0, 50);
-    expect(h1.pos[1]).toBeGreaterThan(h0.pos[1]);
-    expect(h0.look).toEqual([10, 0.5, -20]);
   });
-  it("zooms trackside and fits the map", () => {
-    const near = tracksidePose({ x: 0, y: 0, h: 5 }, { x: 10, y: 0 });
-    const far = tracksidePose({ x: 0, y: 0, h: 5 }, { x: 400, y: 0 });
-    expect(near.fov).toBeGreaterThan(far.fov);
-    expect(far.fov).toBeGreaterThanOrEqual(5);
-    expect(tracksidePose({ x: 0, y: 0, h: 5 }, { x: 0.1, y: 0 }).fov).toBe(50);
+  it("fits the map", () => {
     const b = { minX: 0, maxX: 1000, minY: 0, maxY: 500 };
     const m = mapPose(b, 1600, 900);
     expect(m.pos[0]).toBeCloseTo(500);
@@ -252,11 +245,7 @@ describe("camera", () => {
     const down = mapPose(b, 1600, 900, { left: 0, right: 0, top: 200, bottom: 0 });
     expect(down.pos[2]).toBeLessThan(-250);
   });
-  it("eases blends and widens the FOV on narrow screens", () => {
-    expect(blendWeight(-1, 2)).toBe(0);
-    expect(blendWeight(1, 2)).toBe(0.5);
-    expect(blendWeight(5, 2)).toBe(1);
-    expect(blendWeight(0, 0)).toBe(1);
+  it("widens the FOV on narrow screens", () => {
     expect(fitFov(30, 16 / 9)).toBe(30);
     expect(fitFov(30, 2.4)).toBe(30);
     const portrait = fitFov(30, 390 / 844);
@@ -264,16 +253,122 @@ describe("camera", () => {
     expect(portrait).toBeLessThanOrEqual(80);
     expect(fitFov(70, 0.3)).toBe(80);
   });
-  it("finds the next camera ahead and detects passing", () => {
-    const cams = [{ s: 100 }, { s: 300 }, { s: 900 }];
-    expect(cameraAhead(cams, 0, 1000)).toBe(0);
-    expect(cameraAhead(cams, 80, 1000)).toBe(1);
-    expect(cameraAhead(cams, 800, 1000)).toBe(2);
-    expect(cameraAhead(cams, 950, 1000)).toBe(0);
-    expect(cameraAhead(cams, 500, 1000)).toBeNull();
-    expect(cameraPassed(100, 140, 1000)).toBe(true);
-    expect(cameraPassed(100, 110, 1000)).toBe(false);
-    expect(cameraPassed(990, 30, 1000)).toBe(true);
-    expect(cameraPassed(10, 900, 1000)).toBe(false);
+  it("clamps and steps the TV zoom", () => {
+    expect(clampZoom(1)).toBe(1);
+    expect(clampZoom(0)).toBe(TV_ZOOM_MIN);
+    expect(clampZoom(99)).toBe(TV_ZOOM_MAX);
+    expect(stepZoom(1, 1)).toBeCloseTo(1.15);
+    expect(stepZoom(1, -1)).toBeCloseTo(1 / 1.15);
+    expect(stepZoom(TV_ZOOM_MAX, 1)).toBe(TV_ZOOM_MAX);
+  });
+  it("frames the focus alone at the tightest zoom", () => {
+    const f = tvFrame({ id: "a", x: 10, y: 20 }, [{ id: "z", x: 900, y: 20 }], 0, 16 / 9);
+    expect(f).toEqual({ x: 10, y: 20, span: TV_MIN_SPAN, ids: ["a"] });
+  });
+  it("zooms out for nearby cars, nearest first, up to the max span", () => {
+    const focus = { id: "a", x: 0, y: 0 };
+    const near = { id: "b", x: -40, y: 0 };
+    const mid = { id: "c", x: -55, y: 0 };
+    const far = { id: "d", x: -400, y: 0 };
+    const f = tvFrame(focus, [far, mid, near, { id: "a", x: 0, y: 0 }], 0, 16 / 9);
+    expect(f.ids).toEqual(["a", "b", "c"]);
+    expect(f.span).toBeCloseTo((55 + 2 * TV_PAD) / (1 - 2 * TV_MARGIN));
+    expect(f.x).toBeCloseTo(-27.5);
+    expect(f.y).toBeCloseTo(0);
+    const tight = tvFrame(focus, [near, mid], 0, 16 / 9, [], 90);
+    expect(tight.ids).toEqual(["a", "b"]);
+    expect(tight.span).toBeLessThanOrEqual(90);
+  });
+  it("measures the gap across the screen when the heading turns", () => {
+    const side = { id: "b", x: 0, y: 20 };
+    const along = tvFrame({ id: "a", x: 0, y: 0 }, [side], Math.PI / 2, 16 / 9);
+    expect(along.span).toBeCloseTo((20 + 2 * TV_PAD) / (1 - 2 * TV_MARGIN));
+    expect(along.x).toBeCloseTo(0);
+    expect(along.y).toBeCloseTo(10);
+    const across = tvFrame({ id: "a", x: 0, y: 0 }, [side], 0, 16 / 9);
+    expect(across.span).toBeCloseTo(((20 + 2 * TV_PAD) * (16 / 9)) / (1 - 2 * TV_MARGIN));
+  });
+  it("keeps a framed car a little longer than a new one may join", () => {
+    const gap = ((TV_MAX_SPAN * (TV_JOIN + 1)) / 2) * (1 - 2 * TV_MARGIN) - 2 * TV_PAD;
+    const cars = [{ id: "b", x: gap, y: 0 }];
+    expect(tvFrame({ id: "a", x: 0, y: 0 }, cars, 0, 16 / 9).ids).toEqual(["a"]);
+    const kept = tvFrame({ id: "a", x: 0, y: 0 }, cars, 0, 16 / 9, ["a", "b"]);
+    expect(kept.ids).toEqual(["a", "b"]);
+    expect(kept.span).toBeLessThanOrEqual(TV_MAX_SPAN);
+  });
+  it("looks straight down with the heading pointing right, clear of the HUD", () => {
+    const p = tvPose({ x: 100, y: 50, span: 60 }, 0, 1600, 900);
+    expect(p.pos[0]).toBeCloseTo(100);
+    expect(p.pos[2]).toBeCloseTo(-50);
+    expect(p.look).toEqual([p.pos[0], 0, p.pos[2]]);
+    expect(p.up?.[0]).toBeCloseTo(0);
+    expect(p.up?.[2]).toBeCloseTo(-1);
+    const wide = tvPose({ x: 100, y: 50, span: 120 }, 0, 1600, 900);
+    expect(wide.pos[1]).toBeCloseTo(p.pos[1] * 2);
+    const hud = tvPose({ x: 100, y: 50, span: 60 }, 0, 1600, 900, {
+      left: 400,
+      right: 0,
+      top: 100,
+      bottom: 0,
+    });
+    expect(hud.pos[0]).toBeLessThan(100);
+    expect(-hud.pos[2]).toBeGreaterThan(50);
+    const north = tvPose({ x: 0, y: 0, span: 60 }, Math.PI / 2, 1600, 900, {
+      left: 400,
+      right: 0,
+      top: 0,
+      bottom: 0,
+    });
+    expect(north.pos[0]).toBeCloseTo(0);
+    expect(-north.pos[2]).toBeLessThan(0);
+    expect(north.up?.[0]).toBeCloseTo(-1);
+  });
+});
+
+describe("minimap", () => {
+  const layout = buildLayout(stadiumTrack());
+  it("fits the circuit into the box, keeping its shape", () => {
+    const m = buildMinimap(layout, 340, 190);
+    expect(m.angle).toBeGreaterThanOrEqual(0);
+    expect(m.angle).toBeLessThan(Math.PI);
+    expect(m.width).toBe(340);
+    expect(m.height).toBeLessThanOrEqual(190);
+    expect(m.path.startsWith("M")).toBe(true);
+    expect(m.path.endsWith("Z")).toBe(true);
+    let minX = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    for (let i = 0; i < layout.n; i++) {
+      const [px, py] = m.project(layout.cx[i]!, layout.cy[i]!);
+      expect(py).toBeGreaterThanOrEqual(10 - 1e-6);
+      expect(py).toBeLessThanOrEqual(m.height - 10 + 1e-6);
+      minX = Math.min(minX, px);
+      maxX = Math.max(maxX, px);
+    }
+    expect(minX).toBeGreaterThanOrEqual(10 - 1e-6);
+    expect(maxX).toBeLessThanOrEqual(330 + 1e-6);
+    const o = m.project(0, 0);
+    const ex = m.project(100, 0);
+    const ey = m.project(0, 100);
+    const len = (p: [number, number]) => Math.hypot(p[0] - o[0], p[1] - o[1]);
+    expect(len(ex)).toBeCloseTo(len(ey));
+    // A rotation, not a mirror: sim x -> y is counter-clockwise, which is clockwise in y-down SVG.
+    const cross = (ex[0] - o[0]) * (ey[1] - o[1]) - (ex[1] - o[1]) * (ey[0] - o[0]);
+    expect(cross).toBeLessThan(0);
+    const [sx, sy] = m.project(layout.cx[0]!, layout.cy[0]!);
+    expect((m.start[0] + m.start[2]) / 2).toBeCloseTo(sx);
+    expect((m.start[1] + m.start[3]) / 2).toBeCloseTo(sy);
+    expect(Math.hypot(m.start[2] - m.start[0], m.start[3] - m.start[1])).toBeCloseTo(10);
+  });
+  it("lays a tall circuit on its side", () => {
+    const tall = buildLayout(stadiumTrack());
+    const swap = { ...tall, cx: tall.cy, cy: tall.cx, nx: tall.ny, ny: tall.nx };
+    const m = buildMinimap(swap, 340, 190);
+    const flat = buildMinimap(tall, 340, 190);
+    expect(m.angle).toBeGreaterThan(0);
+    expect(m.height).toBeCloseTo(flat.height, -1);
+  });
+  it("keeps every point when the track is short", () => {
+    const m = buildMinimap(layout, 200, 200, 5, layout.n * 2);
+    expect(m.path.split("L")).toHaveLength(layout.n);
   });
 });

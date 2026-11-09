@@ -328,6 +328,8 @@ export interface EventResults {
   apiVersion: string;
   trackHash: string;
   carHash: string;
+  /** Whether the house driver ran; absent in results from before it became opt-in (it ran). */
+  reference?: boolean;
   referenceLap: number | null;
   qualifyStateHash: string;
   raceStateHash: string;
@@ -357,7 +359,7 @@ export function listEventDrivers(eventId: string): { slug: string; path: string 
     .sort((a, b) => a.slug.localeCompare(b.slug));
 }
 
-async function runEventSessions(eventId: string) {
+async function runEventSessions(eventId: string, reference: boolean) {
   const p = eventPaths(eventId);
   const ev = readJson<EventConfig>(p.config);
   const track = loadTrack(ev.track);
@@ -374,7 +376,7 @@ async function runEventSessions(eventId: string) {
     const ds = await loadEntries(
       list.map((d) => d.path),
       { seed: ev.seed },
-      true,
+      reference,
     );
     ds.forEach((d, i) => {
       const slug = list[i]?.slug;
@@ -390,8 +392,10 @@ async function runEventSessions(eventId: string) {
   return { ev, p, list, manifests, q, r, track, car };
 }
 
-export async function runEvent(eventId: string): Promise<CommandOutput> {
-  const { ev, p, list, manifests, q, r } = await runEventSessions(eventId);
+/** Qualifying and race of an event. The house driver joins only with `reference`. */
+export async function runEvent(eventId: string, opts: { reference?: boolean } = {}): Promise<CommandOutput> {
+  const reference = opts.reference ?? false;
+  const { ev, p, list, manifests, q, r } = await runEventSessions(eventId, reference);
   writeSession(join(p.results, "qualify"), q);
   writeSession(join(p.results, "race"), r);
   const ref = q.referenceLap ?? null;
@@ -432,6 +436,7 @@ export async function runEvent(eventId: string): Promise<CommandOutput> {
     apiVersion: r.results.apiVersion,
     trackHash: r.results.trackHash,
     carHash: r.results.carHash,
+    reference,
     referenceLap: ref,
     qualifyStateHash: q.results.stateHash,
     raceStateHash: r.results.stateHash,
@@ -462,7 +467,7 @@ export async function runEvent(eventId: string): Promise<CommandOutput> {
 export async function reproduceEvent(eventId: string): Promise<CommandOutput & { ok: boolean }> {
   const p = eventPaths(eventId);
   const stored = readJson<EventResults>(join(p.results, "event-results.json"));
-  const { q, r } = await runEventSessions(eventId);
+  const { q, r } = await runEventSessions(eventId, stored.reference ?? true);
   const lines: string[] = [`reproduce ${eventId}`];
   let ok = true;
   const check = (label: string, a: string, b: string) => {
@@ -497,14 +502,30 @@ function tokens(m: Manifest | null): string {
 
 export function eventTable(res: EventResults): string {
   const head = `${res.event.name} (${res.event.id}) on ${res.event.track}, ${res.event.raceLaps} laps, seed ${res.event.seed}, info level ${res.event.infoLevel}`;
-  const rows = [["Pos", "Model", "Mode", "Quali", "Gap to ref", "Race", "Status", "Pen.", "Cost", "Tokens"]];
+  const withRef = res.reference ?? true;
+  const rows = [
+    [
+      "Pos",
+      "Model",
+      "Mode",
+      "Quali",
+      ...(withRef ? ["Gap to ref"] : []),
+      "Race",
+      "Status",
+      "Pen.",
+      "Cost",
+      "Tokens",
+    ],
+  ];
   for (const r of res.rows) {
+    const gap =
+      r.gapToReference === null ? "-" : `${r.gapToReference >= 0 ? "+" : ""}${r.gapToReference.toFixed(3)}`;
     rows.push([
       String(r.racePosition),
       r.name,
       r.manifest?.mode ?? "-",
       fmtTime(r.qualifyTime),
-      r.gapToReference === null ? "-" : `${r.gapToReference >= 0 ? "+" : ""}${r.gapToReference.toFixed(3)}`,
+      ...(withRef ? [gap] : []),
       fmtTime(r.raceTime),
       r.raceStatus,
       r.penalties ? `+${r.penalties}s` : "",
@@ -512,7 +533,7 @@ export function eventTable(res: EventResults): string {
       tokens(r.manifest),
     ]);
   }
-  return `${head}\nreference lap: ${fmtTime(res.referenceLap)}\n${table(rows)}`;
+  return `${head}\n${withRef ? `reference lap: ${fmtTime(res.referenceLap)}\n` : ""}${table(rows)}`;
 }
 
 export function table(rows: string[][]): string {

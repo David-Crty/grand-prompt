@@ -5,6 +5,8 @@ export interface Pose {
   pos: Vec3;
   look: Vec3;
   fov: number;
+  /** Screen-up direction (three coords); world up when absent. */
+  up?: Vec3;
 }
 
 export interface CarPose {
@@ -33,32 +35,6 @@ export function onboardPose(c: CarPose): Pose {
     look: toThree(c.x + fx * 30, c.y + fy * 30, 0.75),
     fov: 72,
   };
-}
-
-/**
- * Helicopter: high, behind and to one side of the focus point, telephoto. `spread` (m) is the
- * distance between the cars being framed, which pulls the camera back.
- */
-export function heliPose(fx: number, fy: number, heading: number, spread: number, orbit = 0.75): Pose {
-  const dist = 42 + spread * 0.85;
-  const height = 21 + spread * 0.5;
-  const a = heading + Math.PI + orbit;
-  return {
-    pos: toThree(fx + Math.cos(a) * dist, fy + Math.sin(a) * dist, height),
-    look: toThree(fx, fy, 0.5),
-    fov: 30,
-  };
-}
-
-/** Fixed trackside camera panning to the car, zoomed so the car fills a fixed width. */
-export function tracksidePose(
-  cam: { x: number; y: number; h: number },
-  target: { x: number; y: number },
-  frameWidth = 16,
-): Pose {
-  const d = Math.hypot(target.x - cam.x, target.y - cam.y);
-  const fov = Math.min(50, Math.max(5, (2 * Math.atan(frameWidth / 2 / Math.max(1, d)) * 180) / Math.PI));
-  return { pos: toThree(cam.x, cam.y, cam.h), look: toThree(target.x, target.y, 0.7), fov };
 }
 
 export interface Insets {
@@ -92,43 +68,128 @@ export function mapPose(
   return { pos: toThree(cx, cy, z), look: toThree(cx, cy, 0), fov };
 }
 
-/** Index of the camera 50..260 m ahead of a car at distance s, or null. */
-export function cameraAhead(
-  cams: { s: number }[],
-  s: number,
-  length: number,
-  min = 50,
-  max = 260,
-): number | null {
-  let best: number | null = null;
-  let bestD = Number.POSITIVE_INFINITY;
-  cams.forEach((c, k) => {
-    const d = (((c.s - s) % length) + length) % length;
-    if (d >= min && d <= max && d < bestD) {
-      bestD = d;
-      best = k;
-    }
-  });
-  return best;
-}
-
-/** True once the car is more than `margin` metres past the camera (looping distance). */
-export function cameraPassed(camS: number, s: number, length: number, margin = 30): boolean {
-  let d = (s - camS) % length;
-  if (d > length / 2) d -= length;
-  else if (d <= -length / 2) d += length;
-  return d > margin;
-}
-
-/** 0..1 ease-in-out over `duration`. */
-export function blendWeight(elapsed: number, duration: number): number {
-  const u = duration > 0 ? Math.min(1, Math.max(0, elapsed / duration)) : 1;
-  return u * u * (3 - 2 * u);
-}
-
 /** Vertical FOV that keeps a 16:9 horizontal framing on narrower screens, capped. */
 export function fitFov(fov: number, aspect: number, ref = 16 / 9, max = 80): number {
   if (aspect >= ref) return fov;
   const half = (fov * Math.PI) / 360;
   return Math.min(max, (2 * Math.atan((Math.tan(half) * ref) / Math.max(0.2, aspect)) * 180) / Math.PI);
+}
+
+/**
+ * Widest stretch of ground (m, across the free part of the screen) the TV camera opens up to.
+ * Cars that would need more stay out of the frame. Lower it to stay closer on the cars.
+ */
+export const TV_MAX_SPAN = 120;
+/** Range of the live TV zoom factor, which divides both spans (2 = twice as close). */
+export const TV_ZOOM_MIN = 0.4;
+export const TV_ZOOM_MAX = 2.8;
+
+export function clampZoom(z: number): number {
+  return Math.min(TV_ZOOM_MAX, Math.max(TV_ZOOM_MIN, z));
+}
+
+/** One zoom step from `z`: in (dir 1) or out (dir -1), by a constant ratio, clamped. */
+export function stepZoom(z: number, dir: 1 | -1, ratio = 1.15): number {
+  return clampZoom(dir > 0 ? z * ratio : z / ratio);
+}
+
+/** Tightest framing (m), used when the focused car is alone. */
+export const TV_MIN_SPAN = 42;
+/** Ground kept around the framed cars (m), plus a share of the frame on each side. */
+export const TV_PAD = 6;
+export const TV_MARGIN = 0.15;
+/** A car joins the frame only below this share of the max span, and leaves above the max. */
+export const TV_JOIN = 0.85;
+
+export interface TvCar {
+  id: string;
+  x: number;
+  y: number;
+}
+
+export interface TvFrame {
+  x: number;
+  y: number;
+  /** Ground width (m) the free part of the screen must show. */
+  span: number;
+  /** Cars inside the frame, the focus first. */
+  ids: string[];
+}
+
+/**
+ * The TV framing: the focus car plus the nearest cars that still fit within `maxSpan`, in screen
+ * axes where `heading` points right. `aspect` is the free area's width over height. Cars already
+ * in `prev` stay until they no longer fit; new ones join only below `TV_JOIN` of the max, so a car
+ * hovering at the limit does not pump the zoom.
+ */
+export function tvFrame(
+  focus: TvCar,
+  others: TvCar[],
+  heading: number,
+  aspect: number,
+  prev: readonly string[] = [],
+  maxSpan = TV_MAX_SPAN,
+  minSpan = TV_MIN_SPAN,
+  pad = TV_PAD,
+): TvFrame {
+  const c = Math.cos(heading);
+  const s = Math.sin(heading);
+  const local = (p: TvCar) => {
+    const dx = p.x - focus.x;
+    const dy = p.y - focus.y;
+    return { u: dx * c + dy * s, v: -dx * s + dy * c };
+  };
+  const box = { u0: 0, u1: 0, v0: 0, v1: 0 };
+  const need = (b: typeof box) =>
+    Math.max(b.u1 - b.u0 + 2 * pad, (b.v1 - b.v0 + 2 * pad) * aspect) / (1 - 2 * TV_MARGIN);
+  const ids = [focus.id];
+  const sorted = others
+    .filter((o) => o.id !== focus.id)
+    .map((o) => ({ id: o.id, ...local(o) }))
+    .sort((a, b) => Math.hypot(a.u, a.v) - Math.hypot(b.u, b.v));
+  for (const o of sorted) {
+    const next = {
+      u0: Math.min(box.u0, o.u),
+      u1: Math.max(box.u1, o.u),
+      v0: Math.min(box.v0, o.v),
+      v1: Math.max(box.v1, o.v),
+    };
+    const limit = prev.includes(o.id) ? maxSpan : maxSpan * TV_JOIN;
+    if (need(next) > limit) continue;
+    Object.assign(box, next);
+    ids.push(o.id);
+  }
+  const mu = (box.u0 + box.u1) / 2;
+  const mv = (box.v0 + box.v1) / 2;
+  return {
+    x: focus.x + mu * c - mv * s,
+    y: focus.y + mu * s + mv * c,
+    span: Math.min(maxSpan, Math.max(minSpan, need(box))),
+    ids,
+  };
+}
+
+/**
+ * Straight down over (x, y), rotated so `heading` points right, high enough that `span` metres fill
+ * the width of the part of a W x H viewport left free by the HUD insets, with (x, y) at its centre.
+ */
+export function tvPose(
+  frame: { x: number; y: number; span: number },
+  heading: number,
+  W: number,
+  H: number,
+  insets: Insets = { left: 0, right: 0, top: 0, bottom: 0 },
+  fov = 24,
+): Pose {
+  const rw = Math.max(50, W - insets.left - insets.right);
+  const scale = frame.span / rw;
+  const rcx = (insets.left + rw / 2 - W / 2) * scale;
+  const rh = Math.max(50, H - insets.top - insets.bottom);
+  const rcy = (insets.top + rh / 2 - H / 2) * scale;
+  const c = Math.cos(heading);
+  const s = Math.sin(heading);
+  const cx = frame.x - rcx * c - rcy * s;
+  const cy = frame.y - rcx * s + rcy * c;
+  const z = (scale * H) / 2 / Math.tan((fov * Math.PI) / 360);
+  return { pos: toThree(cx, cy, z), look: toThree(cx, cy, 0), fov, up: toThree(-s, c, 0) };
 }
