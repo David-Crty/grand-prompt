@@ -1,5 +1,5 @@
-import { Box, Static, Text, useInput, useStdin, useWindowSize } from "ink";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { Box, Static, Text, type TextProps, useInput, useStdin, useWindowSize } from "ink";
+import { type ReactNode, useEffect, useState, useSyncExternalStore } from "react";
 import { clock, lapTime, tokens } from "./lib.js";
 import type { ModelView, Store } from "./run.js";
 
@@ -31,20 +31,16 @@ function stateText(m: ModelView): { text: string; color?: string } {
   return { text: m.state };
 }
 
-function TimeBar({ m, now, limitS }: { m: ModelView; now: number; limitS: number }) {
-  if (!m.startedAt)
-    return (
-      <Text dimColor>
-        {"░".repeat(BAR)} {" ".repeat(5)}
-      </Text>
-    );
-  const elapsed = ((m.endedAt ?? now) - m.startedAt) / 1000;
-  const filled = Math.min(BAR, Math.round((elapsed / limitS) * BAR));
-  const late = elapsed / limitS > 0.8 && !m.endedAt;
+function TimeBar({ m, now, limitS, bar }: { m: ModelView; now: number; limitS: number; bar: boolean }) {
+  const elapsed = m.startedAt ? ((m.endedAt ?? now) - m.startedAt) / 1000 : null;
+  const time = (elapsed === null ? "" : clock(elapsed)).padStart(5);
+  if (!bar) return <Text>{time}</Text>;
+  const filled = elapsed === null ? 0 : Math.min(BAR, Math.round((elapsed / limitS) * BAR));
+  const late = elapsed !== null && elapsed / limitS > 0.8 && !m.endedAt;
   return (
     <Text>
       <Text color={m.endedAt ? "gray" : late ? "yellow" : "cyan"}>{"█".repeat(filled)}</Text>
-      <Text dimColor>{"░".repeat(BAR - filled)}</Text> {clock(elapsed).padStart(5)}
+      <Text dimColor>{"░".repeat(BAR - filled)}</Text> {time}
     </Text>
   );
 }
@@ -62,6 +58,17 @@ function Runs({ m, width }: { m: ModelView; width: number }) {
       <Text dimColor>{"○".repeat(Math.max(0, budget - m.runs.length))}</Text>
       {" ".repeat(Math.max(0, width - budget))}
     </Text>
+  );
+}
+
+/** One terminal line that never wraps: a wrapped line would leave a stale copy on each redraw. */
+function Line({ width, children, ...props }: { width: number; children: ReactNode } & TextProps) {
+  return (
+    <Box width={width}>
+      <Text wrap="truncate-end" {...props}>
+        {children}
+      </Text>
+    </Box>
   );
 }
 
@@ -104,12 +111,34 @@ export function App({ store, header, onAbort }: { store: Store; header: Header; 
     { isActive: isRawModeSupported === true },
   );
 
-  const slugW = Math.max(5, ...store.models.map((m) => m.entry.slug.length));
+  const width = Math.max(30, columns - 1);
+  const slugW = Math.min(24, Math.max(5, ...store.models.map((m) => m.entry.slug.length)));
   const runsW = Math.min(20, Math.max(4, ...store.models.map((m) => m.budget ?? 0)));
   const stateW = 10;
-  const fixed = 2 + slugW + 2 + stateW + 2 + BAR + 6 + 2 + runsW + 2 + 20 + 2 + 5 + 2;
-  const detailW = Math.max(10, columns - fixed - 1);
+  const LAST = 20;
+  // Columns give way to the activity on narrow terminals: tools first, then the bar, then the last run.
+  let tools = true;
+  let bar = true;
+  let last = true;
+  const need = () =>
+    2 +
+    slugW +
+    2 +
+    stateW +
+    2 +
+    (bar ? BAR + 1 : 0) +
+    5 +
+    2 +
+    runsW +
+    2 +
+    (last ? LAST + 2 : 0) +
+    (tools ? 7 : 0) +
+    24;
+  if (need() > width) tools = false;
+  if (need() > width) bar = false;
+  if (need() > width) last = false;
   const done = store.models.filter((m) => m.endedAt).length;
+  const gap = "  ";
 
   return (
     <>
@@ -121,63 +150,56 @@ export function App({ store, header, onAbort }: { store: Store; header: Header; 
         )}
       </Static>
       <Box flexDirection="column" marginTop={1}>
-        <Text>
+        <Line width={width}>
           <Text bold>build {header.name}</Text>
           <Text dimColor>
-            {"  "}practice {header.practice.join(", ")} · event {header.eventTrack} · effort {header.effort} ·{" "}
+            {gap}practice {header.practice.join(", ")} · event {header.eventTrack} · effort {header.effort} ·{" "}
             {header.timeout} min each · {header.jobs} at a time
           </Text>
-        </Text>
-        <Text dimColor>
+        </Line>
+        <Line width={width} dimColor>
           {store.service || "starting the practice service"} · {done}/{store.models.length} finished
-          {store.aborting ? "" : store.finished ? "" : " · ctrl-c stops every model"}
-        </Text>
-        <Box marginTop={1}>
-          <Text bold dimColor>
-            {"  "}
-            {"MODEL".padEnd(slugW)}
-            {"  "}
-            {"STATE".padEnd(stateW)}
-            {"  "}
-            {"TIME".padEnd(BAR + 6)}
-            {"  "}
-            {"RUNS".padEnd(runsW)}
-            {"  "}
-            {"LAST RUN".padEnd(20)}
-            {"  "}
-            {"TOOLS"}
-            {"  "}
-            {"ACTIVITY"}
-          </Text>
-        </Box>
+          {store.aborting || store.finished ? "" : " · ctrl-c stops every model"}
+        </Line>
+        <Text> </Text>
+        <Line width={width} bold dimColor>
+          {gap}
+          {"MODEL".padEnd(slugW)}
+          {gap}
+          {"STATE".padEnd(stateW)}
+          {gap}
+          {"TIME".padEnd((bar ? BAR + 1 : 0) + 5)}
+          {gap}
+          {"RUNS".padEnd(runsW)}
+          {gap}
+          {last ? `${"LAST RUN".padEnd(LAST)}${gap}` : ""}
+          {tools ? `TOOLS${gap}` : ""}
+          ACTIVITY
+        </Line>
         {store.models.map((m) => {
           const s = stateText(m);
+          const slug = m.entry.slug.length > slugW ? `${m.entry.slug.slice(0, slugW - 1)}…` : m.entry.slug;
           return (
-            <Box key={m.entry.slug}>
-              <Icon m={m} frame={frame} />
-              <Text> {m.entry.slug.padEnd(slugW)} </Text>
-              <Text> </Text>
+            <Line key={m.entry.slug} width={width}>
+              <Icon m={m} frame={frame} /> {slug.padEnd(slugW)}
+              {gap}
               <Text color={s.color}>{s.text.slice(0, stateW).padEnd(stateW)}</Text>
-              <Text>{"  "}</Text>
-              <TimeBar m={m} now={now} limitS={header.timeout * 60} />
-              <Text>{"  "}</Text>
+              {gap}
+              <TimeBar m={m} now={now} limitS={header.timeout * 60} bar={bar} />
+              {gap}
               <Runs m={m} width={runsW} />
-              <Text>{"  "}</Text>
-              <Text>{lastRun(m).padEnd(20)}</Text>
-              <Text>{"  "}</Text>
-              <Text dimColor={!m.toolCalls}>{String(m.toolCalls).padStart(5)}</Text>
-              <Text>{"  "}</Text>
-              <Box width={detailW}>
-                <Text wrap="truncate-end" dimColor={m.state !== "done"}>
-                  {detail(m)}
-                </Text>
-              </Box>
-            </Box>
+              {gap}
+              {last ? `${lastRun(m).slice(0, LAST).padEnd(LAST)}${gap}` : ""}
+              {tools ? <Text dimColor={!m.toolCalls}>{`${String(m.toolCalls).padStart(5)}${gap}`}</Text> : ""}
+              <Text dimColor={m.state !== "done"}>{detail(m)}</Text>
+            </Line>
           );
         })}
         {store.aborting && !store.finished && (
           <Box marginTop={1}>
-            <Text color="yellow">stopping every model… (ctrl-c again to kill)</Text>
+            <Line width={width} color="yellow">
+              stopping every model… (ctrl-c again to kill)
+            </Line>
           </Box>
         )}
       </Box>

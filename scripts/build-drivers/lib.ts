@@ -348,7 +348,8 @@ function firstLine(s: string): string {
   return (
     s
       .split("\n")
-      .map((l) => l.trim())
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: control characters are what is removed
+      .map((l) => l.replace(/[\u0000-\u001f\u007f]+/g, " ").trim())
       .find(Boolean) ?? ""
   );
 }

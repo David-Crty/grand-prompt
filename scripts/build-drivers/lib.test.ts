@@ -110,6 +110,8 @@ describe("parseActivity", () => {
       { text: "$ node bench.mjs status", tool: true },
     ]);
     expect(parseActivity("claude", "{")).toEqual([]);
+    const tab = { type: "assistant", message: { content: [{ type: "text", text: "a\tb\r\u001b[31mc" }] } };
+    expect(parseActivity("claude", JSON.stringify(tab))).toEqual([{ text: "a b [31mc", tool: false }]);
   });
   it("describes Codex commands, messages and edits", () => {
     const cmd = {
