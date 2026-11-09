@@ -21,13 +21,12 @@ function EndLabel({ x, y, entry }: { x: number; y: number; entry: Entry }) {
   );
 }
 
-/** Best-lap speed against distance; the followed car drawn last and thicker, each line labelled at its end. */
+/** Speed against distance on the timed laps; the followed car drawn last and thicker, each line labelled at its end. */
 export function SpeedTrace({
   series,
   focusId,
   track,
   cursor = null,
-  zoom,
   width,
   height,
 }: {
@@ -35,11 +34,10 @@ export function SpeedTrace({
   focusId: string;
   track: ChartTrack;
   cursor?: number | null;
-  zoom?: [number, number];
   width: number;
   height: number;
 }) {
-  const [a0, a1] = zoom ?? [0, track.length];
+  const [a0, a1] = [0, track.length];
   const top = niceTop(Math.max(100, ...series.flatMap((s) => s.v)), 50);
   const sx = linear(a0, a1, PAD.l, width - PAD.r);
   const sy = linear(0, top, height - PAD.b, PAD.t);
@@ -55,7 +53,7 @@ export function SpeedTrace({
   const grid = [];
   for (let v = 0; v <= top; v += 100) grid.push(v);
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Best-lap speed against distance">
+    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Speed on the timed lap against distance">
       {grid.map((v) => (
         <g key={v}>
           <line className="grid" x1={PAD.l} x2={width - PAD.r} y1={sy(v)} y2={sy(v)} />

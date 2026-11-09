@@ -1,4 +1,4 @@
-/** Timeline markers: one glyph per race event that matters for seeking (start, fastest laps, warnings, DNFs, finish). */
+/** Timeline markers: one glyph per event that matters for seeking (the line, pole, warnings, retirements, the flag). */
 export type MarkerKind = "start" | "fastest" | "warn" | "dnf" | "finish";
 
 export interface TimelineMarker {
@@ -9,7 +9,7 @@ export interface TimelineMarker {
   carIds: string[];
 }
 
-/** Which glyph wins when markers merge: a retirement outranks a warning, which outranks a fastest lap. */
+/** Which glyph wins when markers merge: a retirement outranks a warning, which outranks the flag and pole. */
 const RANK: Record<MarkerKind, number> = { dnf: 4, warn: 3, finish: 2, fastest: 1, start: 0 };
 
 /**

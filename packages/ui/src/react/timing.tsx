@@ -3,6 +3,7 @@ import type { Entry } from "../entries.js";
 import { type GapMode, gapLabel, statusCell, type TimingRow, towerFinal } from "../timing.js";
 import {
   Chequer,
+  cx,
   EntryChip,
   entryStyle,
   PositionBox,
@@ -11,19 +12,19 @@ import {
   Wordmark,
 } from "./primitives.js";
 
-const cx = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(" ");
-
 export function GapText({
   row,
   mode = "gap",
   compact = false,
+  className,
 }: {
   row: TimingRow;
   mode?: GapMode;
   compact?: boolean;
+  className?: string;
 }) {
   const g = gapLabel(row, mode, compact);
-  return <span className={cx("gp-gap", g.kind !== "gap" && `gp-gap--${g.kind}`)}>{g.text}</span>;
+  return <span className={cx("gp-gap", className, g.kind !== "gap" && `gp-gap--${g.kind}`)}>{g.text}</span>;
 }
 
 function StatusCell({ row }: { row: TimingRow }) {
@@ -63,7 +64,7 @@ export function TowerRow({
       title={entry.name}
       onClick={() => onFocus?.(row.id)}
     >
-      <PositionBox position={row.position} leader={row.position === 1} out={row.out} />
+      <PositionBox position={row.position} out={row.out} />
       <EntryChip entry={entry} />
       <span className="gp-trow__name">{entry.name}</span>
       {fastest ? <span className="gp-trow__fl" role="img" aria-label="Fastest lap" /> : <span />}
@@ -107,7 +108,6 @@ export function TimingTower({
   const seg = (
     <SegmentedControl<GapMode>
       label="Gap or interval"
-      size={layout === "sheet" ? "touch" : "m"}
       value={mode}
       onChange={onMode}
       options={[
@@ -128,7 +128,7 @@ export function TimingTower({
     >
       {layout === "panel" ? (
         <div className="gp-tower__head">
-          <Wordmark size="s" />
+          <Wordmark />
           <span className="gp-tower__lap gp-c">{final ? "FINAL" : "FLYING LAP"}</span>
         </div>
       ) : null}
@@ -186,7 +186,7 @@ export function TowerStrip({
     if (!e) return null;
     return (
       <span key={r.id} className={cx("gp-strip__row", r.id === focusId && "is-focused")}>
-        <PositionBox position={r.position} leader={r.position === 1} out={r.out} />
+        <PositionBox position={r.position} out={r.out} />
         <EntryChip entry={e} out={r.out} />
         <GapText row={r} compact />
       </span>

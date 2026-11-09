@@ -1,38 +1,24 @@
 import type * as React from "react";
+import type { MarkerKind } from "../timeline.js";
 
-/** The 16 px stroke icon set. Decorative unless a label is given. */
+/** The 16 px stroke icon set, decorative: the control around it carries the label. */
 export type IconName =
   | "play"
   | "pause"
   | "back5"
   | "cross"
   | "warn"
-  | "clock"
   | "stopwatch"
   | "flag"
   | "map"
   | "share"
   | "info"
-  | "code"
   | "back"
-  | "next"
-  | "down"
-  | "up"
   | "trail"
   | "chart"
   | "ghost"
-  | "copy"
-  | "expand"
-  | "lap"
   | "list"
-  | "search"
-  | "help"
-  | "cam"
-  | "repro"
-  | "download"
-  | "gear"
-  | "check"
-  | "dot";
+  | "help";
 
 const ICONS: Record<IconName, React.ReactNode> = {
   play: (
@@ -60,12 +46,6 @@ const ICONS: Record<IconName, React.ReactNode> = {
     <>
       <path d="M8 2.2 14.2 13.5H1.8z" />
       <path d="M8 6.4v3.3M8 11.5v.1" />
-    </>
-  ),
-  clock: (
-    <>
-      <circle cx="8" cy="8" r="5.6" />
-      <path d="M8 4.9v3.3l2.2 1.4" />
     </>
   ),
   stopwatch: (
@@ -98,29 +78,9 @@ const ICONS: Record<IconName, React.ReactNode> = {
       <path d="M8 7.2v4M8 4.9v.1" />
     </>
   ),
-  code: (
-    <>
-      <path d="M5.4 4.4 1.9 8l3.5 3.6M10.6 4.4 14.1 8l-3.5 3.6" />
-    </>
-  ),
   back: (
     <>
       <path d="M10 3.4 5.4 8l4.6 4.6" />
-    </>
-  ),
-  next: (
-    <>
-      <path d="M6 3.4 10.6 8 6 12.6" />
-    </>
-  ),
-  down: (
-    <>
-      <path d="M3.4 6 8 10.6 12.6 6" />
-    </>
-  ),
-  up: (
-    <>
-      <path d="M3.4 10 8 5.4l4.6 4.6" />
     </>
   ),
   trail: (
@@ -141,33 +101,10 @@ const ICONS: Record<IconName, React.ReactNode> = {
       <path d="M6.2 3.4h6.4a1 1 0 0 1 1 1v6.4" strokeDasharray="1.6 1.6" />
     </>
   ),
-  copy: (
-    <>
-      <rect x="5.4" y="5.4" width="8" height="8" rx="1" />
-      <path d="M10.6 5.4V3.6a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h1.8" />
-    </>
-  ),
-  expand: (
-    <>
-      <path d="M9.6 2.6h3.8v3.8M6.4 13.4H2.6V9.6M13.4 2.6 9 7M2.6 13.4 7 9" />
-    </>
-  ),
-  lap: (
-    <>
-      <path d="M12.9 6.2A5.4 5.4 0 1 0 13.4 9" />
-      <path d="M13.4 2.8v3.6H9.8" />
-    </>
-  ),
   list: (
     <>
       <path d="M5.6 4h8M5.6 8h8M5.6 12h8" />
       <path d="M2.4 4h.1M2.4 8h.1M2.4 12h.1" />
-    </>
-  ),
-  search: (
-    <>
-      <circle cx="7" cy="7" r="4.6" />
-      <path d="M10.4 10.4 14 14" />
     </>
   ),
   help: (
@@ -176,58 +113,17 @@ const ICONS: Record<IconName, React.ReactNode> = {
       <path d="M6.3 6.3a1.8 1.8 0 1 1 2.5 1.6c-.5.3-.8.7-.8 1.3v.3M8 11.5v.1" />
     </>
   ),
-  cam: (
-    <>
-      <rect x="1.8" y="4.4" width="9" height="7.4" rx="1" />
-      <path d="m10.8 7 3.4-2v6.2l-3.4-2" />
-    </>
-  ),
-  repro: (
-    <>
-      <path d="M2.6 8a5.4 5.4 0 0 1 9.4-3.6M13.4 8A5.4 5.4 0 0 1 4 11.6" />
-      <path d="M12.4 1.8v2.8H9.6M3.6 14.2v-2.8h2.8" />
-    </>
-  ),
-  download: (
-    <>
-      <path d="M8 2.4v8M5.2 7.6 8 10.4l2.8-2.8" />
-      <path d="M3 13.4h10" />
-    </>
-  ),
-  gear: (
-    <>
-      <circle cx="8" cy="8" r="2.2" />
-      <path d="M8 1.8v2M8 12.2v2M1.8 8h2M12.2 8h2M3.6 3.6l1.4 1.4M11 11l1.4 1.4M3.6 12.4 5 11M11 5l1.4-1.4" />
-    </>
-  ),
-  check: (
-    <>
-      <path d="m3 8.4 3.2 3.2L13 4.8" />
-    </>
-  ),
-  dot: (
-    <>
-      <circle cx="8" cy="8" r="3" fill="currentColor" stroke="none" />
-    </>
-  ),
 };
 
-export function Icon({ name, size = 16, label }: { name: IconName; size?: 16 | 20; label?: string }) {
-  const cls = size === 20 ? "gp-icon gp-icon--l" : "gp-icon";
-  return label ? (
-    <svg className={cls} viewBox="0 0 16 16" role="img" aria-label={label}>
-      {ICONS[name]}
-    </svg>
-  ) : (
-    <svg className={cls} viewBox="0 0 16 16" aria-hidden="true">
+export function Icon({ name, size = 16 }: { name: IconName; size?: 16 | 20 }) {
+  return (
+    <svg className={size === 20 ? "gp-icon gp-icon--l" : "gp-icon"} viewBox="0 0 16 16" aria-hidden="true">
       {ICONS[name]}
     </svg>
   );
 }
 
-export type MarkerGlyph = "dnf" | "warn" | "fastest" | "finish" | "start";
-
-const MARKS: Record<MarkerGlyph, React.ReactNode> = {
+const MARKS: Record<MarkerKind, React.ReactNode> = {
   dnf: (
     <>
       <rect x="1" y="1" width="10" height="10" rx="1.5" />
@@ -259,7 +155,7 @@ const MARKS: Record<MarkerGlyph, React.ReactNode> = {
 };
 
 /** 12 px filled glyphs for timeline markers; coloured by the `gp-mark--*` class. */
-export function MarkerIcon({ kind }: { kind: MarkerGlyph }) {
+export function MarkerIcon({ kind }: { kind: MarkerKind }) {
   return (
     <svg viewBox="0 0 12 12" aria-hidden="true">
       {MARKS[kind]}

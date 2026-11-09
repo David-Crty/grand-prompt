@@ -121,7 +121,7 @@ export function Classification({
       <button type="button" className="backdrop" onClick={onClose} aria-label="Close" />
       <section className="gp-panel gp-panel--solid classif" aria-label="Final classification">
         <div className="classif__head">
-          <Wordmark size="s" />
+          <Wordmark />
           <span className="gp-vrule" />
           <h2 className="gp-x">Final classification</h2>
           <span className="gp-faint classif__sub">{sub}</span>

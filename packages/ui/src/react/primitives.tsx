@@ -7,11 +7,12 @@ export function entryStyle(e: Pick<Entry, "slot"> | null | undefined, extra?: Re
   return { "--entry": entryVar(e), ...extra } as React.CSSProperties;
 }
 
-const cx = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(" ");
+/** Class names, skipping the falsy ones. */
+export const cx = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(" ");
 
-export function Wordmark({ size = "s" }: { size?: "s" | "m" | "l" }) {
+export function Wordmark() {
   return (
-    <span className={`gp-wordmark gp-wordmark--${size}`}>
+    <span className="gp-wordmark gp-wordmark--s">
       <LogoMark />
       Grand Prompt
     </span>
@@ -44,38 +45,29 @@ export function EntryName({ entry, meta = false }: { entry: Entry; meta?: boolea
   );
 }
 
-export type BadgeKind = "dnf" | "warn" | "fin" | "fastest" | "ghost" | "trial" | "est" | "outline";
+export type BadgeKind = "dnf" | "warn" | "fin" | "ghost" | "trial" | "est" | "outline";
 
 export function StatusBadge({
   kind,
   children,
   icon,
-  size = "s",
 }: {
   kind: BadgeKind;
   children?: React.ReactNode;
   icon?: IconName;
-  size?: "s" | "l";
 }) {
   return (
-    <span className={cx("gp-badge", `gp-badge--${kind}`, size === "l" && "gp-badge--l")}>
+    <span className={`gp-badge gp-badge--${kind}`}>
       {icon ? <Icon name={icon} /> : null}
       {children}
     </span>
   );
 }
 
-export function PositionBox({
-  position,
-  leader = false,
-  out = false,
-}: {
-  position: number | null;
-  leader?: boolean;
-  out?: boolean;
-}) {
+/** The position, highlighted for P1; a dash when out or unplaced. */
+export function PositionBox({ position, out = false }: { position: number | null; out?: boolean }) {
   return (
-    <span className={cx("gp-pos", leader && !out && "gp-pos--lead", out && "gp-pos--out")}>
+    <span className={cx("gp-pos", position === 1 && !out && "gp-pos--lead", out && "gp-pos--out")}>
       {out || position === null ? "–" : position}
     </span>
   );
@@ -106,7 +98,6 @@ export function Button({
   variant = "secondary",
   size = "m",
   icon,
-  block = false,
   className,
   children,
   ...rest
@@ -114,18 +105,11 @@ export function Button({
   variant?: "primary" | "secondary" | "ghost";
   size?: "m" | "touch";
   icon?: IconName;
-  block?: boolean;
 }) {
   return (
     <button
       type="button"
-      className={cx(
-        "gp-btn",
-        `gp-btn--${variant}`,
-        size === "touch" && "gp-btn--touch",
-        block && "gp-btn--block",
-        className,
-      )}
+      className={cx("gp-btn", `gp-btn--${variant}`, size === "touch" && "gp-btn--touch", className)}
       {...rest}
     >
       {icon ? <Icon name={icon} /> : null}

@@ -3,9 +3,10 @@ import { CAMERA_LABEL, CAMERA_MODES, type CameraMode } from "../cameras.js";
 import { type Entry, entryVar } from "../entries.js";
 import { formatClock, formatGap, formatLapTime, kmh } from "../format.js";
 import { mergeMarkers, type TimelineMarker } from "../timeline.js";
-import { gapLabel, lapOrDash, type TimingRow } from "../timing.js";
+import { lapOrDash, type TimingRow } from "../timing.js";
 import { Icon, type IconName, MarkerIcon } from "./icons.js";
 import {
+  cx,
   EntryChip,
   EntryName,
   entryStyle,
@@ -15,8 +16,7 @@ import {
   Stat,
   StatusBadge,
 } from "./primitives.js";
-
-const cx = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(" ");
+import { GapText } from "./timing.js";
 
 // ------------------------------------------------------------------ session header
 
@@ -176,7 +176,7 @@ export function FocusCard({
   return (
     <section className={cx("gp-focus gp-panel", row.out && "is-out")} aria-label="Followed car">
       <div className="gp-focus__band" style={entryStyle(entry)}>
-        <PositionBox position={row.position} leader={row.position === 1} out={row.out} />
+        <PositionBox position={row.position} out={row.out} />
         <EntryName entry={entry} meta />
         <span className="gp-flex" />
         {row.out ? (
@@ -221,10 +221,9 @@ export function FocusRow({
   sample: TelemetrySample | null;
 }) {
   const live = sample && !sample.ended && !row.out ? sample : null;
-  const g = gapLabel(row);
   return (
     <div className="gp-frow" style={entryStyle(entry)}>
-      <PositionBox position={row.position} leader={row.position === 1} out={row.out} />
+      <PositionBox position={row.position} out={row.out} />
       <EntryChip entry={entry} out={row.out} />
       <span className="gp-entry__name gp-trunc gp-frow__name">{entry.name}</span>
       <span className="gp-frow__speed gp-c">{live ? kmh(live.speed) : 0}</span>
@@ -233,9 +232,7 @@ export function FocusRow({
         <i className="thr" style={{ height: `${Math.max(2, (live?.throttle ?? 0) * 24)}px` }} />
         <i className="brk" style={{ height: `${Math.max(2, (live?.brake ?? 0) * 24)}px` }} />
       </span>
-      <span className={cx("gp-gap gp-c gp-frow__gap", g.kind !== "gap" && `gp-gap--${g.kind}`)}>
-        {g.text}
-      </span>
+      <GapText row={row} className="gp-c gp-frow__gap" />
     </div>
   );
 }
@@ -351,7 +348,7 @@ export function Timeline({
       className={cx("gp-timeline", size === "touch" && "gp-timeline--touch")}
       role="slider"
       tabIndex={0}
-      aria-label="Race timeline"
+      aria-label="Timeline"
       aria-valuemin={0}
       aria-valuemax={Math.round(duration)}
       aria-valuenow={Math.round(t)}

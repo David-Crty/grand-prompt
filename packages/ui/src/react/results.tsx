@@ -28,13 +28,13 @@ const dash = "–";
 const money = (v: number) => `$${v.toFixed(2)}`;
 
 export function Cost({ cost }: { cost: { usd: number; estimated: boolean } | null }) {
-  if (!cost) return <>{dash}</>;
+  if (!cost) return dash;
   return cost.estimated ? (
     <span className="gp-est" title="Estimated from tokens × list price">
       {money(cost.usd)} <StatusBadge kind="est">est</StatusBadge>
     </span>
   ) : (
-    <>{money(cost.usd)}</>
+    money(cost.usd)
   );
 }
 
@@ -87,7 +87,7 @@ export function ClassificationTable({ rows, columns }: { rows: ClassRow[]; colum
                 {r.position == null ? (
                   <StatusBadge kind="outline">{r.out ? "DNF" : "–"}</StatusBadge>
                 ) : (
-                  <PositionBox position={r.position} leader={r.position === 1} />
+                  <PositionBox position={r.position} />
                 )}
               </td>
               <td>
@@ -131,7 +131,7 @@ export function ResultList({ rows, showBuild }: { rows: ClassRow[]; showBuild: b
     <div className="gp-rlist">
       {rows.map((r) => (
         <div key={r.entry.id} className={`gp-ritem${r.lapTime == null ? " is-out" : ""}`}>
-          <PositionBox position={r.position} leader={r.position === 1} out={r.lapTime == null} />
+          <PositionBox position={r.position} out={r.lapTime == null} />
           <div className="gp-ritem__main">
             <EntryChip entry={r.entry} />
             <span className="gp-entry__name gp-trunc">{r.entry.name}</span>
@@ -177,7 +177,7 @@ const KIND_TITLE = {
   slower: "Slower than the fastest",
 };
 
-export function SectorTable({ rows, names = true }: { rows: SectorTableRow[]; names?: boolean }) {
+export function SectorTable({ rows }: { rows: SectorTableRow[] }) {
   const n = Math.max(0, ...rows.map((r) => r.sectors.length));
   return (
     <>
@@ -196,7 +196,9 @@ export function SectorTable({ rows, names = true }: { rows: SectorTableRow[]; na
         <tbody>
           {rows.map((r) => (
             <tr key={r.entry.id}>
-              <td>{names ? <EntryName entry={r.entry} /> : <EntryChip entry={r.entry} />}</td>
+              <td>
+                <EntryChip entry={r.entry} />
+              </td>
               {r.sectors.map((s, k) => (
                 // biome-ignore lint/suspicious/noArrayIndexKey: a sector's place in the lap is its identity
                 <td key={k} className="n">

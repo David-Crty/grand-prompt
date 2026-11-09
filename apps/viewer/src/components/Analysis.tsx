@@ -76,11 +76,7 @@ export function Analysis({
         className={sheet ? "analysis-sheet" : "gp-panel gp-panel--solid analysis"}
         aria-label="Analysis"
       >
-        <div className="analysis__head">
-          <h2 className="gp-x">Analysis</h2>
-          <span className="gp-flex" />
-          <IconButton icon="cross" label="Close analysis (A)" onClick={onClose} />
-        </div>
+        <Head sheet={sheet} onClose={onClose} />
         <p className="gp-muted">No timed lap: the analysis compares valid laps.</p>
       </section>
     );
@@ -137,7 +133,6 @@ export function Analysis({
         <div className="gp-label">Sectors</div>
         <div className="gp-card analysis__sectors">
           <SectorTable
-            names={false}
             rows={sectors.flatMap((r) => {
               const entry = model.entries.get(r.id);
               return entry ? [{ ...r, entry }] : [];
@@ -182,11 +177,7 @@ export function Analysis({
   if (sheet)
     return (
       <section className="analysis-sheet" aria-label="Analysis">
-        <div className="analysis__head">
-          <h2 className="gp-x">Analysis</h2>
-          <span className="gp-flex" />
-          <IconButton icon="cross" label="Close" size="touch" iconSize={20} onClick={onClose} />
-        </div>
+        <Head sheet onClose={onClose} />
         <SegmentedControl<Part>
           size="touch"
           label="Chart"
@@ -206,13 +197,10 @@ export function Analysis({
   return (
     <section className="gp-panel gp-panel--solid analysis" aria-label="Analysis">
       <div className="analysis__main">
-        <div className="analysis__head">
-          <h2 className="gp-x">Analysis</h2>
+        <Head sheet={false} onClose={onClose}>
           <span className="gp-faint analysis__sub">Timed laps · {model.replay.track.name} · reference</span>
           <EntryChip entry={refEntry} />
-          <span className="gp-flex" />
-          <IconButton icon="cross" label="Close analysis (A)" onClick={onClose} />
-        </div>
+        </Head>
         {picker}
         {charts.speed}
         {charts.delta}
@@ -220,5 +208,28 @@ export function Analysis({
       </div>
       <div className="analysis__side">{charts.sectors}</div>
     </section>
+  );
+}
+
+function Head({
+  sheet,
+  onClose,
+  children,
+}: {
+  sheet: boolean;
+  onClose: () => void;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="analysis__head">
+      <h2 className="gp-x">Analysis</h2>
+      {children}
+      <span className="gp-flex" />
+      {sheet ? (
+        <IconButton icon="cross" label="Close" size="touch" iconSize={20} onClick={onClose} />
+      ) : (
+        <IconButton icon="cross" label="Close analysis (A)" onClick={onClose} />
+      )}
+    </div>
   );
 }
