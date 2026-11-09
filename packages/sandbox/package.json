@@ -1,0 +1,14 @@
+{
+  "name": "@bench/sandbox",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@bench/sim": "workspace:*",
+    "esbuild": "^0.28.2",
+    "quickjs-emscripten": "^0.32.0"
+  }
+}
