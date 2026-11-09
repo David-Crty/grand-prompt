@@ -36,7 +36,7 @@ export const USAGE = `bench <command> [options]
   replay <replay.json.gz>                  print replay header and classification
   tracks                                   list the circuits in tracks/ (ids for --track)
   serve [--port P]                         practice service for agentic runs (keeps hidden params out of the workspace)
-  workspace <dir> --model <slug> [--budget N, default 5] [--service-url U]
+  workspace <dir> --model <slug> [--track a,b,c] [--budget N, default 10] [--service-url U]
                                            create an isolated agentic workspace (DDK + practice client)
 
 common options:
@@ -175,7 +175,7 @@ export async function run(argv: string[], out: (s: string) => void): Promise<num
         model: values.model,
         serviceUrl: values["service-url"] ?? "http://127.0.0.1:8787",
         token: values.token,
-        track: values.track!,
+        tracks: values.track!.split(",").filter(Boolean),
         budget: values.budget ? Number(values.budget) : undefined,
       });
       out(`workspace ready: ${w.dir}\npractice token: ${w.token}\n`);

@@ -7,12 +7,14 @@ const cfg = JSON.parse(readFileSync(new URL("./.bench.json", import.meta.url), "
 const [cmd, file = "driver.js", ...rest] = process.argv.slice(2);
 const lapsIdx = rest.indexOf("--laps");
 const laps = lapsIdx >= 0 ? Number(rest[lapsIdx + 1]) : 3;
+const trackIdx = rest.indexOf("--track");
+const track = trackIdx >= 0 ? rest[trackIdx + 1] : (cfg.tracks?.[0] ?? cfg.track);
 
 async function post(path, body) {
   const res = await fetch(cfg.serviceUrl + path, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ token: cfg.token, track: cfg.track, ...body }),
+    body: JSON.stringify({ token: cfg.token, track, ...body }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -25,6 +27,7 @@ try {
     const d = await res.json();
     if (!res.ok) throw new Error(d.error);
     console.log(`practice runs used ${d.used} of ${d.budget} (${d.left} left)`);
+    if (d.tracks) console.log(`practice circuits: ${d.tracks.join(", ")}`);
   } else if (cmd === "validate" || cmd === "practice") {
     const source = readFileSync(file, "utf8");
     const d = await post(`/${cmd}`, { source, filename: file, laps });
@@ -46,7 +49,7 @@ try {
     }
     if (d.ok === false) process.exitCode = 2;
   } else {
-    console.log("usage: node bench.mjs validate|practice <driver.js> [--laps N] | status");
+    console.log("usage: node bench.mjs validate|practice <driver.js> [--laps N] [--track <id>] | status");
     process.exitCode = 1;
   }
 } catch (e) {

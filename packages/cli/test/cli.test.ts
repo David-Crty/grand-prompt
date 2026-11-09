@@ -270,7 +270,12 @@ describe("agentic workspace and practice service", () => {
     const svc = await serve({ port: 0 });
     try {
       const ws = join(root, "ws/m1");
-      const w = createWorkspace(ws, { model: "m1", serviceUrl: svc.url, track: "proto-ring", budget: 2 });
+      const w = createWorkspace(ws, {
+        model: "m1",
+        serviceUrl: svc.url,
+        tracks: ["proto-ring", "monaco"],
+        budget: 2,
+      });
       for (const f of [
         "DRIVER_SPEC.md",
         "driver.d.ts",
@@ -279,8 +284,11 @@ describe("agentic workspace and practice service", () => {
         "bench.mjs",
         ".bench.json",
         "tracks/proto-ring.json",
+        "tracks/monaco.json",
       ])
         expect(existsSync(join(ws, f))).toBe(true);
+      expect(existsSync(join(ws, "tracks/silverstone.json"))).toBe(false);
+      expect(readFileSync(join(ws, "TASK.md"), "utf8")).toMatch(/practice circuits: `proto-ring`, `monaco`/);
       expect(existsSync(join(ws, "cars"))).toBe(false);
       expect(readFileSync(join(ws, "car-public.json"), "utf8")).not.toMatch(/ClA|tireFront/);
       expect(readTokens()[w.token]!.budget).toBe(2);
@@ -288,10 +296,15 @@ describe("agentic workspace and practice service", () => {
       const node = (args: string[]) => exec("node", ["bench.mjs", ...args], { cwd: ws }).catch((e) => e);
       const status = await node(["status"]);
       expect(status.stdout).toMatch(/used 0 of 2/);
+      expect(status.stdout).toMatch(/practice circuits: proto-ring, monaco/);
+      const hidden = await node(["validate", "driver.js", "--track", "silverstone"]);
+      expect(hidden.stderr).toMatch(
+        /'silverstone' is not a practice circuit \(available: proto-ring, monaco\)/,
+      );
       const v = await node(["validate", "driver.js"]);
       expect(v.stdout).toMatch(/PASS/);
-      const p = await node(["practice", "driver.js", "--laps", "1"]);
-      expect(p.stdout).toMatch(/PRACTICE on proto-ring/);
+      const p = await node(["practice", "driver.js", "--laps", "1", "--track", "monaco"]);
+      expect(p.stdout).toMatch(/PRACTICE on monaco/);
       expect(p.stdout).toMatch(/runs\/001/);
       expect(p.stdout).toMatch(/practice runs left: 1/);
       expect(existsSync(join(ws, "runs/001/telemetry.csv"))).toBe(true);
@@ -304,6 +317,7 @@ describe("agentic workspace and practice service", () => {
       expect(over.stderr).toMatch(/budget exhausted/);
       expect((await node(["frob"])).stdout).toMatch(/usage/);
       expect(readTokens()[w.token]!.runs).toHaveLength(1);
+      expect(readTokens()[w.token]!.runs[0]!.track).toBe("monaco");
 
       const post = (path: string, body: unknown) =>
         fetch(svc.url + path, {
@@ -326,12 +340,18 @@ describe("agentic workspace and practice service", () => {
     const d = join(root, "ws/full");
     mkdirSync(d, { recursive: true });
     writeFileSync(join(d, "x"), "");
-    expect(() => createWorkspace(d, { model: "m", serviceUrl: "", track: "proto-ring" })).toThrow(
+    expect(() => createWorkspace(d, { model: "m", serviceUrl: "", tracks: ["proto-ring"] })).toThrow(
       /not empty/,
     );
     expect(() =>
-      createWorkspace(join(root, "ws/x"), { model: "Bad Slug", serviceUrl: "", track: "proto-ring" }),
+      createWorkspace(join(root, "ws/x"), { model: "Bad Slug", serviceUrl: "", tracks: ["proto-ring"] }),
     ).toThrow(/bad model slug/);
+    expect(() => createWorkspace(join(root, "ws/y"), { model: "m", serviceUrl: "", tracks: [] })).toThrow(
+      /at least one practice track/,
+    );
+    expect(() =>
+      createWorkspace(join(root, "ws/z"), { model: "m", serviceUrl: "", tracks: ["nowhere"] }),
+    ).toThrow(/unknown track 'nowhere'/);
   });
   it("workspace command prints the token", async () => {
     const r = await cli(

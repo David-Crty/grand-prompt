@@ -1,9 +1,13 @@
-<!-- prompt version: agentic-0.2 -->
+<!-- prompt version: agentic-0.3 -->
 # Task: write the fastest race-car driver program
 
 You are competing in a programming benchmark. In this workspace, write `driver.js`: the control
-program for a simulated open-wheel race car. All competitors drive the same car on the same
-circuit in a deterministic simulator, and the fastest valid result wins.
+program for a simulated open-wheel race car. All competitors drive the same car in a deterministic
+simulator, and the fastest valid result wins.
+
+**The event is held on a circuit you will not see.** It is none of the practice circuits; your
+driver meets it for the first time in `init`. Write a driver that works on any circuit, not one
+tuned to the practice circuits.
 
 ## Files
 
@@ -12,20 +16,21 @@ circuit in a deterministic simulator, and the fastest valid result wins.
 - `car-public.json`: public car parameters
 - `baseline-driver.js`: a working but slow driver
 - `driver.js`: your driver, which starts as a copy of the baseline. **This file is your submission.**
-- `tracks/`: the practice circuit (the same one used for the event)
+- `tracks/`: the practice circuits: {{PRACTICE_TRACKS}}
 - `bench.mjs`: the practice client
 
 ## Practice
 
 ```
-node bench.mjs validate driver.js           # free: load + init + 10 s of driving
-node bench.mjs practice driver.js --laps 3  # counts against your practice budget
-node bench.mjs status                       # remaining practice runs
+node bench.mjs validate driver.js [--track <id>]   # free: load + init + 10 s of driving
+node bench.mjs practice driver.js --laps 3 --track <id>  # counts against your practice budget
+node bench.mjs status                       # remaining practice runs and the circuits
 ```
 
 Each practice run writes `runs/NNN/summary.txt`, `summary.json`, `telemetry.csv` and `log.txt`.
-Use the telemetry to learn how the car behaves: the tire and aero constants are hidden. Your
-practice budget is small (`node bench.mjs status` shows it), so plan your runs: `validate` is free
+Use the telemetry to learn how the car behaves: the tire and aero constants are hidden. The budget
+is shared across the practice circuits and you choose which circuit each run uses (`--track`,
+default: the first one). It is small (`node bench.mjs status` shows it), so plan your runs: `validate` is free
 and catches load and init errors, so use it before every practice run.
 
 ## Rules for this run

@@ -14,7 +14,16 @@ export interface TokenRecord {
   budget: number;
   used: number;
   created: string;
-  runs: { at: string; laps: number; bestLap: number | null; status: string; driverHash: string }[];
+  /** Circuits this token may practise on; the first is the default. Absent: any circuit. */
+  tracks?: string[];
+  runs: {
+    at: string;
+    track?: string;
+    laps: number;
+    bestLap: number | null;
+    status: string;
+    driverHash: string;
+  }[];
 }
 
 export function tokenStorePath(): string {
@@ -32,10 +41,17 @@ function writeTokens(t: Record<string, TokenRecord>): void {
   writeFileSync(p, `${JSON.stringify(t, null, 2)}\n`);
 }
 
-export function registerToken(model: string, budget: number, token?: string): string {
+export function registerToken(model: string, budget: number, token?: string, tracks?: string[]): string {
   const t = readTokens();
   const tok = token ?? randomBytes(12).toString("hex");
-  t[tok] = { model, budget, used: 0, created: new Date().toISOString(), runs: [] };
+  t[tok] = {
+    model,
+    budget,
+    used: 0,
+    created: new Date().toISOString(),
+    ...(tracks ? { tracks } : {}),
+    runs: [],
+  };
   writeTokens(t);
   return tok;
 }
@@ -75,6 +91,7 @@ export async function serve(opts: { port: number; host?: string }): Promise<{
           used: rec.used,
           budget: rec.budget,
           left: rec.budget - rec.used,
+          ...(rec.tracks ? { tracks: rec.tracks } : {}),
         });
       }
       if (req.method !== "POST" || (url.pathname !== "/practice" && url.pathname !== "/validate"))
@@ -85,7 +102,14 @@ export async function serve(opts: { port: number; host?: string }): Promise<{
       if (!rec) return send(403, { error: "unknown token" });
       const source = String(b.source ?? "");
       const filename = String(b.filename ?? "driver.js").endsWith(".ts") ? "driver.ts" : "driver.js";
-      const track = typeof b.track === "string" && /^[a-z0-9-]+$/.test(b.track) ? b.track : "proto-ring";
+      let track = typeof b.track === "string" && /^[a-z0-9-]+$/.test(b.track) ? b.track : "proto-ring";
+      if (rec.tracks) {
+        track = b.track === undefined ? rec.tracks[0]! : String(b.track);
+        if (!rec.tracks.includes(track))
+          return send(403, {
+            error: `track '${track}' is not a practice circuit (available: ${rec.tracks.join(", ")})`,
+          });
+      }
       if (url.pathname === "/validate") {
         // Validation is free: it does not count against the practice budget.
         const dir = join(repoRoot(), "results", "agentic", rec.model, "validate");
@@ -123,6 +147,7 @@ export async function serve(opts: { port: number; host?: string }): Promise<{
       const fresh = readTokens();
       fresh[String(b.token)]!.runs.push({
         at: new Date().toISOString(),
+        track,
         laps,
         bestLap: c.bestLap,
         status: c.status,

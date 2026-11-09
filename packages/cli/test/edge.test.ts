@@ -120,6 +120,13 @@ describe("practice service edge cases", () => {
       expect(p.text).toMatch(/laps=5/);
       const st = await (await fetch(`${svc.url}/status?token=${tok}`)).json();
       expect(st).toMatchObject({ model: "ts-model", used: 1, left: 2 });
+      const limited = registerToken("limited", 1, undefined, ["monaco"]);
+      const base = readFileSync(join(repo, "ddk/baseline-driver.js"), "utf8");
+      const lp = (await (await post("/practice", { token: limited, source: base, laps: 1 })).json()) as Json;
+      expect(lp.text).toMatch(/PRACTICE on monaco/);
+      expect((await post("/practice", { token: limited, source: base, track: "proto-ring" })).status).toBe(
+        403,
+      );
     } finally {
       await svc.close();
       if (prev === undefined) delete process.env.BENCH_ROOT;
