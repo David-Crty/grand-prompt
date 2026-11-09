@@ -1,0 +1,52 @@
+export const CAMERA_MODES = ["tv", "chase", "onboard", "map"] as const;
+export type CameraMode = (typeof CAMERA_MODES)[number];
+export const SPEEDS = [0.25, 0.5, 1, 2, 4, 8, 15, 30] as const;
+
+export interface ViewerParams {
+  replay: string | null;
+  t: number | null;
+  cam: CameraMode | null;
+  car: string | null;
+  speed: number | null;
+  play: boolean | null;
+  hud: boolean;
+  trails: boolean;
+  analysis: boolean;
+  fps: boolean;
+}
+
+function flag(v: string | null): boolean | null {
+  if (v === null) return null;
+  return v === "" || v === "1" || v === "true" || v === "yes";
+}
+
+export function parseParams(search: string): ViewerParams {
+  const q = new URLSearchParams(search);
+  const num = (k: string) => {
+    const v = q.get(k);
+    if (v === null || v === "") return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+  const camRaw = q.get("cam");
+  const cam = CAMERA_MODES.find((m) => m === camRaw) ?? null;
+  const speed = num("speed");
+  return {
+    replay: q.get("replay"),
+    t: num("t"),
+    cam,
+    car: q.get("car"),
+    speed: speed !== null && speed > 0 ? speed : null,
+    play: flag(q.get("play")),
+    hud: flag(q.get("hud")) ?? true,
+    trails: flag(q.get("trails")) ?? true,
+    analysis: flag(q.get("analysis")) ?? false,
+    fps: flag(q.get("fps")) ?? false,
+  };
+}
+
+/** Next/previous entry of SPEEDS from the current speed. */
+export function stepSpeed(current: number, dir: 1 | -1): number {
+  if (dir > 0) return SPEEDS.find((s) => s > current + 1e-9) ?? SPEEDS[SPEEDS.length - 1]!;
+  return [...SPEEDS].reverse().find((s) => s < current - 1e-9) ?? SPEEDS[0];
+}
