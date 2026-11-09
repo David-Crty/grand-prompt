@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+coverage/
+# Results and outputs are not committed; only event configs are.
+/results/*
+!/results/*/
+/results/*/*
+!/results/*/event.json

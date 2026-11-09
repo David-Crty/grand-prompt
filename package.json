@@ -1,0 +1,30 @@
+{
+  "name": "f1-llm-bench",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.18.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json && tsc -p apps/viewer --noEmit",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "bench": "tsx packages/cli/src/main.ts",
+    "determinism": "tsx scripts/determinism-check.ts",
+    "coverage": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.6",
+    "@types/node": "^26.6.6",
+    "@vitest/coverage-v8": "^5.1.0",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0",
+    "@bench/sim": "workspace:*",
+    "@bench/reference-driver": "workspace:*",
+    "@bench/sandbox": "workspace:*"
+  }
+}
