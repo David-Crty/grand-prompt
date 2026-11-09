@@ -1,0 +1,9 @@
+{
+  "id": "proto-gp-1",
+  "name": "Prototype GP 1",
+  "track": "proto-ring",
+  "qualifyAttempts": 1,
+  "raceLaps": 5,
+  "seed": 2026,
+  "infoLevel": "B"
+}

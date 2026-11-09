@@ -1,0 +1,17 @@
+{
+  "name": "@bench/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "bench": "./src/main.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@bench/sim": "workspace:*",
+    "@bench/sandbox": "workspace:*",
+    "@bench/reference-driver": "workspace:*"
+  }
+}
