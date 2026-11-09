@@ -292,3 +292,23 @@ qualifying and the 5-lap race, and `event reproduce` matches. Opus qualified on 
   vertically so the suspension meets the hubs, which leaves it about 12% taller than a real car;
   the wing is raised by the same ratio so it sits level with the roll hoop. The sim's own car
   (`cars/proto.json`) is unchanged.
+
+## D25. A design system for the viewer, the results pages and the video (2026-11-09)
+
+- The inherited HUD style is replaced by the Grand Prompt design system. Its copy in the repository is
+  `docs/design/` (brand book, component guides, screen renders, plan); its tokens live in
+  `packages/ui/tokens.json`, the one source for colours, type, spacing and motion. `make tokens` generates
+  `packages/ui/tokens.gen.css` and `src/tokens.gen.ts`; tests fail while they are stale and check every
+  contrast floor of the brand book.
+- Dark only. The chrome is ink and chalk; hue belongs to entries and to a short list of signals (fastest lap,
+  DNF, warning, delta). The red accent is gone, partly because it read as a series colour.
+- A car is an entry (`resolveEntries` in `@bench/ui`): a three-letter code from the model's given name, one
+  of twelve colour slots tuned to stay apart under protanopia, deuteranopia and tritanopia (the code carries
+  slots 9 to 12), and a provider that picks the body paint. The entry colour goes on labels, trails, the
+  tower, the map and charts; the body shows the provider. Replays do not carry slots yet, so the viewer
+  resolves them in id order and ignores the stored colour; `models.json` slots come with the publish step.
+- Type is Archivo (variable width and weight; expanded for titles, condensed for numbers) and JetBrains Mono,
+  both OFL, shipped in `packages/ui/fonts`.
+- The redesign lands in six phases (`docs/design/PLAN-replay-viewer.md`), one pull request each, as the owner
+  asked for this change instead of commits on `main`. The ghost start (issue 1) follows option A plus B:
+  translucent packs, a pack label and a start board, never a moved car.

@@ -1,0 +1,138 @@
+/* Grand Prompt: generated from tokens.json by scripts/gen-tokens.ts. Do not edit. */
+:root {
+  --ink-000: #07080a;
+  --surface-100: #0d0f12;
+  --surface-200: #14171b;
+  --surface-300: #1b1f24;
+  --surface-400: #262b32;
+  --hud-panel: #0a0b0ddb;
+  --hud-panel-solid: #0a0b0df5;
+  --line-100: #ffffff14;
+  --line-200: #ffffff29;
+  --line-control: #6c737e;
+  --text-100: #f2f0eb;
+  --text-200: #b6bbc3;
+  --text-300: #8f959f;
+  --text-disabled: #5c626b;
+  --fill-chalk: var(--text-100);
+  --on-chalk: #0a0b0d;
+  --focus-ring: var(--text-100);
+  --timing-fastest: #b98cff;
+  --timing-personal: #52d68f;
+  --timing-slower: #f2c94c;
+  --status-dnf: #ff6b5e;
+  --status-dnf-tint: #ff6b5e24;
+  --status-warn: #ffb547;
+  --status-warn-tint: #ffb5471f;
+  --delta-ahead: #5aa9ff;
+  --delta-behind: #ff9f43;
+  --telemetry-throttle: #3dd6a3;
+  --telemetry-brake: #ff6b5e;
+  --telemetry-steer: var(--text-100);
+  --chart-grid: #ffffff12;
+  --chart-axis: var(--text-300);
+  --chart-cursor: var(--text-100);
+  --entry-01: #fdaaaf;
+  --entry-02: #4288fb;
+  --entry-03: #c7fb2a;
+  --entry-04: #f51c91;
+  --entry-05: #61d4fd;
+  --entry-06: #ac8715;
+  --entry-07: #90fed6;
+  --entry-08: #20c368;
+  --entry-09: #95a3fc;
+  --entry-10: #fc75b7;
+  --entry-11: #fed98f;
+  --entry-12: #e81ee9;
+  --entry-house: #9aa0a8;
+  --body-clay: #c8673f;
+  --body-silver: #c4c8ce;
+  --body-cobalt: #3f6fd6;
+  --body-pearl: #ece9e2;
+  --body-saffron: #e0a526;
+  --body-graphite: #5a606a;
+  --world-asphalt: #4a4d54;
+  --world-line: #f2f2ee;
+  --world-kerb-red: #d42a2a;
+  --world-kerb-white: #f4f4f0;
+  --world-grass-a: #5f9a3a;
+  --world-grass-b: #68a542;
+  --world-gravel: #d8c49a;
+  --world-barrier-a: #f0f0ea;
+  --world-barrier-b: #2c5a8c;
+  --world-sky: #bcd3e6;
+  --world-sector: #f5c400;
+  --map-track: #3a3f47;
+  --map-track-edge: #ffffff1f;
+  --space-px: 2px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --radius-0: 0px;
+  --radius-1: 2px;
+  --radius-2: 4px;
+  --radius-3: 8px;
+  --radius-4: 14px;
+  --radius-round: 999px;
+  --shadow-hud: 0 6px 20px rgba(0, 0, 0, 0.35);
+  --shadow-overlay: 0 24px 64px rgba(0, 0, 0, 0.55);
+  --shadow-sheet: 0 -10px 30px rgba(0, 0, 0, 0.45);
+  --shadow-none: none;
+  --opacity-ghost: 0.38;
+  --opacity-out: 0.5;
+  --opacity-trail: 0.8;
+  --opacity-scrim: 0.6;
+  --blur-hud: 8px;
+  --blur-none: 0px;
+  --duration-instant: 80ms;
+  --duration-fast: 140ms;
+  --duration-base: 220ms;
+  --duration-slow: 360ms;
+  --duration-camera: 900ms;
+  --duration-toast: 4000ms;
+  --easing-standard: cubic-bezier(0.2, 0, 0, 1);
+  --easing-enter: cubic-bezier(0, 0, 0, 1);
+  --easing-exit: cubic-bezier(0.3, 0, 1, 1);
+  --z-scene: 0;
+  --z-labels: 10;
+  --z-hud: 20;
+  --z-toast: 30;
+  --z-sheet: 40;
+  --z-overlay: 50;
+  --z-tooltip: 60;
+  --size-hit: 44px;
+  --size-row: 28px;
+  --size-row-touch: 44px;
+  --size-tower: 340px;
+  --size-transport: 56px;
+  --size-pos: 22px;
+  --bp-tablet: 600px;
+  --bp-desktop: 1024px;
+  --bp-wide: 1440px;
+  --font-sans: "Archivo", "Arial Narrow", "Helvetica Neue", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+.display-xl { font-family: "Archivo", "Arial Narrow", "Helvetica Neue", system-ui, sans-serif; font-size: 64px; line-height: 60px; font-weight: 800; letter-spacing: -0.01em; }
+.display-l { font-family: "Archivo", "Arial Narrow", "Helvetica Neue", system-ui, sans-serif; font-size: 40px; line-height: 42px; font-weight: 800; letter-spacing: -0.005em; }
+.display-m { font-family: "Archivo", "Arial Narrow", "Helvetica Neue", system-ui, sans-serif; font-size: 26px; line-height: 30px; font-weight: 800; }
+.title { font-family: "Archivo", "Arial Narrow", "Helvetica Neue", system-ui, sans-serif; font-size: 20px; line-height: 24px; font-weight: 700; }
+.body-l { font-family: "Archivo", "Arial Narrow", "Helvetica Neue", system-ui, sans-serif; font-size: 17px; line-height: 26px; font-weight: 400; }
+.body { font-family: "Archivo", "Arial Narrow", "Helvetica Neue", system-ui, sans-serif; font-size: 15px; line-height: 22px; font-weight: 400; }
+.body-s { font-family: "Archivo", "Arial Narrow", "Helvetica Neue", system-ui, sans-serif; font-size: 13px; line-height: 18px; font-weight: 400; }
+.label { font-family: "Archivo", "Arial Narrow", "Helvetica Neue", system-ui, sans-serif; font-size: 11px; line-height: 14px; font-weight: 700; letter-spacing: 0.08em; }
+.data-xl { font-family: "Archivo", "Arial Narrow", "Helvetica Neue", system-ui, sans-serif; font-size: 44px; line-height: 44px; font-weight: 700; }
+.data-l { font-family: "Archivo", "Arial Narrow", "Helvetica Neue", system-ui, sans-serif; font-size: 24px; line-height: 28px; font-weight: 700; }
+.data-m { font-family: "Archivo", "Arial Narrow", "Helvetica Neue", system-ui, sans-serif; font-size: 15px; line-height: 20px; font-weight: 600; }
+.data-s { font-family: "Archivo", "Arial Narrow", "Helvetica Neue", system-ui, sans-serif; font-size: 13px; line-height: 16px; font-weight: 600; }
+.chip { font-family: "Archivo", "Arial Narrow", "Helvetica Neue", system-ui, sans-serif; font-size: 12px; line-height: 14px; font-weight: 800; letter-spacing: 0.04em; }
+.mono { font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; line-height: 20px; font-weight: 400; }
+.mono-s { font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; line-height: 16px; font-weight: 400; }
+@font-face { font-family: "Archivo"; src: url("./fonts/Archivo-Variable-latin.woff2") format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
+@font-face { font-family: "JetBrains Mono"; src: url("./fonts/JetBrainsMono-Variable-latin.woff2") format("woff2"); font-weight: 100 800; font-style: normal; font-display: swap; }

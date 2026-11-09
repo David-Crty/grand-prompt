@@ -1,9 +1,9 @@
 import type { Replay } from "@bench/sim";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RaceList } from "./components/RaceList.js";
 import { decodeReplay, fetchReplay } from "./lib/load.js";
 import { buildModel } from "./lib/model.js";
-import { parseParams } from "./lib/params.js";
+import { paramsForReplay, parseParams } from "./lib/params.js";
 import { Viewer } from "./Viewer.js";
 
 export function App() {
@@ -13,13 +13,19 @@ export function App() {
   const [loading, setLoading] = useState<string | null>(null);
   const [drag, setDrag] = useState(false);
   const [gen, setGen] = useState(0);
+  const [fromUrl, setFromUrl] = useState(false);
+  // StrictMode runs effects twice in development; fetch the URL's replay once (issue 8).
+  const requested = useRef<string | null>(null);
 
   const loadUrl = useCallback((url: string) => {
+    if (requested.current === url) return;
+    requested.current = url;
     setLoading(url);
     setError(null);
     fetchReplay(url)
       .then((r) => {
         setReplay(r);
+        setFromUrl(true);
         setGen((g) => g + 1);
       })
       .catch((e: Error) => setError(e.message))
@@ -50,6 +56,7 @@ export function App() {
         .then(decodeReplay)
         .then((r) => {
           setReplay(r);
+          setFromUrl(false);
           setGen((g) => g + 1);
         })
         .catch((err: Error) => setError(`${file.name}: ${err.message}`))
@@ -74,7 +81,7 @@ export function App() {
           key={gen}
           model={model}
           backHref={window.location.pathname}
-          params={gen > 1 ? { ...params, t: null, cam: null, car: null } : params}
+          params={paramsForReplay(params, fromUrl)}
         />
       ) : null}
       {!model && !params.replay && !drag ? <RaceList error={error} loading={loading} /> : null}

@@ -1,4 +1,6 @@
 import { type Replay, replayDuration } from "@bench/sim";
+import type { Entry } from "@bench/ui";
+import { eventEntries, recolorReplay } from "./entries.js";
 import { type CarIndex, indexReplay } from "./frames.js";
 import { bestLapTraces, type LapTrace } from "./laps.js";
 import { type RaceMessage, raceMessages } from "./messages.js";
@@ -14,7 +16,10 @@ import {
 
 /** Everything the viewer derives from a replay once, before rendering. */
 export interface ViewerModel {
+  /** The replay with entry colours applied (see lib/entries.ts). */
   replay: Replay;
+  /** Code, slot, colour and provider body paint per car id. */
+  entries: Map<string, Entry>;
   cars: CarIndex[];
   layout: TrackLayout;
   duration: number;
@@ -26,12 +31,15 @@ export interface ViewerModel {
   trees: Placement[];
 }
 
-export function buildModel(replay: Replay, treeCount = 1400): ViewerModel {
+export function buildModel(source: Replay, treeCount = 1400): ViewerModel {
+  const entries = eventEntries(source.cars);
+  const replay = recolorReplay(source, entries);
   const layout = buildLayout(replay.track);
   const cars = indexReplay(replay);
   const grandstands = placeGrandstands(layout, replay.track);
   return {
     replay,
+    entries,
     cars,
     layout,
     duration: replayDuration(replay),

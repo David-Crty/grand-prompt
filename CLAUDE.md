@@ -32,6 +32,9 @@ or deviation.
 - `packages/cli`: the `bench` CLI (`src/index.ts` dispatch, `commands.ts`, `service.ts`,
   `workspace.ts`, `oneshot.ts`). The entry point is `pnpm bench …`.
 - `packages/reference-driver`: the internal house driver. It must never be copied into `ddk/`.
+- `docs/design/` and `packages/ui`: the design system. Read `docs/design/README.md` before UI work; tokens are
+  `packages/ui/tokens.json` (`make tokens` after editing), entries (code, colour slot, provider body) come from
+  `resolveEntries`, and the redesign follows `docs/design/PLAN-replay-viewer.md` (D25).
 - `apps/viewer`: Vite + R3F. It plays replays only and contains no physics. Pure logic lives in
   `src/lib` (tested), and the scene in `src/scene`. It serves `results/` at `/results/`, plus
   `/results/index.json` (the race list, built per request by `server/results-index.ts`). The car

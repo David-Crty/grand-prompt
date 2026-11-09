@@ -264,7 +264,7 @@ export function Viewer({
         <>
           <TimingTower model={model} snap={snap} showInterval={interval} onFocus={focusCar} />
           <SessionInfo model={model} snap={snap} mode={mode} backHref={backHref} />
-          <Messages snap={snap} />
+          <Messages model={model} snap={snap} />
           <Telemetry model={model} snap={snap} />
           <Controls
             model={model}

@@ -13,7 +13,7 @@ TIMEOUT ?=
 BUILD_OPTS := $(if $(ONLY),--only $(ONLY)) $(if $(JOBS),--jobs $(JOBS)) $(if $(TIMEOUT),--timeout $(TIMEOUT))
 need-name = @[[ -n "$(NAME)" ]] || { echo "set NAME=<name>, e.g. make $@ NAME=gp-1"; exit 2; }
 
-.PHONY: help install dev lint format typecheck test coverage determinism viewer-build gates \
+.PHONY: help install dev lint format typecheck test coverage determinism tokens viewer-build gates \
 	tracks golden plausibility demo serve build-check build event reproduce race leaderboard clean
 
 help: ## list the targets
@@ -44,6 +44,9 @@ coverage: ## vitest with the 90% coverage thresholds
 
 determinism: ## same race in two processes, same hash
 	pnpm determinism
+
+tokens: ## regenerate packages/ui tokens.gen.css and tokens.gen.ts from tokens.json
+	pnpm tsx scripts/gen-tokens.ts
 
 viewer-build: ## production build of the viewer
 	pnpm --filter @bench/viewer build

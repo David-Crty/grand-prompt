@@ -1,16 +1,15 @@
 :root {
-  --panel: rgba(14, 16, 22, 0.82);
-  --panel-solid: #0e1016;
-  --line: rgba(255, 255, 255, 0.08);
-  --text: #f3f4f6;
-  --muted: #9aa3b2;
-  --accent: #e10600;
-  --purple: #b36bff;
-  --green: #22c55e;
-  --red: #ef4444;
-  --font:
-    "Titillium Web", "Barlow Semi Condensed", "Roboto Condensed", "Arial Narrow", "Nimbus Sans Narrow",
-    "Noto Sans", system-ui, sans-serif;
+  /* Values come from @bench/ui/tokens.css (generated from packages/ui/tokens.json). */
+  --panel: var(--hud-panel);
+  --panel-solid: var(--surface-200);
+  --line: var(--line-100);
+  --text: var(--text-100);
+  --muted: var(--text-300);
+  --accent: var(--fill-chalk);
+  --purple: var(--timing-fastest);
+  --green: var(--telemetry-throttle);
+  --red: var(--status-dnf);
+  --font: var(--font-sans);
   color-scheme: dark;
 }
 
@@ -24,7 +23,7 @@ body,
   margin: 0;
   height: 100%;
   overflow: hidden;
-  background: #0b0d12;
+  background: var(--ink-000);
   color: var(--text);
   font-family: var(--font);
   font-variant-numeric: tabular-nums;
@@ -38,6 +37,8 @@ button {
 .viewer {
   position: fixed;
   inset: 0;
+  /* Archivo at a semi-condensed width keeps names and numbers in the HUD columns. */
+  font-variation-settings: "wdth" 82;
 }
 
 .panel {
@@ -897,7 +898,7 @@ button {
   padding: 3px 8px;
   border-radius: 4px;
   font-size: 12px;
-  font-family: ui-monospace, monospace;
+  font-family: var(--font-mono);
 }
 
 @media (max-width: 760px) {
@@ -1050,7 +1051,7 @@ button {
 }
 
 .rl-id {
-  font-family: ui-monospace, monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
 }
 

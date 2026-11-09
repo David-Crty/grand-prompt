@@ -25,8 +25,9 @@ export function Cars({ model, live }: { model: ViewerModel; live: React.RefObjec
       model.cars.map((c) => {
         const group = new THREE.Group();
         group.name = c.car.id;
+        // Bodywork shows the provider; the entry colour rides on the trail, marker and labels.
         const paint = new THREE.MeshStandardMaterial({
-          color: c.car.color,
+          color: model.entries.get(c.car.id)?.body ?? c.car.color,
           roughness: 0.32,
           metalness: 0.25,
         });

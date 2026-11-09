@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { TV_ZOOM_MAX, TV_ZOOM_MIN } from "../lib/camera.js";
-import { contrastText } from "../lib/color.js";
 import { formatClock, formatLapTime, kmh, nameTag, statusShort } from "../lib/format.js";
 import type { CarSample, LapInfo } from "../lib/frames.js";
 import type { RaceMessage } from "../lib/messages.js";
@@ -183,7 +182,7 @@ export function Telemetry({ model, snap }: { model: ViewerModel; snap: HudSnapsh
   const off = f.surface >= 2 && !f.ended;
   return (
     <div className="telemetry panel">
-      <div className="tel-head" style={{ background: car.color, color: contrastText(car.color) }}>
+      <div className="tel-head" style={{ background: car.color, color: "var(--on-chalk)" }}>
         <span className="tel-pos">P{row.position}</span>
         <span className="tel-name">{car.name}</span>
       </div>
@@ -238,14 +237,14 @@ function Bar({ label, value, cls }: { label: string; value: number; cls: string 
   );
 }
 
-export function Messages({ snap }: { snap: HudSnapshot }) {
+export function Messages({ model, snap }: { model: ViewerModel; snap: HudSnapshot }) {
   if (snap.messages.length === 0) return null;
   return (
     <div className="messages">
       {snap.messages.map((m) => (
         <div key={`${m.t}-${m.carId}-${m.kind}`} className={`msg panel m-${m.kind}`}>
           <span className="swatch" style={{ background: m.color }} />
-          <span className="msg-name">{nameTag(m.name)}</span>
+          <span className="msg-name">{model.entries.get(m.carId)?.code ?? nameTag(m.name)}</span>
           <span className="msg-text">{m.text}</span>
         </div>
       ))}
@@ -389,10 +388,7 @@ export function Labels({
         return (
           <div key={c.car.id} className="label-anchor" ref={(el) => register(k, el)}>
             <div className={`label${c.car.id === snap.focusId ? " focused" : ""}`}>
-              <span
-                className="label-pos"
-                style={{ background: c.car.color, color: contrastText(c.car.color) }}
-              >
+              <span className="label-pos" style={{ background: c.car.color, color: "var(--on-chalk)" }}>
                 {row?.position ?? ""}
               </span>
               <span className="label-name">{c.car.name}</span>
