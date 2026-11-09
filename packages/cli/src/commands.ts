@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { basename, join, relative, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { gunzipSync, gzipSync } from "node:zlib";
 import type { SandboxOptions } from "@bench/sandbox";
 import {
@@ -365,8 +365,10 @@ async function runEventSessions(eventId: string) {
   const list = listEventDrivers(eventId);
   const manifests = new Map<string, Manifest | null>();
   for (const d of list) {
-    const mp = join(p.results, d.slug, "manifest.json");
-    manifests.set(d.slug, existsSync(mp) ? readJson<Manifest>(mp) : null);
+    const mp = [join(p.results, d.slug, "manifest.json"), join(dirname(d.path), "manifest.json")].find((f) =>
+      existsSync(f),
+    );
+    manifests.set(d.slug, mp ? readJson<Manifest>(mp) : null);
   }
   const load = async () => {
     const ds = await loadEntries(
@@ -447,6 +449,7 @@ export async function runEvent(eventId: string): Promise<CommandOutput> {
       raceTime: row.raceTime,
       status: row.raceStatus,
     };
+    mkdirSync(join(p.results, row.slug), { recursive: true });
     writeFileSync(join(p.results, row.slug, "manifest.json"), `${JSON.stringify(m, null, 2)}\n`);
   }
   return {
@@ -501,7 +504,7 @@ export function eventTable(res: EventResults): string {
       r.name,
       r.manifest?.mode ?? "-",
       fmtTime(r.qualifyTime),
-      r.gapToReference === null ? "-" : `+${r.gapToReference.toFixed(3)}`,
+      r.gapToReference === null ? "-" : `${r.gapToReference >= 0 ? "+" : ""}${r.gapToReference.toFixed(3)}`,
       fmtTime(r.raceTime),
       r.raceStatus,
       r.penalties ? `+${r.penalties}s` : "",

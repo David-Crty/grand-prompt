@@ -56,7 +56,7 @@ describe("tables", () => {
           name: "A",
           manifest: { model: "A", usage: { costUsd: 1 } },
           qualifyTime: 70,
-          gapToReference: null,
+          gapToReference: -1.5,
           raceTime: 150,
           raceStatus: "FINISHED",
           penalties: 5,
@@ -75,6 +75,7 @@ describe("tables", () => {
     } as unknown as EventResults;
     const t = eventTable(res);
     expect(t).toMatch(/\+5s/);
+    expect(t).toMatch(/\| -1\.500 /);
     expect(t).toMatch(/\| 2k /);
     expect(t).toMatch(/\$1\.00/);
     expect(

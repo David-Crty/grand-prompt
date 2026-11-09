@@ -1,4 +1,4 @@
-<!-- prompt version: agentic-0.1 -->
+<!-- prompt version: agentic-0.2 -->
 # Task: write the fastest race-car driver program
 
 You are competing in a programming benchmark. In this workspace, write `driver.js`: the control
@@ -25,7 +25,8 @@ node bench.mjs status                       # remaining practice runs
 
 Each practice run writes `runs/NNN/summary.txt`, `summary.json`, `telemetry.csv` and `log.txt`.
 Use the telemetry to learn how the car behaves: the tire and aero constants are hidden. Your
-practice budget is limited, so plan your runs.
+practice budget is small (`node bench.mjs status` shows it), so plan your runs: `validate` is free
+and catches load and init errors, so use it before every practice run.
 
 ## Rules for this run
 

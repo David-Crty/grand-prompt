@@ -41,7 +41,7 @@ pnpm bench oneshot proto-gp-1 --prompt-only > /tmp/prompt.md   # inspect the exa
 
 # 3. agentic submissions: start the practice service, create an isolated workspace per model
 pnpm bench serve --port 8787 &
-pnpm bench workspace /tmp/ws-model-x --model model-x --budget 20
+pnpm bench workspace /tmp/ws-model-x --model model-x --budget 5
 #    run the agent CLI inside /tmp/ws-model-x with TASK.md as its prompt, then copy
 #    driver.js to drivers/proto-gp-1/model-x/ and write results/proto-gp-1/model-x/manifest.json
 

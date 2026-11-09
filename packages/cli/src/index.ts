@@ -36,7 +36,7 @@ export const USAGE = `bench <command> [options]
   replay <replay.json.gz>                  print replay header and classification
   tracks                                   list the circuits in tracks/ (ids for --track)
   serve [--port P]                         practice service for agentic runs (keeps hidden params out of the workspace)
-  workspace <dir> --model <slug> [--budget N] [--service-url U]
+  workspace <dir> --model <slug> [--budget N, default 5] [--service-url U]
                                            create an isolated agentic workspace (DDK + practice client)
 
 common options:

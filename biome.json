@@ -6,6 +6,7 @@
       "!**/node_modules",
       "!**/dist",
       "!results",
+      "!drivers",
       "!coverage",
       "!tracks/*.json",
       "!tracks/sources",

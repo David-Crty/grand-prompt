@@ -213,6 +213,7 @@ describe("events: run, reproduce, leaderboard", () => {
     );
     file(`drivers/${ev}/model-a/driver.js`, baselineSrc);
     file(`drivers/${ev}/model-b/driver.js`, slower);
+    file(`drivers/${ev}/model-b/manifest.json`, JSON.stringify({ model: "Model B", mode: "agentic" }));
     file(`drivers/${ev}/model-c/driver.js`, "export function step( {");
     file(`drivers/${ev}/not-a-driver/readme.txt`, "x");
     file(
@@ -226,6 +227,7 @@ describe("events: run, reproduce, leaderboard", () => {
     const r = await cli("event", "run", ev);
     expect(r.out).toMatch(/Test GP \(ev-test\)/);
     expect(r.out).toMatch(/Model A/);
+    expect(r.out).toMatch(/Model B +\| agentic/);
     expect(r.out).toMatch(/\$0\.42/);
     expect(r.out).toMatch(/42k/);
     const res = JSON.parse(
@@ -238,6 +240,8 @@ describe("events: run, reproduce, leaderboard", () => {
     const m = JSON.parse(readFileSync(join(root, `results/${ev}/model-a/manifest.json`), "utf8"));
     expect(m.results.raceHash).toBe(res.rows[0]!.raceHash);
     expect(m.driverHash).toBe(res.rows[0]!.driverHash);
+    const mb = JSON.parse(readFileSync(join(root, `results/${ev}/model-b/manifest.json`), "utf8"));
+    expect(mb.driverHash).toBe(res.rows[1]!.driverHash);
 
     const rep = await cli("event", "reproduce", ev);
     expect(rep.code).toBe(0);

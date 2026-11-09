@@ -9,9 +9,13 @@ or deviation.
 ## Status
 - Phases 0 to 2 are done. Phase 3 tooling is done (sandbox, DDK, house driver, manifests,
   leaderboard, one-shot runner, agentic practice service and workspaces).
-- **Not done:** the first real event with LLMs. It needs the owner to pick the models, an
-  `OPENROUTER_API_KEY` (via `op run`, env file `~/.config/op-env/openrouter.env`), and an
-  explicit decision to freeze the API for a season (PLAN 6.5). Ask before freezing.
+- A first agentic trial ran on `proto-gp-1` with four Claude models as Claude Code subagents
+  (D17): all finished, two beat the house driver by 10 to 14 s. It is not a ranking (unequal
+  practice budgets, isolation by instruction only). Practice budget defaults to 5 (D16).
+- **Not done:** a published event. It needs the owner to pick the models, a properly isolated
+  runner (or `OPENROUTER_API_KEY` via `op run`, env file `~/.config/op-env/openrouter.env`, for
+  one-shot), a house driver fast enough to be a meaningful reference, and an explicit decision
+  to freeze the API for a season (PLAN 6.5). Ask before freezing.
 - Open viewer issue: ghost cars all start at s = 0 and overlap for about 11 s. A visual offset
   would diverge from what was timed, so that is the owner's call.
 - Phase 4: three real circuits are in (`monaco`, `silverstone`, `portimao`, see D14). The house

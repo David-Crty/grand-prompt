@@ -132,3 +132,47 @@ One entry per significant choice or deviation from PLAN.md: context, choice, con
 - Consequence: a static `vite build` has no index, and the page then says it cannot list races;
   `?replay=` and drag-and-drop still work. Publishing results statically would need the index
   written as a file.
+
+## D16. Agentic practice budget defaults to 5 runs (2026-11-09)
+
+- `DEFAULT_PRACTICE_BUDGET` in `packages/cli/src/workspace.ts` sets it; `--budget N` overrides it per workspace.
+- A 3-lap practice run takes about 3 s of wall time, so an agentic run's length is the model's
+  thinking between runs, not the simulator. Twenty runs made a single entry take many minutes; five
+  keeps an event short and rewards planning runs over trial and error.
+
+## D17. First agentic event: four Claude models on proto-gp-1 (2026-11-09)
+
+Opus 5.5, Fable 5.1, Sonnet 5.5 and Haiku 5.5 each wrote a driver as a Claude Code subagent, in
+a `bench workspace` outside the repo, practising through `bench serve`. All four finished
+qualifying and the 5-lap race, and `event reproduce` matches. Opus qualified on 56.501, Fable on
+59.799, Sonnet on 1:11.710 and Haiku on 1:14.820. What the run taught:
+
+- **The house driver is not a ceiling.** Reference lap 1:10.600; two entries beat it by 10 to 14 s.
+  The exploit tests only show that *known* tricks lose to it, not that it drives near the limit,
+  so "gap to reference" currently reads as "gap to a mediocre driver". A faster reference is
+  needed before the gap means anything. The table now prints negative gaps as `-14.100`.
+- **Isolation was by instruction only.** A subagent has the host's full filesystem, so the
+  workspace boundary relied on the prompt. Fine for a trial, not for a published result: a real
+  event needs a container or an API-only runner with no shell outside the workspace.
+- **Only the latest version of each family can run this way**: the Agent tool takes a family
+  alias, so older Claude versions need `bench oneshot` through OpenRouter or an agentic runner
+  that calls the API with an exact model id.
+- **Unequal budgets.** The budget was 20 and was cut to 5 mid-run (D16), after every model had
+  spent more (8 to 14 runs). These results are a trial, not a ranking; rerun at 5 runs each.
+- **Precomputed lines.** Opus optimised a racing line offline and embedded it, keyed to the
+  practice track. Legal, since the event track is the practice track, and it is the main reason
+  for Mystery GP (PLAN, phase 4). Racing the same four drivers on the real circuits (5 laps,
+  seed 2026) showed it: only Fable, which solves its line in `init`, finished all of Monaco,
+  Silverstone and Portimão. Opus's fallback line crashed at Monaco and Portimão and took 275 s of
+  track-limit penalties at Silverstone; Sonnet finished only Silverstone; Haiku finished none.
+- **Strategy converged.** All four built a curvature-based speed profile from grip fitted to
+  telemetry, then tracked it; the spread came from the racing line and from traction/slip
+  control, which is where every crash happened (power oversteer on exit, rear breakaway when
+  trail-braking).
+- **Manifests can sit next to the driver** (`drivers/<event>/<slug>/manifest.json`); `event run`
+  reads `results/<event>/<slug>/manifest.json` first, then that one. `drivers/` is excluded from
+  Biome so submissions stay byte-identical to what was hashed.
+- The agentic prompt (now `agentic-0.2`) tells the model to check its budget with `status` and to
+  `validate` before each run, since five runs leave no room for load errors.
+- Tokens and wall time per entry are in each manifest's `settings`/`usage`; the Agent tool gives
+  a total only, without an input/output split or a cost.

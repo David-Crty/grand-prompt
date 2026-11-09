@@ -3,6 +3,8 @@ import { join, resolve } from "node:path";
 import { repoRoot } from "./load.js";
 import { registerToken } from "./service.js";
 
+export const DEFAULT_PRACTICE_BUDGET = 5;
+
 export const WORKSPACE_FILES = ["DRIVER_SPEC.md", "driver.d.ts", "baseline-driver.js", "car-public.json"];
 
 /**
@@ -24,7 +26,7 @@ export function createWorkspace(
   copyFileSync(join(ddk, "bench-client.mjs"), join(abs, "bench.mjs"));
   copyFileSync(join(ddk, "baseline-driver.js"), join(abs, "driver.js"));
   copyFileSync(join(root, "tracks", `${opts.track}.json`), join(abs, "tracks", `${opts.track}.json`));
-  const token = registerToken(opts.model, opts.budget ?? 20, opts.token);
+  const token = registerToken(opts.model, opts.budget ?? DEFAULT_PRACTICE_BUDGET, opts.token);
   writeFileSync(
     join(abs, ".bench.json"),
     `${JSON.stringify({ serviceUrl: opts.serviceUrl, token, track: opts.track }, null, 2)}\n`,
