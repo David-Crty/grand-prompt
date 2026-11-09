@@ -295,11 +295,12 @@ qualifying and the 5-lap race, and `event reproduce` matches. Opus qualified on 
 
 ## D25. A design system for the viewer, the results pages and the video (2026-11-09)
 
-- The inherited HUD style is replaced by the Grand Prompt design system. Its copy in the repository is
-  `docs/design/` (brand book, component guides, screen renders, plan); its tokens live in
-  `packages/ui/tokens.json`, the one source for colours, type, spacing and motion. `make tokens` generates
-  `packages/ui/tokens.gen.css` and `src/tokens.gen.ts`; tests fail while they are stale and check every
-  contrast floor of the brand book.
+- The inherited HUD style is replaced by the Grand Prompt design system. It lives in code, in `packages/ui`:
+  tokens, `components.css` and the React components. The brand book, component guides and screens stay in the
+  owner's design system and canvas on claude.ai; a copy in the repository would only drift. `tokens.json` is
+  the one source for colours, type, spacing and motion; `make tokens` generates `tokens.gen.css` and
+  `src/tokens.gen.ts`, and tests fail while they are stale or when a contrast floor breaks (text 4.5:1 on
+  every surface, entry colours 3:1 on every ground).
 - Dark only. The chrome is ink and chalk; hue belongs to entries and to a short list of signals (fastest lap,
   DNF, warning, delta). The red accent is gone, partly because it read as a series colour.
 - A car is an entry (`resolveEntries` in `@bench/ui`): a three-letter code from the model's given name, one
@@ -309,6 +310,7 @@ qualifying and the 5-lap race, and `event reproduce` matches. Opus qualified on 
   resolves them in id order and ignores the stored colour; `models.json` slots come with the publish step.
 - Type is Archivo (variable width and weight; expanded for titles, condensed for numbers) and JetBrains Mono,
   both OFL, shipped in `packages/ui/fonts`.
-- The redesign lands in six phases (`docs/design/PLAN-replay-viewer.md`), one pull request each, as the owner
-  asked for this change instead of commits on `main`. The ghost start (issue 1) follows option A plus B:
-  translucent packs, a pack label and a start board, never a moved car.
+- The redesign was planned in six phases (foundations, desktop HUD, ghost start, incidents, classification and
+  analysis, phone); the owner asked for the replay viewer as one pull request instead of commits on `main`.
+  The ghost start (issue 1) follows option A plus B: translucent packs, a pack label and a start board, never a
+  moved car.

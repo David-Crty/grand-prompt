@@ -32,9 +32,13 @@ or deviation.
 - `packages/cli`: the `bench` CLI (`src/index.ts` dispatch, `commands.ts`, `service.ts`,
   `workspace.ts`, `oneshot.ts`). The entry point is `pnpm bench …`.
 - `packages/reference-driver`: the internal house driver. It must never be copied into `ddk/`.
-- `docs/design/` and `packages/ui`: the design system. Read `docs/design/README.md` before UI work; tokens are
-  `packages/ui/tokens.json` (`make tokens` after editing), entries (code, colour slot, provider body) come from
-  `resolveEntries`, and the redesign follows `docs/design/PLAN-replay-viewer.md` (D25).
+- `packages/ui`: the design system (D25). Tokens are `tokens.json` (`make tokens` after editing), the styles
+  `components.css` (class prefix `gp-`), the React components `src/react` (presentational, shared with the
+  video), and entries (code, colour slot, provider body) come from `resolveEntries`. Rules for UI work: values
+  come from tokens, never a hex in a component; a car is identified by its entry, never by `car.color`; what
+  viewers see is what was timed (constraint 2), so ghosts, labels and panels explain overlaps and nothing moves
+  a car; logic goes in tested pure modules, not in components. The visual reference is the owner's design
+  canvas on claude.ai.
 - `apps/viewer`: Vite + R3F. It plays replays only and contains no physics. Pure logic lives in
   `src/lib` (tested), and the scene in `src/scene`. It serves `results/` at `/results/`, plus
   `/results/index.json` (the race list, built per request by `server/results-index.ts`). The car

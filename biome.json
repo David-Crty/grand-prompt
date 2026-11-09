@@ -11,8 +11,7 @@
       "!tracks/*.json",
       "!tracks/sources",
       "!**/*.gen.*",
-      "!**/*.md",
-      "!docs/design"
+      "!**/*.md"
     ]
   },
   "formatter": {

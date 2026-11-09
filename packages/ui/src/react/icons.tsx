@@ -1,6 +1,6 @@
 import type * as React from "react";
 
-/** The 16 px stroke icon set (docs/design/icons). Decorative unless a label is given. */
+/** The 16 px stroke icon set. Decorative unless a label is given. */
 export type IconName =
   | "play"
   | "pause"
