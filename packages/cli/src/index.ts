@@ -3,6 +3,7 @@ import {
   type EventConfig,
   eventPaths,
   leaderboard,
+  listTracks,
   practice,
   replayInfo,
   reproduceEvent,
@@ -33,12 +34,13 @@ export const USAGE = `bench <command> [options]
                                            one-shot submission via OpenRouter (OPENROUTER_API_KEY)
   leaderboard [results-dir]                aggregate event results (default: results/)
   replay <replay.json.gz>                  print replay header and classification
+  tracks                                   list the circuits in tracks/ (ids for --track)
   serve [--port P]                         practice service for agentic runs (keeps hidden params out of the workspace)
   workspace <dir> --model <slug> [--budget N] [--service-url U]
                                            create an isolated agentic workspace (DDK + practice client)
 
 common options:
-  --track <id|path>    track id in tracks/ or a JSON path (default proto-ring)
+  --track <id|path>    track id in tracks/ (see 'bench tracks') or a JSON path (default proto-ring)
   --car <path>         car config (default cars/proto.json)
   --seed <n>           seed (default 1)
   --info <A|B>         information level (default B: hidden constants not passed to drivers)
@@ -157,6 +159,9 @@ export async function run(argv: string[], out: (s: string) => void): Promise<num
     case "replay":
       need(1, "<replay>");
       out(replayInfo(rest[0]!).text);
+      return 0;
+    case "tracks":
+      out(listTracks().text);
       return 0;
     case "serve": {
       const s = await serve({ port: Number(values.port ?? 8787) });

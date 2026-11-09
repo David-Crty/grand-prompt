@@ -161,6 +161,26 @@ describe("qualify and race", () => {
     expect(readReplay(join(out, "plain.json")).header.stateHash).toBe(replay.header.stateHash);
     expect((await cli("replay", join(out, "replay.json.gz"))).out).toMatch(/hash/);
   });
+  it("lists the circuits and races on one picked by id", async () => {
+    const list = (await cli("tracks")).out;
+    for (const id of ["monaco", "portimao", "proto-ring", "silverstone"])
+      expect(list).toMatch(new RegExp(`^${id} `, "m"));
+    expect(list).toMatch(/Monaco\s+3\.\d{3} km/);
+    const out = join(root, "results/monaco");
+    const r = await cli(
+      "race",
+      join(root, "ddk/baseline-driver.js"),
+      "--track",
+      "monaco",
+      "--laps",
+      "1",
+      "--out",
+      out,
+    );
+    expect(r.out).toMatch(/RACE on monaco/);
+    expect(r.out).toMatch(/\[FINISHED\]/);
+    expect(readReplay(join(out, "replay.json.gz")).header.trackId).toBe("monaco");
+  });
   it("qualifies two copies of the same driver under distinct ids", async () => {
     const r = await cli(
       "qualify",

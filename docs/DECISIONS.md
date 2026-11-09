@@ -96,3 +96,25 @@ One entry per significant choice or deviation from PLAN.md: context, choice, con
 - Requested by the owner: a balance of unit and feature tests (real simulations), with a 90%
   minimum. Enforced in `vitest.config.ts` (lines, statements, functions and branches) over
   `packages/*/src` and the viewer's pure `src/lib`. The CLI entry shim `main.ts` is excluded.
+
+## D14. First real circuits: Monaco, Silverstone, Portimão (2026-11-09)
+- Choice: Silverstone comes from the TUMFTM racetrack-database (measured widths). TUMFTM has no
+  Monaco or Portimão, so those two come from their OpenStreetMap circuit relations (148194 and
+  7509968) with constant widths: 9 m for Monaco (OSM has no widths there, estimate), 14 m for
+  Portimão (OSM `width=14`). The raw extracts are committed in `tracks/sources/`, and
+  `scripts/import-tracks.ts` rebuilds the track files from them with the pure helpers in
+  `packages/sim/src/track/import.ts` (chain ways, project, smooth with a 3-4 m Gaussian,
+  resample at 5 m). Lengths land within 1% of the official ones.
+- OSM relations are not always clean: Monaco's has an 18 m gap at Massenet and a stub way there.
+  The importer bridges gaps up to 40 m; the two stub ways at that junction are excluded by id.
+- Approximations: Monaco's runoff is the 3 m minimum (barriers are right there), the others use
+  18 m of grass everywhere (no asphalt runoff surface yet). Sectors are lap thirds, not the
+  official splits. The sim is 2D, so no elevation (Monaco's climb, Portimão's crests).
+- Licensing: OSM-derived data is ODbL-1.0 (attribution, share-alike on the derived track files);
+  TUMFTM is LGPL-3.0. Both are recorded in each file's `license` field. Check them before the
+  repo or the track files are published.
+- Known gap: the house reference driver crashes on all three (it was only ever tuned on the
+  Prototype Ring). It starts on the centreline while the line can sit 6 m to one side at s = 0,
+  and it spins on corner exits where the speed profile runs ahead of the car. The DDK baseline
+  laps all three cleanly. Until the reference is fixed, `--reference` on these tracks gives a DNF
+  instead of a reference lap.

@@ -6,7 +6,9 @@
       "!**/node_modules",
       "!**/dist",
       "!results",
+      "!coverage",
       "!tracks/*.json",
+      "!tracks/sources",
       "!**/*.gen.*",
       "!**/*.md"
     ]

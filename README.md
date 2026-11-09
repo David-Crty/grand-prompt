@@ -1,13 +1,10 @@
 # F1 LLM Bench (working title)
 
-A motorsport benchmark for LLMs. Each model writes a driving program once; then every program
-races the same open-wheel car on the same circuit, in a deterministic simulator. Results are
-replayed in 3D. See [PLAN.md](PLAN.md) for the goals and [docs/DECISIONS.md](docs/DECISIONS.md)
-for what was decided along the way.
+A motorsport benchmark for LLMs. Each model writes a driving program once; then every program races the same open-wheel car on the same circuit, in a deterministic simulator. Results are replayed in 3D. See [PLAN.md](PLAN.md) for the goals and [docs/DECISIONS.md](docs/DECISIONS.md) for what was decided along the way.
 
 ## Quick start
 
-```bash
+```shellscript
 pnpm install
 pnpm bench validate ddk/baseline-driver.js
 pnpm bench practice ddk/baseline-driver.js --laps 3          # telemetry.csv, summary.json, replay
@@ -19,22 +16,22 @@ Run `pnpm bench --help` for every command.
 
 ## Layout
 
-| path | what |
-|---|---|
-| `packages/sim` | headless deterministic simulator: track model, vehicle physics, race control, replays |
-| `packages/sandbox` | QuickJS sandbox for untrusted driver code: deterministic compute budgets, no host APIs |
-| `packages/cli` | `bench`: validate, practice, qualify, race, events, leaderboard, practice service, one-shot runner |
-| `packages/reference-driver` | internal house driver (racing line + speed profile + pure pursuit); never in the DDK |
-| `apps/viewer` | 3D replay viewer (Vite + React Three Fiber) |
-| `ddk/` | Driver Development Kit: what an LLM receives (spec, types, baseline, prompts, practice client) |
-| `tracks/`, `cars/` | track and car data (`scripts/gen-proto-ring.ts` generates the Prototype Ring) |
-| `drivers/<event>/<model>/driver.js` | submissions |
-| `results/<event>/` | `event.json`, manifests, qualifying/race replays, `event-results.json` |
-| `docs/` | DECISIONS, PHYSICS, REPLAY_FORMAT, TRACK_FORMAT |
+| path                                | what                                                                                               |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `packages/sim`                      | headless deterministic simulator: track model, vehicle physics, race control, replays              |
+| `packages/sandbox`                  | QuickJS sandbox for untrusted driver code: deterministic compute budgets, no host APIs             |
+| `packages/cli`                      | `bench`: validate, practice, qualify, race, events, leaderboard, practice service, one-shot runner |
+| `packages/reference-driver`         | internal house driver (racing line + speed profile + pure pursuit); never in the DDK               |
+| `apps/viewer`                       | 3D replay viewer (Vite + React Three Fiber)                                                        |
+| `ddk/`                              | Driver Development Kit: what an LLM receives (spec, types, baseline, prompts, practice client)     |
+| `tracks/`, `cars/`                  | track and car data (`scripts/gen-proto-ring.ts` generates the Prototype Ring)                      |
+| `drivers/<event>/<model>/driver.js` | submissions                                                                                        |
+| `results/<event>/`                  | `event.json`, manifests, qualifying/race replays, `event-results.json`                             |
+| `docs/`                             | DECISIONS, PHYSICS, REPLAY_FORMAT, TRACK_FORMAT                                                    |
 
 ## Running a benchmark event
 
-```bash
+```shellscript
 # 1. the event config: results/<event>/event.json (see results/proto-gp-1/event.json)
 # 2. one-shot submissions through OpenRouter. ~/.config/op-env/openrouter.env holds
 #    OPENROUTER_API_KEY=op://<vault>/<item>/<field> (create it once)
@@ -56,7 +53,7 @@ pnpm bench leaderboard results
 
 ## Quality gates
 
-```bash
+```shellscript
 pnpm lint && pnpm typecheck
 pnpm coverage        # unit + feature tests; fails below 90% lines/branches/functions/statements
 pnpm determinism     # same race in two processes, same hash

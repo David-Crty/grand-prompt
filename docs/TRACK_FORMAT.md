@@ -36,7 +36,10 @@ The start/finish line is at the first point. Zones may wrap past the line (`from
 
 - Handmade: describe straights and corners in a script like `scripts/gen-proto-ring.ts`
   (`buildTrack` in `packages/sim/src/track/builder.ts`). Closure is solved automatically.
-- Real circuits (phase 4): TUMFTM CSVs (`x_m, y_m, w_tr_right_m, w_tr_left_m`) map directly to
-  `points`. Check the license before redistributing. Noisy centerlines may need smoothing before
-  the spline fit.
+- Real circuits: `scripts/import-tracks.ts` builds `monaco`, `silverstone` and `portimao` from
+  the raw extracts in `tracks/sources/` (see its README for provenance and licenses). TUMFTM
+  CSVs (`x_m, y_m, w_tr_right_m, w_tr_left_m`) map directly to `points`. OSM circuit relations
+  are chained into a ring, projected to metres around the start node, smoothed and resampled
+  (`packages/sim/src/track/import.ts`); OSM has no reliable widths, so those get a constant one.
+- List what is available: `pnpm bench tracks`; pick one with `--track <id>`.
 - Debug render: `pnpm tsx scripts/track-svg.ts tracks/<id>.json out.svg`.

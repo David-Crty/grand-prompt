@@ -4,6 +4,7 @@ export * from "./replay.js";
 export * from "./session.js";
 export * from "./telemetry.js";
 export * from "./track/builder.js";
+export * from "./track/import.js";
 export * from "./track/spline.js";
 export * from "./track/track.js";
 export * from "./types.js";

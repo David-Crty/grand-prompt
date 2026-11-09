@@ -589,3 +589,16 @@ export function replayInfo(path: string): CommandOutput {
   ];
   return { text: `${lines.join("\n")}\n` };
 }
+
+export function listTracks(): CommandOutput {
+  const dir = join(repoRoot(), "tracks");
+  const ids = readdirSync(dir)
+    .filter((f) => f.endsWith(".json"))
+    .map((f) => f.slice(0, -5))
+    .sort();
+  const lines = ids.map((id) => {
+    const t = loadTrack(id);
+    return `${id.padEnd(14)} ${t.name.padEnd(18)} ${(t.length / 1000).toFixed(3)} km`;
+  });
+  return { text: `${lines.join("\n")}\n` };
+}
