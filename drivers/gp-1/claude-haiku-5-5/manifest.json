@@ -2,15 +2,15 @@
   "model": "Claude Haiku 5.5",
   "provider": "anthropic",
   "mode": "agentic",
-  "promptVersion": "agentic-0.3",
-  "ddkVersion": "0.1.0",
-  "simVersion": "0.1.0",
+  "promptVersion": "agentic-0.5",
+  "ddkVersion": "0.4.0",
+  "simVersion": "0.2.0",
   "usage": {
-    "inputTokens": 509472,
-    "outputTokens": 12181,
-    "costUsd": 0.01722118,
-    "wallTimeS": 69,
-    "practiceRuns": 8
+    "inputTokens": 771761,
+    "outputTokens": 18171,
+    "costUsd": 0.02611521,
+    "wallTimeS": 92,
+    "practiceRuns": 9
   },
   "settings": {
     "modelId": "claude-haiku-5-5",
@@ -20,13 +20,12 @@
       "silverstone",
       "portimao"
     ],
-    "eventTrack": "barcelona",
     "sandbox": "bubblewrap",
     "timeLimitMin": 30,
+    "effort": "medium",
     "outcome": "ok",
     "driverSource": "driver.js",
-    "turns": 15,
-    "cliError": null,
-    "effort": "cli-default"
+    "turns": 19,
+    "cliError": null
   }
 }

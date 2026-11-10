@@ -2,13 +2,13 @@
   "model": "GPT-6.1 Sol",
   "provider": "openai",
   "mode": "agentic",
-  "promptVersion": "agentic-0.3",
-  "ddkVersion": "0.1.0",
-  "simVersion": "0.1.0",
+  "promptVersion": "agentic-0.5",
+  "ddkVersion": "0.4.0",
+  "simVersion": "0.2.0",
   "usage": {
-    "inputTokens": 1229880,
-    "outputTokens": 8785,
-    "wallTimeS": 347,
+    "inputTokens": 1354625,
+    "outputTokens": 13318,
+    "wallTimeS": 544,
     "practiceRuns": 10
   },
   "settings": {
@@ -19,13 +19,12 @@
       "silverstone",
       "portimao"
     ],
-    "eventTrack": "barcelona",
     "sandbox": "bubblewrap",
     "timeLimitMin": 30,
+    "effort": "medium",
     "outcome": "ok",
     "driverSource": "driver.js",
     "turns": 1,
-    "cliError": null,
-    "effort": "medium"
+    "cliError": null
   }
 }

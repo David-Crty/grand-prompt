@@ -1,81 +1,49 @@
-// Track-independent path planning and closed-loop control.
-let samples, path, vLimit, N, ds, length, wheelbase, maxSteer;
-const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
-function index(i) { return (i % N + N) % N; }
-function interpolate(s) {
-  const f = ((s % length + length) % length) / ds;
-  const i = Math.floor(f) % N, j = (i + 1) % N, a = f - Math.floor(f);
-  return {x:path[i].x*(1-a)+path[j].x*a, y:path[i].y*(1-a)+path[j].y*a};
+let p=[], N=0, ds=2, wb=3.6, ms=.35, line=[], vl=[], curv=[];
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+function interp(a,s){let u=((s/ds)%N+N)%N,i=Math.floor(u),f=u-i;return a[i]*(1-f)+a[(i+1)%N]*f;}
+export function init(track,car){
+ p=track.samples;N=p.length;ds=track.sampleSpacing;wb=car.wheelbase;ms=car.maxSteer;
+ const nx=p.map(q=>-Math.sin(q.heading)),ny=p.map(q=>Math.cos(q.heading));
+ const off=new Array(N).fill(0),x=p.map(q=>q.x),y=p.map(q=>q.y);
+ for(const h of [8,4,2,1]){
+  for(let it=0;it<Math.min(500,Math.floor(1500000/N));it++){
+   for(let j=0;j<N;j++){
+    let i=it%2?N-1-j:j,a=(i-h+N)%N,b=(i+h)%N,c=(i-2*h+N)%N,d=(i+2*h)%N;
+    let tx=(4*(x[a]+x[b])-x[c]-x[d])/6,ty=(4*(y[a]+y[b])-y[c]-y[d])/6;
+    const start=clamp(Math.min(p[i].s,track.length-p[i].s)/35,0,1);
+    let n=clamp((tx-p[i].x)*nx[i]+(ty-p[i].y)*ny[i],-Math.max(0,p[i].widthRight-1.8)*start,Math.max(0,p[i].widthLeft-1.8)*start);
+    n=off[i]+.7*(n-off[i]);off[i]=n;x[i]=p[i].x+nx[i]*n;y[i]=p[i].y+ny[i]*n;
+   }
+  }
+ }
+ line=x.map((v,i)=>({x:v,y:y[i]}));curv=[];
+ for(let i=0;i<N;i++){
+  let a=line[(i-2+N)%N],b=line[i],c=line[(i+2)%N];
+  let ux=b.x-a.x,uy=b.y-a.y,vx=c.x-b.x,vy=c.y-b.y;
+  curv[i]=2*(ux*vy-uy*vx)/Math.max(1e-9,Math.hypot(ux,uy)*Math.hypot(vx,vy)*Math.hypot(c.x-a.x,c.y-a.y));
+ }
+ vl=new Array(N);
+ for(let i=0;i<N;i++){
+  let k=0;for(let d=-3;d<=3;d++)k=Math.max(k,Math.abs(curv[(i+d+N)%N]));
+  vl[i]=Math.min(90,Math.sqrt(15.5/Math.max(k-.0025,.0001)));
+ }
+ for(let pass=0;pass<3;pass++)for(let i=N-1;i>=0;i--){let j=(i+1)%N,v=vl[j],dist=Math.hypot(x[j]-x[i],y[j]-y[i]);vl[i]=Math.min(vl[i],Math.sqrt(v*v+2*(12+.003*v*v)*dist));}
 }
-export function init(track, car) {
-  samples = track.samples; N = samples.length; ds = track.sampleSpacing; length = track.length;
-  wheelbase = car.wheelbase; maxSteer = car.maxSteer;
-  path = samples.map(p => ({x:p.x,y:p.y,n:0,nx:-Math.sin(p.heading),ny:Math.cos(p.heading)}));
-  // Minimize bending energy subject to a safe corridor. Multiscale relaxation
-  // resolves both long sweeping bends and short transitions without track IDs.
-  // Bound the initialization work even on unusually long circuits.
-  const levels = [16,8,4,2,1];
-  for (let level=0;level<levels.length;level++) {
-    const h=levels[level], passes=Math.ceil((level===4?700:250)*Math.min(1,3500/N));
-    for (let pass=0;pass<passes;pass++) {
-      for (let i=0;i<N;i++) {
-        const p=path[i], a=path[index(i-h)], b=path[index(i+h)], c=path[index(i-2*h)], d=path[index(i+2*h)];
-        const gx=4*(a.x+b.x)-6*p.x-c.x-d.x;
-        const gy=4*(a.y+b.y)-6*p.y-c.y-d.y;
-        const change=clamp(0.12*(gx*p.nx+gy*p.ny),-0.3,0.3);
-        const n=clamp(p.n+change,-Math.max(0,samples[i].widthRight-1.8),Math.max(0,samples[i].widthLeft-1.8));
-        p.n=n; p.x=samples[i].x+p.nx*n; p.y=samples[i].y+p.ny*n;
-      }
-    }
-  }
-  const curv=new Array(N), seg=new Array(N);
-  for(let i=0;i<N;i++) {
-    const a=path[index(i-2)],p=path[i],b=path[index(i+2)];
-    const ux=p.x-a.x,uy=p.y-a.y,vx=b.x-p.x,vy=b.y-p.y;
-    curv[i]=2*(ux*vy-uy*vx)/Math.max(0.01,Math.hypot(ux,uy)*Math.hypot(vx,vy)*Math.hypot(b.x-a.x,b.y-a.y));
-    const q=path[(i+1)%N]; seg[i]=Math.hypot(q.x-p.x,q.y-p.y);
-  }
-  // Downforce raises the lateral acceleration envelope with speed squared.
-  vLimit=new Array(N);
-  const w=Math.max(1,Math.round(6/ds));
-  for(let i=0;i<N;i++) {
-    let k=0;
-    for(let j=-w;j<=w;j++) k=Math.max(k,Math.abs(curv[index(i+j)]));
-    vLimit[i]=Math.min(95,Math.sqrt(17.5/Math.max(k-0.0035,1e-6)));
-  }
-  // Plan braking backward along the actual path, reserving grip for turning.
-  for(let pass=0;pass<3;pass++) for(let i=N-1;i>=0;i--) {
-    const next=vLimit[(i+1)%N];
-    const lateral=next*next*Math.max(Math.abs(curv[i]),Math.abs(curv[(i+1)%N]));
-    const use=clamp(lateral/(18+0.004*next*next),0,0.98);
-    const decel=(15+0.003*next*next)*Math.max(0.12,1-use*use);
-    vLimit[i]=Math.min(vLimit[i],Math.sqrt(next*next+2*decel*seg[i]));
-  }
-}
-export function step(t) {
-  const i=Math.floor(t.s/ds)%N;
-  const lookahead=Math.min(40,5.5+0.35*t.speed);
-  const target=interpolate(t.s+lookahead);
-  const dx=target.x-t.x,dy=target.y-t.y;
-  const alpha=Math.atan2(dy,dx)-t.yaw;
-  const dist=Math.hypot(dx,dy);
-  const steerAngle=Math.atan2(2*wheelbase*Math.sin(alpha),dist);
-  // Limit front slip and countersteer early if the rear starts to slide.
-  const frontAngle=Math.atan2(t.vy+wheelbase*0.55*t.yawRate,Math.max(1,t.vx));
-  const rearSlip=-Math.atan2(t.vy-wheelbase*0.45*t.yawRate,Math.max(1,t.vx));
-  const rearExcess=Math.sign(rearSlip)*Math.max(0,Math.abs(rearSlip)-0.075);
-  const corrected=steerAngle-0.6*rearExcess;
-  const safeAngle=t.speed>8?clamp(corrected,frontAngle-0.105,frontAngle+0.105):corrected;
-  const steer=clamp(safeAngle/maxSteer,-1,1);
-  // Preview actuator delay; share the available grip between both controls.
-  const vTarget=vLimit[(i+Math.round(t.speed*0.3/ds))%N];
-  const err=vTarget-t.speed;
-  const grip=18+0.004*t.speed*t.speed;
-  const use=Math.min(0.95,Math.abs(t.ay)/grip);
-  const throttleCap=Math.min(1,0.46+0.00017*t.speed*t.speed)*Math.sqrt(1-use*use);
-  const slipScale=clamp((0.12-Math.abs(rearSlip))/0.045,0,1);
-  const throttle=err>0?Math.min(throttleCap,0.2+err*0.4)*slipScale:0;
-  const brakeCap=Math.min(1,(0.4+0.00012*t.speed*t.speed)*Math.max(0.12,1-use*use));
-  const brake=err< -0.5?Math.min(brakeCap,-err*0.25)*slipScale:0;
-  return {throttle,brake,steer};
+export function step(t){
+ let look=6+.30*t.speed,u=((t.s+look)/ds)%N,i=Math.floor(u),f=u-i;
+ let a=line[i],b=line[(i+1)%N],dx=a.x+(b.x-a.x)*f-t.x,dy=a.y+(b.y-a.y)*f-t.y;
+ let alpha=Math.atan2(dy,dx)-t.yaw;
+ let steer=clamp(Math.atan2(2*wb*Math.sin(alpha),Math.hypot(dx,dy))/ms,-1,1);
+ let target=interp(vl,t.s+.28*t.speed),err=target-t.speed;
+ let lat=Math.max(Math.abs(t.ay),t.speed*t.speed*Math.abs(interp(curv,t.s+6)));
+ let fraction=clamp(lat/(18+.004*t.speed*t.speed),0,1);
+ let cap=Math.min(1,Math.max(.28,t.speed/55),(.50+.00012*t.speed*t.speed)*Math.sqrt(1-fraction*fraction));
+ let signedSlip=Math.atan2(t.vy-t.yawRate*wb*.45,Math.max(3,t.vx));
+ let rearSlip=Math.abs(signedSlip);
+ if(t.vx>20)steer=clamp(steer+Math.sign(signedSlip)*Math.max(0,rearSlip-.045)/ms,-1,1);
+ cap*=clamp((.075-rearSlip)/.035,0,1);
+ let throttle=err>0?Math.min(cap,.16+.4*err):0;
+ let brake=err<-.35?Math.min(.85,-err*.24):0;
+ if(t.vx>20)brake*=clamp((.12-rearSlip)/.065,.2,1);
+ return {throttle,brake,steer};
 }

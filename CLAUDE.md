@@ -21,9 +21,9 @@ this file is for working on it.
 ## Status
 - Done: sim, sandbox, DDK, practice service, sandboxed agentic builds, races, viewer (desktop and
   phone) with the race list and the drivers' standings.
-- `gp-1` (8 Claude and GPT models) was built for an older, standing-start session at each CLI's
-  default effort; its drivers still load and run, and `pnpm determinism` uses them.
-- Not done: a build at a fixed effort; Gemini ids in `models.json` (the Gemini CLI is not
+- `gp-1`: 9 Claude and GPT models, built for the flying-lap session at medium effort
+  (`agentic-0.5`); `pnpm determinism` uses its drivers.
+- Not done: Gemini ids in `models.json` (the Gemini CLI is not
   installed here); the video export (Remotion); wheel-to-wheel racing (shared world, collisions,
   a new API season).
 - Known: runoff clipping (`clipRunoffByProximity` in `track.ts`) only looks

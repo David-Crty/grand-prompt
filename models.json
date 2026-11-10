@@ -14,9 +14,16 @@
       "color": "lime"
     },
     {
+      "id": "claude-fable-5-2",
+      "name": "Claude Fable 5.2",
+      "code": "F52",
+      "provider": "anthropic",
+      "color": "periwinkle"
+    },
+    {
       "id": "claude-fable-5-1",
       "name": "Claude Fable 5.1",
-      "code": "FAB",
+      "code": "F51",
       "provider": "anthropic",
       "color": "blush"
     },

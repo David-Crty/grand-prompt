@@ -1,15 +1,19 @@
-// v2: speed profile with tunable grip/brake limits, pure pursuit steering, progressive throttle.
-
+// v3: speed-dependent lateral budget (downforce), higher braking budget, reactive friction-circle throttle.
 let samples = [];
 let N = 0;
 let ds = 2;
 let wheelbase = 3.6;
 let maxSteer = 0.35;
 let vLimit = [];
+let kAbs = [];
 
-const LAT_ACCEL = 16; // m/s^2 corner limit (conservative until tuned from telemetry)
-const BRAKE_DECEL = 17; // m/s^2 braking limit used in the backward pass
-const MAX_SPEED = 90; // m/s
+const AY0 = 9.5;       // m/s^2 lateral budget at low speed
+const AY_V2 = 0.004;   // extra lateral budget per (m/s)^2 (downforce)
+const AX_BRAKE = 15;   // m/s^2 braking budget
+const MAX_SPEED = 90;  // m/s
+
+const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
+const ayMax = (v) => AY0 + AY_V2 * v * v;
 
 export function init(track, car) {
   samples = track.samples;
@@ -18,55 +22,64 @@ export function init(track, car) {
   wheelbase = car.wheelbase;
   maxSteer = car.maxSteer;
 
-  // Corner speed from the worst curvature within +-8 m.
-  const w = Math.max(1, Math.round(8 / ds));
-  const vCorner = new Array(N);
+  kAbs = new Array(N);
+  const w = Math.max(1, Math.round(6 / ds));
   for (let i = 0; i < N; i++) {
     let k = 0;
-    for (let d = -w; d <= w; d++) {
-      const c = Math.abs(samples[(i + d + N) % N].curvature);
-      if (c > k) k = c;
-    }
-    vCorner[i] = Math.min(MAX_SPEED, Math.sqrt(LAT_ACCEL / Math.max(k, 1e-6)));
+    for (let d = -w; d <= w; d++) k = Math.max(k, Math.abs(samples[(i + d + N) % N].curvature));
+    kAbs[i] = k;
   }
-
-  // Backward pass: v_i <= sqrt(v_{i+1}^2 + 2 a ds), run twice to wrap around the loop.
-  vLimit = vCorner.slice();
-  for (let pass = 0; pass < 2; pass++) {
+  // Solve k v^2 = AY0 + AY_V2 v^2 for v.
+  vLimit = new Array(N);
+  for (let i = 0; i < N; i++) {
+    const k = Math.max(kAbs[i], 1e-6);
+    let v = k > AY_V2 ? Math.sqrt(AY0 / (k - AY_V2)) : MAX_SPEED;
+    vLimit[i] = Math.min(MAX_SPEED, v);
+  }
+  for (let pass = 0; pass < 3; pass++) {
     for (let i = N - 1; i >= 0; i--) {
       const next = vLimit[(i + 1) % N];
-      const cand = Math.sqrt(next * next + 2 * BRAKE_DECEL * ds);
-      if (cand < vLimit[i]) vLimit[i] = cand;
+      vLimit[i] = Math.min(vLimit[i], Math.sqrt(next * next + 2 * AX_BRAKE * ds));
     }
   }
 }
 
 export function step(t) {
   const i = Math.floor(t.s / ds) % N;
+  const v = t.speed;
 
-  // Pure pursuit: aim at a centerline point ahead of the car.
-  const lookahead = Math.min(35, 7 + 0.3 * t.speed);
-  const target = samples[(i + Math.round(lookahead / ds)) % N];
+  // Steering: pure pursuit with a speed-scaled lookahead.
+  const L = clamp(8 + 0.35 * v, 8, 40);
+  const target = samples[(i + Math.round(L / ds)) % N];
   const dx = target.x - t.x;
   const dy = target.y - t.y;
   const alpha = Math.atan2(dy, dx) - t.yaw;
-  const dist = Math.hypot(dx, dy);
+  const dist = Math.hypot(dx, dy) || 1;
   const steerAngle = Math.atan2(2 * wheelbase * Math.sin(alpha), dist);
-  const steer = Math.max(-1, Math.min(1, steerAngle / maxSteer));
+  const steer = clamp(steerAngle / maxSteer, -1, 1);
 
-  // Speed target: look ahead by about 0.3 s to cover actuator lag.
-  const vTarget = vLimit[(i + Math.round((t.speed * 0.3) / ds)) % N];
-  const err = vTarget - t.speed;
+  // Speed target: look ahead by the actuator/brake lag.
+  const ahead = Math.round(clamp(v * 0.25, 0, 60) / ds);
+  let vT = vLimit[(i + ahead) % N];
+  if (t.surface !== "track") vT = Math.min(vT, 0.7 * v);
+  const err = vT - v;
 
-  // Throttle: traction-limited at low speed and while turning hard.
-  const latUse = Math.min(1, Math.abs(t.ay) / LAT_ACCEL);
-  const throttleCap = Math.min(1, Math.max(0.35, t.speed / 40)) * (1 - 0.4 * Math.abs(steer)) * Math.max(0.15, 1 - latUse * latUse);
   let throttle = 0;
   let brake = 0;
-  if (err > 0.5) {
-    throttle = Math.min(throttleCap, 0.3 + err * 0.3);
-  } else if (err < -1.5) {
-    brake = Math.min(1, -err * 0.15);
+  const slipping = v > 12 && (Math.abs(t.vy) > 2.5 || Math.abs(t.headingError) > 0.25);
+  if (err < 0) {
+    brake = clamp(-err * 0.35 + 0.05, 0, 1);
+  } else if (!slipping) {
+    // Friction circle: longitudinal budget left after the lateral demand (predicted and measured).
+    const lat = ayMax(v);
+    const latReq = Math.max(v * v * kAbs[i], Math.abs(t.ay));
+    const latFrac = clamp(latReq / lat, 0, 1);
+    const cap = Math.sqrt(Math.max(0, 1 - latFrac * latFrac));
+    const lowCap = v < 20 ? 0.45 : 1;
+    throttle = clamp(Math.min(0.35 + err * 0.3, cap, lowCap), 0, 1);
+    if (v < 3) throttle = Math.max(throttle, 0.3); // never sit still
+  } else {
+    brake = 0.1;
   }
 
   return { throttle, brake, steer };

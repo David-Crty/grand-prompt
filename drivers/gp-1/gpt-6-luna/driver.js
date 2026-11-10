@@ -8,9 +8,9 @@ let wheelbase = 3.6;
 let maxSteer = 0.35;
 let vLimit = [];
 
-const LATERAL_ACCEL = 14.5; // m/s^2, deliberately conservative (ignores downforce)
-const BRAKE_DECEL = 15; // m/s^2
-const MAX_SPEED = 100; // m/s
+const LATERAL_ACCEL = 18; // m/s^2, deliberately conservative (ignores downforce)
+const BRAKE_DECEL = 12; // m/s^2
+const MAX_SPEED = 80; // m/s
 
 export function init(track, car) {
   samples = track.samples;
@@ -55,7 +55,10 @@ export function step(t) {
   const vTarget = vLimit[(i + Math.round((t.speed * 0.3) / ds)) % N];
   const err = vTarget - t.speed;
   // Full throttle at low speed spins the rear wheels (traction limited), so cap it by speed and steering.
-  const throttleCap = Math.min(1, Math.max(0.3, t.speed / 55)) * (1 - 0.5 * Math.abs(steer));
+  const k = Math.abs(samples[i].curvature);
+  const latDemand = t.speed * t.speed * k;
+  const gripHeadroom = Math.sqrt(Math.max(0.04, 1 - Math.min(0.96, (latDemand / 15) ** 2)));
+  const throttleCap = Math.min(1, Math.max(0.25, t.speed / 55)) * (1 - 0.5 * Math.abs(steer)) * gripHeadroom;
   const throttle = err > 0 ? Math.min(throttleCap, 0.2 + err * 0.4) : 0;
   const brake = err < -0.5 ? Math.min(1, -err * 0.25) : 0;
 
