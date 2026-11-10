@@ -42,7 +42,7 @@ describe("buildOptions", () => {
     });
   });
   it("rejects bad input", () => {
-    expect(() => buildOptions(undefined, {}, "m")).toThrow(/missing <name>/);
+    expect(() => buildOptions(undefined, {}, "m")).toThrow(/missing <event>/);
     expect(() => buildOptions("Bad_Name", {}, "m")).toThrow(/lowercase/);
     expect(() => buildOptions("x", { timeout: "0" }, "m")).toThrow(/number/);
   });

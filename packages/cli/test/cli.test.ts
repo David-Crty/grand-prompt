@@ -69,7 +69,7 @@ describe("argument handling", () => {
     await expect(cli("frobnicate")).rejects.toThrow(/unknown command/);
     await expect(cli("practice")).rejects.toThrow(/missing <driver>/);
     await expect(cli("validate", "x.js", "--seed", "abc")).rejects.toThrow(/--seed is a number/);
-    await expect(cli("build")).rejects.toThrow(/missing <name>/);
+    await expect(cli("build")).rejects.toThrow(/missing <event>/);
     await expect(cli("race")).rejects.toThrow(/missing <event>/);
     await expect(cli("reproduce")).rejects.toThrow(/missing <event>/);
     await expect(cli("workspace", "/tmp/nope")).rejects.toThrow(/--event/);

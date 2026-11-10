@@ -25,7 +25,7 @@ tracks
 drivers
   validate <driver>              load, init and run 10 s; errors, budget use and timings
   practice <driver>              one flying lap with telemetry.csv, summary.json and a replay
-  build <name>                   one driver per model in models.json, each by its own CLI in a sandbox
+  build <event>                  one driver per model in models.json, each by its own CLI in a sandbox
       --practice-tracks <a,b,c>  practice circuits (default monaco,silverstone,portimao)
       --budget <n>               practice runs per model, shared across circuits (default 10)
       --jobs <n>                 models built at once (default all)
@@ -44,7 +44,7 @@ races (one flying lap of an event's drivers, replayed together)
 
 practice service (what build runs for each model)
   serve [--port n]               the service that runs practice laps outside the workspace (default 8787)
-  workspace <dir> --event <name> --model <slug> --track <a,b,c> [--budget n] [--service-url url]
+  workspace <dir> --event <event> --model <slug> --track <a,b,c> [--budget n] [--service-url url]
                                  practice runs go to results/agentic/<event>/<model>/
 
 options
@@ -126,7 +126,7 @@ export async function run(argv: string[], out: (s: string) => void): Promise<num
     }
     case "workspace": {
       need(1, "<dir>");
-      if (!values.event) throw new Error("workspace: --event <name> is required");
+      if (!values.event) throw new Error("workspace: --event <event> is required");
       if (!values.model) throw new Error("workspace: --model <slug> is required");
       const w = createWorkspace(rest[0]!, {
         event: values.event,

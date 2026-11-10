@@ -10,7 +10,7 @@ export const CLIS: Cli[] = ["claude", "codex", "agy"];
 export const EFFORTS = ["low", "medium", "high", "xhigh", "max"];
 
 export interface BuildOptions {
-  /** The event: drivers go to drivers/<name>/, logs to results/builds/<name>/. */
+  /** The event: drivers go to drivers/<event>/, logs to results/builds/<event>/. */
   name: string;
   practice: string[];
   /** Practice runs per model, shared across circuits (default: the workspace default). */
@@ -48,7 +48,7 @@ export function buildOptions(
   v: Record<string, string | boolean | undefined>,
   defaultModels: string,
 ): BuildOptions {
-  if (!name) throw new Error("build: missing <name>");
+  if (!name) throw new Error("build: missing <event>");
   if (!/^[a-z0-9][a-z0-9-]*$/.test(name))
     throw new Error(`name must be lowercase letters, digits and dashes: '${name}'`);
   const str = (k: string) => (typeof v[k] === "string" ? (v[k] as string) : undefined);
