@@ -1,0 +1,31 @@
+{
+  "model": "Gemini 4 Argon",
+  "provider": "google",
+  "mode": "agentic",
+  "promptVersion": "agentic-0.5",
+  "driverDevelopmentKitVersion": "0.4.0",
+  "simVersion": "0.2.0",
+  "usage": {
+    "inputTokens": 7653893,
+    "cachedInputTokens": 7381225,
+    "outputTokens": 87752,
+    "wallTimeS": 1692,
+    "practiceRuns": 7
+  },
+  "settings": {
+    "modelId": "gemini-4-argon",
+    "cli": "agy",
+    "practiceTracks": [
+      "monaco",
+      "silverstone",
+      "portimao"
+    ],
+    "sandbox": "bubblewrap",
+    "timeLimitMin": 30,
+    "effort": "medium",
+    "outcome": "ok",
+    "driverSource": "driver.js",
+    "turns": 1,
+    "cliError": null
+  }
+}

@@ -21,11 +21,10 @@ this file is for working on it.
 ## Status
 - Done: sim, sandbox, driver development kit, practice service, sandboxed agentic builds, races,
   viewer (desktop and phone) with the race list and the drivers' standings.
-- `gp-1`: 9 Claude and GPT models, built for the flying-lap session at medium effort
-  (`agentic-0.5`); `pnpm determinism` uses its drivers.
-- Not done: a Gemini build (`models.json` lists Gemini 4 Argon and 3.8 Flash, built through
-  Antigravity's `agy`; no event has them yet); the video export (Remotion); wheel-to-wheel
-  racing (shared world, collisions, a new API season).
+- `gp-1`: 11 Claude, GPT and Gemini models (Gemini built through Antigravity's `agy`), built for
+  the flying-lap session at medium effort (`agentic-0.5`); `pnpm determinism` uses its drivers.
+- Not done: the video export (Remotion); wheel-to-wheel racing (shared world, collisions, a new
+  API season).
 - Known: runoff clipping (`clipRunoffByProximity` in `track.ts`) only looks
   `maxRunoff + 2·maxWidth + 5` m around a sample, so sections slightly farther apart can keep
   overlapping runoff. Fixing it changes results (golden hashes, `SIM_VERSION`).
