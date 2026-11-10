@@ -43,8 +43,8 @@ The model never touches the controls during the race.
    Its entry is the `driver.js` it leaves behind or, if time runs out mid-edit, its newest driver
    that completed a clean practice lap.
 
-2. **Race.** Every driver then races on all five circuits, including two it never practised on:
-   Barcelona and a handmade test circuit. Each is handed the circuit's geometry and runs alone on
+2. **Race.** Every driver then races on all six circuits, including three it never practised on:
+   Barcelona, Spa and a handmade test circuit. Each is handed the circuit's geometry and runs alone on
    track (ghost mode), in a QuickJS sandbox with the same compute budget: a flying start, then one
    timed lap. Any moment off track deletes the lap, hitting a barrier fast is a crash, and sector
    checkpoints rule out cutting the track or driving backwards.

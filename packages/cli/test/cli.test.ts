@@ -141,7 +141,7 @@ describe("practice", () => {
 describe("tracks import", () => {
   it("rebuilds the committed circuits byte for byte from tracks/sources/", async () => {
     const r = await cli("tracks", "import");
-    for (const id of ["monaco", "portimao", "silverstone", "barcelona"]) {
+    for (const id of ["monaco", "portimao", "silverstone", "barcelona", "spa"]) {
       expect(r.out).toMatch(new RegExp(`^${id}: \\d+ points, \\d+ m`, "m"));
       expect(readFileSync(join(root, `tracks/${id}.json`), "utf8")).toBe(
         readFileSync(join(repo, `tracks/${id}.json`), "utf8"),

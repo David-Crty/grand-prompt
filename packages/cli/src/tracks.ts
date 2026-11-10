@@ -105,6 +105,13 @@ export const TRACK_SOURCES: TrackSource[] = [
     source: "TUMFTM racetrack-database tracks/Catalunya.csv",
     meta: { id: "barcelona", name: "Barcelona", sectors: thirds, runoff: grass18 },
   },
+  {
+    kind: "tumftm",
+    file: "tumftm-spa.csv",
+    license: TUMFTM_LICENSE,
+    source: "TUMFTM racetrack-database tracks/Spa.csv",
+    meta: { id: "spa", name: "Spa", sectors: thirds, runoff: grass18 },
+  },
 ];
 
 function fromOsm(o: OsmSource & { meta: TrackSource["meta"] }, text: string): TrackFile {
