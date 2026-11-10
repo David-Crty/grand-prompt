@@ -564,30 +564,39 @@
   position: relative;
   display: inline-flex;
 }
-.gp-dd__btn {
+.gp-dd__btn,
+.gp-dd__item {
   all: unset;
   box-sizing: border-box;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  height: 36px;
-  padding: 0 10px 0 12px;
-  border-radius: var(--radius-2);
-  box-shadow: inset 0 0 0 1px var(--line-control);
-  color: var(--text-100);
-  font-size: 13px;
+  white-space: nowrap;
+  font: 600 13px / 1 var(--font-sans);
+}
+.gp-dd--caps .gp-dd__btn,
+.gp-dd--caps .gp-dd__item {
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   font-variation-settings: "wdth" 85;
-  white-space: nowrap;
+}
+.gp-dd__btn {
+  gap: 8px;
+  height: 32px;
+  padding: 0 8px 0 8px;
+  border-radius: var(--radius-2);
+  box-shadow: inset 0 0 0 1px var(--line-control);
+  color: var(--text-100);
 }
 .gp-dd__btn:hover,
 .gp-dd__btn[aria-expanded="true"] {
   background: var(--surface-300);
 }
-.gp-dd__value {
+.gp-dd__btn:focus-visible {
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+.gp-dd--caps .gp-dd__value {
   min-width: 4.5em;
 }
 .gp-dd__caret {
@@ -595,9 +604,7 @@
   color: var(--text-300);
   transform: rotate(180deg);
 }
-.gp-dd--up .gp-dd__caret {
-  transform: none;
-}
+.gp-dd--up .gp-dd__caret,
 .gp-dd__btn[aria-expanded="true"] .gp-dd__caret {
   transform: none;
 }
@@ -610,33 +617,29 @@
   right: 0;
   z-index: 5;
   min-width: 100%;
+  max-height: 60vh;
+  overflow-y: auto;
   padding: 4px;
   display: flex;
   flex-direction: column;
   gap: 2px;
   box-shadow: var(--shadow-overlay);
 }
+.gp-dd--start .gp-dd__list {
+  right: auto;
+  left: 0;
+}
 .gp-dd--up .gp-dd__list {
   top: auto;
   bottom: calc(100% + 6px);
 }
 .gp-dd__item {
-  all: unset;
-  box-sizing: border-box;
-  cursor: pointer;
   display: flex;
-  align-items: center;
   gap: 10px;
-  height: 36px;
-  padding: 0 10px;
+  height: 34px;
+  padding: 0 8px;
   border-radius: 3px;
   color: var(--text-200);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  font-variation-settings: "wdth" 85;
-  white-space: nowrap;
 }
 .gp-dd__item:hover,
 .gp-dd__item:focus-visible {
@@ -649,14 +652,24 @@
 .gp-dd__label {
   flex: 1;
 }
+.gp-dd__detail {
+  margin-left: 12px;
+  font-weight: 400;
+  color: var(--text-300);
+  font-variant-numeric: tabular-nums;
+}
+.gp-dd__check {
+  display: inline-flex;
+  width: 16px;
+}
 .gp-dd--touch .gp-dd__btn {
   height: var(--size-hit);
-  padding: 0 12px 0 14px;
+  padding: 0 12px;
   font-size: 14px;
 }
 .gp-dd--touch .gp-dd__item {
   height: var(--size-hit);
-  padding: 0 14px;
+  padding: 0 12px;
   font-size: 14px;
   min-width: 168px;
 }
@@ -1777,33 +1790,6 @@ fieldset.gp-seg {
 .gp-scroll {
   overflow-x: auto;
   min-width: 0;
-}
-.gp-pick {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 4px 0 7px;
-  border: 1px solid var(--line-200);
-  border-radius: var(--radius-2);
-  background: var(--surface-200);
-}
-.gp-pick select {
-  appearance: none;
-  background: transparent;
-  color: var(--text-100);
-  border: 0;
-  font: 600 13px / 1 var(--font-sans);
-  padding: 0 6px 0 0;
-  cursor: pointer;
-  max-width: 260px;
-}
-.gp-pick select option {
-  background: var(--surface-200);
-  color: var(--text-100);
-}
-.gp-pick:focus-within {
-  box-shadow: 0 0 0 2px var(--focus-ring);
 }
 .gp-ctable {
   width: 100%;

@@ -245,11 +245,17 @@ export interface DropdownOption<T extends string> {
   value: T;
   label: string;
   icon?: IconName;
+  /** Drawn in place of an icon, in the list and on the button when this option is the current one. */
+  lead?: React.ReactNode;
+  /** Secondary text at the end of the option's row in the list. */
+  detail?: string;
 }
 
 /**
- * One-of-n behind a button showing `icon` and the current choice; the list opens above it (`up`, for a dock at the
- * bottom of the screen) or below. A click outside or Escape closes it, arrows move between the choices.
+ * One-of-n behind a button showing `icon` (or the current choice's `lead`) and the current choice; the list opens
+ * above it (`up`, for a dock at the bottom of the screen) or below. A click outside or Escape closes it, arrows
+ * move between the choices; it lines up with the button's right edge, or its left with `align="start"`. `caps`
+ * sets the labels as the segmented control does.
  */
 export function Dropdown<T extends string>({
   options,
@@ -259,6 +265,8 @@ export function Dropdown<T extends string>({
   icon,
   size = "m",
   placement = "down",
+  align = "end",
+  caps = false,
 }: {
   options: DropdownOption<T>[];
   value: T;
@@ -267,6 +275,8 @@ export function Dropdown<T extends string>({
   icon?: IconName;
   size?: "m" | "touch";
   placement?: "up" | "down";
+  align?: "start" | "end";
+  caps?: boolean;
 }) {
   const [open, setOpen] = React.useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
@@ -288,7 +298,13 @@ export function Dropdown<T extends string>({
   };
   return (
     <div
-      className={cx("gp-dd", size === "touch" && "gp-dd--touch", placement === "up" && "gp-dd--up")}
+      className={cx(
+        "gp-dd",
+        size === "touch" && "gp-dd--touch",
+        placement === "up" && "gp-dd--up",
+        align === "start" && "gp-dd--start",
+        caps && "gp-dd--caps",
+      )}
       ref={ref}
     >
       <button
@@ -301,7 +317,7 @@ export function Dropdown<T extends string>({
         title={label}
         onClick={() => setOpen((v) => !v)}
       >
-        {icon ? <Icon name={icon} size={size === "touch" ? 20 : 16} /> : null}
+        {icon ? <Icon name={icon} size={size === "touch" ? 20 : 16} /> : current?.lead}
         <span className="gp-dd__value">{current?.label}</span>
         <span className="gp-dd__caret">
           <Icon name="up" />
@@ -328,9 +344,10 @@ export function Dropdown<T extends string>({
                 btn.current?.focus();
               }}
             >
-              {o.icon ? <Icon name={o.icon} /> : null}
+              {o.icon ? <Icon name={o.icon} /> : o.lead}
               <span className="gp-dd__label">{o.label}</span>
-              {o.value === value ? <Icon name="check" /> : null}
+              {o.detail ? <span className="gp-dd__detail">{o.detail}</span> : null}
+              <span className="gp-dd__check">{o.value === value ? <Icon name="check" /> : null}</span>
             </button>
           ))}
         </div>

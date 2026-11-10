@@ -168,6 +168,7 @@ export function PhoneHud({
           <Dropdown<CameraMode>
             size="touch"
             placement="up"
+            caps
             label="Camera"
             icon="camera"
             value={mode}

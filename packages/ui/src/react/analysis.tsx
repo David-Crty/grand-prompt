@@ -1,33 +1,40 @@
 import type * as React from "react";
 import { type Entry, entryVar } from "../entries.js";
-import { cx, EntryChip } from "./primitives.js";
+import { cx, Dropdown, EntryChip } from "./primitives.js";
 
 const MINUS = "−";
 const signed = (v: number, d = 2) => `${v < 0 ? MINUS : "+"}${Math.abs(v).toFixed(d)}`;
 
-/** A timed lap to pick in the analysis: the chip, then a native select of the entries. */
+/** A timed lap to pick in the analysis: the entry's chip and name, its lap time in the list. */
 export function EntrySelect({
   label,
   value,
   options,
   onChange,
+  size = "m",
+  align = "end",
 }: {
   label: string;
   value: Entry;
-  options: { entry: Entry; text: string }[];
+  options: { entry: Entry; detail?: string }[];
   onChange: (id: string) => void;
+  size?: "m" | "touch";
+  align?: "start" | "end";
 }) {
   return (
-    <label className="gp-pick">
-      <EntryChip entry={value} />
-      <select aria-label={label} value={value.id} onChange={(e) => onChange(e.target.value)}>
-        {options.map((o) => (
-          <option key={o.entry.id} value={o.entry.id}>
-            {o.text}
-          </option>
-        ))}
-      </select>
-    </label>
+    <Dropdown
+      label={label}
+      size={size}
+      align={align}
+      value={value.id}
+      onChange={onChange}
+      options={options.map((o) => ({
+        value: o.entry.id,
+        label: o.entry.name,
+        lead: <EntryChip entry={o.entry} />,
+        detail: o.detail,
+      }))}
+    />
   );
 }
 

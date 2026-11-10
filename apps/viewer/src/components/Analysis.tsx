@@ -153,7 +153,7 @@ export function Analysis({
   const option = (id: string, onPole: boolean) => {
     const p = data.profiles.find((x) => x.id === id)!;
     const e = model.entries.get(id)!;
-    return { entry: e, text: `${e.name}${onPole ? " · pole" : ""} · ${formatLapTime(p.time)}` };
+    return { entry: e, detail: `${onPole ? "pole · " : ""}${formatLapTime(p.time)}` };
   };
   const ids = data.profiles.map((p) => p.id);
   const pickCar = (id: string) => {
@@ -176,6 +176,8 @@ export function Analysis({
     <div className="analysis__pair-pick">
       <EntrySelect
         label="Car"
+        size={sheet ? "touch" : "m"}
+        align={sheet ? "start" : "end"}
         value={car}
         options={ids.map((id, i) => option(id, i === 0))}
         onChange={pickCar}
@@ -183,6 +185,8 @@ export function Analysis({
       <span className="analysis__vs">vs</span>
       <EntrySelect
         label="Reference"
+        size={sheet ? "touch" : "m"}
+        align={sheet ? "start" : "end"}
         value={ref}
         options={ids.filter((id) => id !== car.id).map((id) => option(id, id === ids[0]))}
         onChange={setRefPick}
