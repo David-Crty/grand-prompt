@@ -1167,17 +1167,104 @@
   color: var(--timing-fastest);
   font-weight: 700;
 }
-.gp-table__groups th {
-  height: auto;
-  padding-top: 4px;
-  padding-bottom: 2px;
-  border-bottom: 0;
-}
-.gp-table .gp-table__group {
-  border-left: 1px solid var(--line-200);
-}
 .gp-table__why {
   color: var(--text-300);
+}
+.gp-facts {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--text-200);
+  font-variation-settings: "wdth" 82;
+  font-variant-numeric: tabular-nums;
+}
+.gp-fact {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.gp-table .gp-fact--cost {
+  min-width: 64px;
+}
+.gp-table .gp-fact--tokens {
+  min-width: 64px;
+}
+.gp-table .gp-fact--buildTime {
+  min-width: 56px;
+}
+.gp-fact__icon {
+  color: var(--text-300);
+  flex: none;
+}
+.gp-th-help {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.gp-pop {
+  position: relative;
+  display: inline-flex;
+}
+.gp-pop__btn {
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-300);
+  cursor: pointer;
+}
+.gp-pop__btn:hover,
+.gp-pop__btn[aria-expanded="true"] {
+  color: var(--text-100);
+}
+.gp-pop__body {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: -8px;
+  z-index: 5;
+  width: 320px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: normal;
+  color: var(--text-200);
+  box-shadow: var(--shadow-overlay);
+}
+.gp-pop__body p {
+  margin: 0 0 8px;
+}
+.gp-factshelp {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.gp-factshelp li {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+}
+.gp-factshelp .gp-fact__icon {
+  margin-top: 2px;
+}
+.gp-factshelp b {
+  color: var(--text-100);
+  font-weight: 600;
+}
+.gp-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 .gp-table--dense td {
   height: 34px;

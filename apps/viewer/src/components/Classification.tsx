@@ -1,5 +1,5 @@
 import { formatLapTime } from "@bench/ui";
-import { ClassificationTable, type ClassRow, IconButton, ResultList } from "@bench/ui/react";
+import { BuildFactsHelp, ClassificationTable, type ClassRow, IconButton, ResultList } from "@bench/ui/react";
 import { useMemo } from "react";
 import prices from "../../../../prices.json";
 import type { ViewerModel } from "../lib/model.js";
@@ -36,19 +36,22 @@ export function useClassification(model: ViewerModel, results: EventResults | nu
     });
     const limit = results?.rows.find((r) => r.manifest?.settings?.timeLimitMin)?.manifest?.settings
       ?.timeLimitMin;
-    const notes = ["Purple: the fastest lap and the fastest time in each sector. Off-track deletes the lap."];
-    if (rows.some((r) => r.build?.cost?.estimated))
-      notes.push(
-        "≈ est.: estimated from tokens × list price (prices.json, not cache-adjusted, so an upper bound).",
-      );
-    if (rows.some((r) => r.build && !r.build.cost)) notes.push("Cost –: no price is known for that model.");
-    if (rows.some((r) => r.build))
-      notes.push(`Build = wall time of the agentic build${limit ? `, ${limit} min limit` : ""}.`);
+    const help = {
+      cost: "as the model's CLI reported it, or estimated from tokens × list price (marked est, an upper bound). Blank when no price is known for the model.",
+      tokens: "input and output tokens the model used.",
+      buildTime: `wall time of the session${limit ? `, out of a ${limit} min limit` : ""}.`,
+    };
+    const lap = "Purple: the fastest lap and the fastest time in each sector. Off-track deletes the lap.";
+    const full = rows.some((r) => r.build);
     return {
       rows: view,
-      full: rows.some((r) => r.build),
+      full,
       sectors: model.replay.track.sectors.length + 1,
-      foot: notes.join(" "),
+      help,
+      foot: lap,
+      phoneFoot: full
+        ? `${lap} Cost: ${help.cost} Tokens: ${help.tokens} Build time: ${help.buildTime}`
+        : lap,
     };
   }, [model, results]);
 }
@@ -75,7 +78,7 @@ export function Classification({
           <h2 className="gp-x">Result</h2>
         </div>
         <ResultList rows={c.rows} showBuild={c.full} />
-        <p className="gp-table__foot">{c.foot}</p>
+        <p className="gp-table__foot">{c.phoneFoot}</p>
       </div>
     );
   return (
@@ -89,7 +92,12 @@ export function Classification({
           <IconButton icon="cross" label="Close (C)" onClick={onClose} />
         </div>
         <div className="classif__body">
-          <ClassificationTable rows={c.rows} columns={c.full ? "full" : "lap"} sectors={c.sectors} />
+          <ClassificationTable
+            rows={c.rows}
+            columns={c.full ? "full" : "lap"}
+            sectors={c.sectors}
+            buildHelp={<BuildFactsHelp {...c.help} />}
+          />
           <p className="gp-table__foot">{c.foot}</p>
           {pole?.lapTime != null ? (
             <span className="sr-only">

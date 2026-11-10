@@ -1,6 +1,8 @@
+import { CircleDollarSign, Cpu, Timer } from "lucide-react";
+import type * as React from "react";
 import type { Entry } from "../entries.js";
 import { formatGap, formatLapTime } from "../format.js";
-import { EntryChip, EntryName, PositionBox, StatusBadge } from "./primitives.js";
+import { EntryChip, EntryName, Popover, PositionBox, StatusBadge } from "./primitives.js";
 
 export interface ClassRow {
   entry: Entry;
@@ -44,18 +46,80 @@ function NoTime({ row }: { row: ClassRow }) {
   );
 }
 
+const FACTS = [
+  { key: "cost", label: "Cost", Icon: CircleDollarSign },
+  { key: "tokens", label: "Tokens", Icon: Cpu },
+  { key: "buildTime", label: "Build time", Icon: Timer },
+] as const;
+
 /**
- * The final classification: the lap and its sectors on track, then, with `full`, what each driver program cost to
- * build. A car without a time shows why in place of its lap time.
+ * What a driver program cost to build, one icon per value: cost, tokens, build time. Each value keeps its slot
+ * when it is missing, so the values line up from row to row.
+ */
+export function BuildFacts({ build }: { build: NonNullable<ClassRow["build"]> }) {
+  return (
+    <span className="gp-facts">
+      {FACTS.map(({ key, label, Icon: I }) => {
+        const v = key === "cost" ? build.cost ? <Cost cost={build.cost} /> : null : build[key];
+        return (
+          <span key={key} className={`gp-fact gp-fact--${key}`} title={label}>
+            {v != null ? (
+              <>
+                <I size={14} aria-hidden className="gp-fact__icon" />
+                <span className="gp-visually-hidden">{label}: </span>
+                {v}
+              </>
+            ) : null}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
+/** What the driver build column holds, for its "?" popover: one line per value, with its icon. */
+export function BuildFactsHelp({
+  cost,
+  tokens,
+  buildTime,
+}: {
+  cost: string;
+  tokens: string;
+  buildTime: string;
+}) {
+  const text = { cost, tokens, buildTime };
+  return (
+    <>
+      <p>What it took the model to write this driver program, in one agentic session in a sandbox.</p>
+      <ul className="gp-factshelp">
+        {FACTS.map(({ key, label, Icon: I }) => (
+          <li key={key}>
+            <I size={14} aria-hidden className="gp-fact__icon" />
+            <span>
+              <b>{label}</b> {text[key]}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+/**
+ * The final classification: the driver program and, with `full`, what it took to build, then the lap and its
+ * sectors. A car without a time shows why in place of its lap time.
  */
 export function ClassificationTable({
   rows,
   columns,
   sectors = 3,
+  buildHelp,
 }: {
   rows: ClassRow[];
   columns: "lap" | "full";
   sectors?: number;
+  /** The driver build column's "?" popover. */
+  buildHelp?: React.ReactNode;
 }) {
   const full = columns === "full";
   const names = Array.from({ length: sectors }, (_, k) => `S${k + 1}`);
@@ -63,18 +127,17 @@ export function ClassificationTable({
     <div className="gp-table__wrap">
       <table className="gp-table">
         <thead>
-          {full ? (
-            <tr className="gp-table__groups">
-              <th colSpan={2} />
-              <th colSpan={2 + sectors}>On track</th>
-              <th colSpan={3} className="gp-table__group">
-                The build
-              </th>
-            </tr>
-          ) : null}
           <tr>
             <th>Pos</th>
             <th>Driver program</th>
+            {full ? (
+              <th>
+                <span className="gp-th-help">
+                  Driver build
+                  {buildHelp ? <Popover label="What the driver build is">{buildHelp}</Popover> : null}
+                </span>
+              </th>
+            ) : null}
             <th className="n">Lap time</th>
             <th className="n">Gap</th>
             {names.map((n) => (
@@ -82,13 +145,6 @@ export function ClassificationTable({
                 {n}
               </th>
             ))}
-            {full ? (
-              <>
-                <th className="n gp-table__group">Cost</th>
-                <th className="n">Tokens</th>
-                <th className="n">Build</th>
-              </>
-            ) : null}
           </tr>
         </thead>
         <tbody>
@@ -102,8 +158,9 @@ export function ClassificationTable({
                 )}
               </td>
               <td>
-                <EntryName entry={r.entry} meta />
+                <EntryName entry={r.entry} />
               </td>
+              {full ? <td>{r.build ? <BuildFacts build={r.build} /> : null}</td> : null}
               {r.lapTime != null ? (
                 <>
                   <td className={`n${r.position === 1 ? " is-fastest" : ""}`}>{formatLapTime(r.lapTime)}</td>
@@ -122,15 +179,6 @@ export function ClassificationTable({
                   <NoTime row={r} /> <span className="gp-faint gp-outtext">{r.outText}</span>
                 </td>
               )}
-              {full ? (
-                <>
-                  <td className="n gp-table__group">
-                    <Cost cost={r.build?.cost ?? null} />
-                  </td>
-                  <td className="n">{r.build?.tokens ?? dash}</td>
-                  <td className="n">{r.build?.buildTime ?? dash}</td>
-                </>
-              ) : null}
             </tr>
           ))}
         </tbody>
@@ -165,14 +213,7 @@ export function ResultList({ rows, showBuild }: { rows: ClassRow[]; showBuild: b
             ) : (
               <span>{r.position === 1 ? "Pole" : formatLapTime(r.lapTime)}</span>
             )}
-            {showBuild && r.build ? (
-              <>
-                <span>
-                  <Cost cost={r.build.cost} />
-                </span>
-                <span>{r.build.tokens} tok</span>
-              </>
-            ) : null}
+            {showBuild && r.build ? <BuildFacts build={r.build} /> : null}
           </div>
         </div>
       ))}

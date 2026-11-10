@@ -1,4 +1,4 @@
-import type * as React from "react";
+import * as React from "react";
 import { type Entry, entryVar, PROVIDER_LABEL } from "../entries.js";
 import { Icon, type IconName, LogoMark } from "./icons.js";
 
@@ -187,5 +187,50 @@ export function SegmentedControl<T extends string>({
         </button>
       ))}
     </fieldset>
+  );
+}
+
+/**
+ * A "?" button that opens a short explanation under it; a click outside or Escape closes it (Escape goes no
+ * further, so it does not also close the panel around it).
+ */
+export function Popover({ label, children }: { label: string; children: React.ReactNode }) {
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef<HTMLSpanElement>(null);
+  React.useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      setOpen(false);
+    };
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("keydown", onKey, true);
+    };
+  }, [open]);
+  return (
+    <span className="gp-pop" ref={ref}>
+      <button
+        type="button"
+        className="gp-pop__btn"
+        aria-label={label}
+        aria-expanded={open}
+        title={label}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <Icon name="help" />
+      </button>
+      {open ? (
+        <span className="gp-pop__body gp-panel gp-panel--solid" role="dialog" aria-label={label}>
+          {children}
+        </span>
+      ) : null}
+    </span>
   );
 }
