@@ -1,13 +1,11 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { parseRoster } from "@bench/ui";
 
-export type Provider = "claude" | "codex" | "gemini";
+/** The coding CLIs a build can drive; `models.json` names one per provider. */
+export type Cli = "claude" | "codex" | "gemini";
 
-export const PROVIDERS: Record<Provider, { cli: string; org: string }> = {
-  claude: { cli: "claude", org: "anthropic" },
-  codex: { cli: "codex", org: "openai" },
-  gemini: { cli: "gemini", org: "google" },
-};
+export const CLIS: Cli[] = ["claude", "codex", "gemini"];
 
 export const EFFORTS = ["low", "medium", "high", "xhigh", "max"];
 
@@ -21,7 +19,7 @@ export interface BuildOptions {
   jobs: number;
   /** Wall-time limit per model, minutes, stated in the prompt. */
   timeout: number;
-  /** Providers or model ids to build; empty is all. */
+  /** Providers, CLIs or model ids to build; empty is all. */
   only: string[];
   models: string;
   effort: string | undefined;
@@ -80,50 +78,37 @@ export function slugify(s: string): string {
 }
 
 export interface PlanEntry {
-  provider: Provider;
+  cli: Cli;
+  /** The provider's id in `models.json`. */
+  provider: string;
   id: string;
   name: string;
   effort: string;
   slug: string;
 }
 
-interface ModelList {
-  effort?: string;
-  [provider: string]: unknown;
-}
-
-/** One entry per wanted model; models whose CLI is missing go to `skipped`. */
+/** One entry per wanted model of the roster (`models.json`); models whose CLI is missing go to `skipped`. */
 export function planBuilds(
-  models: ModelList,
+  models: unknown,
   opts: Pick<BuildOptions, "only" | "effort">,
   hasCli: (cli: string) => boolean,
 ): { plan: PlanEntry[]; skipped: string[] } {
-  const fallback = opts.effort ?? models.effort ?? "medium";
+  const roster = parseRoster(models);
+  const fallback = opts.effort ?? roster.effort ?? "medium";
   if (!EFFORTS.includes(fallback)) throw new Error(`unknown effort '${fallback}' (${EFFORTS.join(", ")})`);
   const plan: PlanEntry[] = [];
   const skipped: string[] = [];
-  for (const [provider, list] of Object.entries(models)) {
-    if (!Array.isArray(list)) continue;
-    if (!(provider in PROVIDERS))
-      throw new Error(`unknown provider '${provider}' in the model list (claude, codex, gemini)`);
-    const { cli } = PROVIDERS[provider as Provider];
-    for (const m of list as { id: string; name?: string; effort?: string }[]) {
-      if (!m.id) continue;
-      if (opts.only.length && !opts.only.includes(provider) && !opts.only.includes(m.id)) continue;
-      if (!hasCli(cli)) {
-        skipped.push(`${m.id} (${cli} not installed)`);
-        continue;
-      }
-      const effort = opts.effort ?? m.effort ?? fallback;
-      if (!EFFORTS.includes(effort)) throw new Error(`${m.id}: unknown effort '${effort}'`);
-      plan.push({
-        provider: provider as Provider,
-        id: m.id,
-        name: m.name ?? m.id,
-        effort,
-        slug: slugify(m.id),
-      });
+  for (const m of roster.models) {
+    const cli = roster.providers[m.provider]!.cli as Cli;
+    if (!CLIS.includes(cli)) throw new Error(`${m.provider}: unknown cli '${cli}' (${CLIS.join(", ")})`);
+    if (opts.only.length && ![m.provider, cli, m.id].some((k) => opts.only.includes(k))) continue;
+    if (!hasCli(cli)) {
+      skipped.push(`${m.id} (${cli} not installed)`);
+      continue;
     }
+    const effort = opts.effort ?? m.effort ?? fallback;
+    if (!EFFORTS.includes(effort)) throw new Error(`${m.id}: unknown effort '${effort}'`);
+    plan.push({ cli, provider: m.provider, id: m.id, name: m.name, effort, slug: slugify(m.id) });
   }
   return { plan, skipped };
 }
@@ -178,8 +163,8 @@ export function sandboxArgs(ws: string, repo: string, home: string): string[] {
  * prompts off: nobody is there to answer them, and the bubblewrap sandbox is the boundary.
  * Claude and Codex stream JSON events, one per line, which feed the live view.
  */
-export function cliCmd(provider: Provider, model: string, effort: string, prompt: string): string[] {
-  switch (provider) {
+export function cliCmd(cli: Cli, model: string, effort: string, prompt: string): string[] {
+  switch (cli) {
     case "claude":
       return [
         "claude",
@@ -257,9 +242,9 @@ type Json = any;
 const sum = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) : null);
 
 /** Usage numbers from a CLI's machine-readable output; fields it does not report are null. */
-export function parseUsage(provider: Provider, text: string): Usage {
+export function parseUsage(cli: Cli, text: string): Usage {
   const events: Json[] = jsonLines(text);
-  if (provider === "claude") {
+  if (cli === "claude") {
     // stream-json ends with a "result" event; plain json is that event alone.
     const r = [...events].reverse().find((e) => e.type === "result" || (e.usage && !e.type));
     if (!r) return NO_USAGE;
@@ -273,7 +258,7 @@ export function parseUsage(provider: Provider, text: string): Usage {
       error: r.is_error ? (r.result ?? "error") : null,
     };
   }
-  if (provider === "codex") {
+  if (cli === "codex") {
     if (!events.length) return NO_USAGE;
     const turns = events.filter((e) => e.type === "turn.completed").map((e) => e.usage ?? {});
     return {
@@ -330,7 +315,7 @@ export function unwrapShell(cmd: string): string {
   return m ? m[1]!.replace(/'\\''/g, "'") : cmd;
 }
 
-export function parseActivity(provider: Provider, line: string): Activity[] {
+export function parseActivity(cli: Cli, line: string): Activity[] {
   let e: Json;
   try {
     e = JSON.parse(line);
@@ -338,7 +323,7 @@ export function parseActivity(provider: Provider, line: string): Activity[] {
     return [];
   }
   if (!e || typeof e !== "object") return [];
-  if (provider === "claude") {
+  if (cli === "claude") {
     if (e.type !== "assistant") return [];
     const out: Activity[] = [];
     for (const c of e.message?.content ?? []) {
@@ -348,7 +333,7 @@ export function parseActivity(provider: Provider, line: string): Activity[] {
     }
     return out;
   }
-  if (provider === "codex") {
+  if (cli === "codex") {
     const item = e.item ?? {};
     if (e.type === "item.started" && item.type === "command_execution")
       return [{ text: `$ ${firstLine(unwrapShell(item.command ?? ""))}`, tool: true }];
@@ -443,7 +428,7 @@ export function buildManifest(m: ManifestInput): Record<string, unknown> {
   );
   return {
     model: m.entry.name,
-    provider: PROVIDERS[m.entry.provider].org,
+    provider: m.entry.provider,
     mode: "agentic",
     promptVersion: m.promptVersion,
     ddkVersion: m.ddkVersion,
@@ -451,11 +436,11 @@ export function buildManifest(m: ManifestInput): Record<string, unknown> {
     usage,
     settings: {
       modelId: m.entry.id,
-      cli: m.entry.provider,
+      cli: m.entry.cli,
       practiceTracks: m.opts.practice,
       sandbox: "bubblewrap",
       timeLimitMin: m.opts.timeout,
-      effort: m.entry.provider === "gemini" ? null : m.entry.effort,
+      effort: m.entry.cli === "gemini" ? null : m.entry.effort,
       outcome: m.outcome,
       driverSource: m.source,
       turns: m.usage.turns,

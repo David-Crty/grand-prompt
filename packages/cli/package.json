@@ -12,6 +12,7 @@
   "dependencies": {
     "@bench/sandbox": "workspace:*",
     "@bench/sim": "workspace:*",
+    "@bench/ui": "workspace:*",
     "ink": "8.0.0",
     "react": "^19.3.1"
   },

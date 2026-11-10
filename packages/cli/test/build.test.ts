@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -94,26 +94,48 @@ describe("prompt and formatting", () => {
 describe("planBuilds", () => {
   const models = {
     effort: "medium",
-    claude: [
-      { id: "claude-a", name: "A" },
-      { id: "claude-b", effort: "high" },
+    providers: {
+      anthropic: { label: "Anthropic", cli: "claude", body: "clay" },
+      openai: { label: "OpenAI", cli: "codex", body: "silver" },
+    },
+    models: [
+      { id: "claude-a", name: "A", code: "AAA", provider: "anthropic", color: "blush" },
+      { id: "claude-b", name: "B", code: "BBB", provider: "anthropic", color: "lime", effort: "high" },
+      { id: "gpt-x", name: "X", code: "XXX", provider: "openai", color: "sky" },
     ],
-    codex: [{ id: "gpt-x" }],
-    gemini: [],
   };
   it("filters, resolves effort and skips missing CLIs", () => {
     const { plan, skipped } = planBuilds(models, { only: [], effort: undefined }, (c) => c !== "codex");
-    expect(plan.map((e) => [e.id, e.effort])).toEqual([
-      ["claude-a", "medium"],
-      ["claude-b", "high"],
+    expect(plan.map((e) => [e.id, e.cli, e.provider, e.effort])).toEqual([
+      ["claude-a", "claude", "anthropic", "medium"],
+      ["claude-b", "claude", "anthropic", "high"],
     ]);
     expect(skipped).toEqual(["gpt-x (codex not installed)"]);
     const forced = planBuilds(models, { only: ["claude-b"], effort: "low" }, () => true);
     expect(forced.plan.map((e) => e.effort)).toEqual(["low"]);
   });
-  it("rejects unknown providers and efforts", () => {
-    expect(() => planBuilds({ grok: [{ id: "g" }] }, { only: [], effort: undefined }, () => true)).toThrow();
+  it("picks models by provider, CLI or id", () => {
+    const ids = (only: string[]) =>
+      planBuilds(models, { only, effort: undefined }, () => true).plan.map((e) => e.id);
+    expect(ids(["openai"])).toEqual(["gpt-x"]);
+    expect(ids(["codex"])).toEqual(["gpt-x"]);
+    expect(ids(["anthropic", "gpt-x"])).toEqual(["claude-a", "claude-b", "gpt-x"]);
+  });
+  it("rejects an invalid roster, unknown CLIs and efforts", () => {
+    const none = { only: [], effort: undefined };
+    expect(() => planBuilds({ claude: [{ id: "g" }] }, none, () => true)).toThrow(/models.json/);
+    const grok = {
+      ...models,
+      providers: { ...models.providers, openai: { label: "x", cli: "grok", body: "pearl" } },
+    };
+    expect(() => planBuilds(grok, none, () => true)).toThrow(/unknown cli 'grok'/);
     expect(() => planBuilds(models, { only: [], effort: "turbo" }, () => true)).toThrow(/effort/);
+    const bad = { ...models, models: [{ ...models.models[0]!, effort: "turbo" }] };
+    expect(() => planBuilds(bad, none, () => true)).toThrow(/claude-a: unknown effort/);
+  });
+  it("reads the repo's models.json", () => {
+    const real = JSON.parse(readFileSync(join(import.meta.dirname, "../../../models.json"), "utf8"));
+    expect(planBuilds(real, { only: [], effort: undefined }, () => true).plan.length).toBeGreaterThan(0);
   });
 });
 
@@ -223,7 +245,14 @@ describe("outcome and manifest", () => {
   });
   it("drops missing usage fields but keeps settings nulls", () => {
     const m = buildManifest({
-      entry: { provider: "codex", id: "gpt-x", name: "GPT X", effort: "medium", slug: "gpt-x" },
+      entry: {
+        cli: "codex",
+        provider: "openai",
+        id: "gpt-x",
+        name: "GPT X",
+        effort: "medium",
+        slug: "gpt-x",
+      },
       opts: { practice: ["monaco"], timeout: 30 },
       promptVersion: "p",
       ddkVersion: "d",
@@ -235,6 +264,9 @@ describe("outcome and manifest", () => {
       usage: { inputTokens: 5, outputTokens: null, costUsd: null, turns: 1, error: null },
     });
     expect(m.usage).toEqual({ inputTokens: 5, wallTimeS: 12 });
-    expect(m).toMatchObject({ provider: "openai", settings: { effort: "medium", cliError: null, turns: 1 } });
+    expect(m).toMatchObject({
+      provider: "openai",
+      settings: { cli: "codex", effort: "medium", cliError: null, turns: 1 },
+    });
   });
 });

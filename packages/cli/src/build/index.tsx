@@ -15,7 +15,7 @@ import { render } from "ink";
 import { readJson, repoRoot, trackPath, writeJson } from "../load.js";
 import { trackIds } from "../tracks.js";
 import { createWorkspace } from "../workspace.js";
-import { type BuildOptions, cliCmd, PROVIDERS, planBuilds, promptVersion, sandboxArgs } from "./lib.js";
+import { type BuildOptions, type Cli, cliCmd, planBuilds, promptVersion, sandboxArgs } from "./lib.js";
 import { buildAll, type Context, children, makeWorkspace, practiceStatus, Store, stopAll } from "./run.js";
 import { App } from "./ui.js";
 
@@ -69,13 +69,12 @@ async function startService(
   return { label: `practice service ${url}`, child };
 }
 
-/** Checks the sandbox hides what it should and that each provider's CLI runs inside it. */
-function check(repo: string, opts: BuildOptions, providers: string[], wsRoot: string, url: string): number {
+/** Checks the sandbox hides what it should and that each CLI runs inside it. */
+function check(repo: string, opts: BuildOptions, clis: Cli[], wsRoot: string, url: string): number {
   let fail = 0;
-  for (const p of providers) {
-    const ws = join(wsRoot, `check-${p}`);
-    createWorkspace(ws, { model: `check-${p}`, serviceUrl: url, tracks: opts.practice, budget: 1 });
-    const cli = PROVIDERS[p as keyof typeof PROVIDERS].cli;
+  for (const cli of clis) {
+    const ws = join(wsRoot, `check-${cli}`);
+    createWorkspace(ws, { model: `check-${cli}`, serviceUrl: url, tracks: opts.practice, budget: 1 });
     const probe = `
       set -e
       [[ -z "$(ls -A "$1" 2>/dev/null)" ]] || { echo "repo visible"; exit 1; }
@@ -88,9 +87,9 @@ function check(repo: string, opts: BuildOptions, providers: string[], wsRoot: st
     const r = spawnSync("bwrap", [...sandboxArgs(ws, repo, HOME), "bash", "-c", probe, "_", repo, cli], {
       encoding: "utf8",
     });
-    if (r.status === 0) plainLog(`check ${p}: ok (repo hidden, practice service reachable, ${cli} runs)`);
+    if (r.status === 0) plainLog(`check ${cli}: ok (repo hidden, practice service reachable, ${cli} runs)`);
     else {
-      plainLog(`check ${p}: FAILED: ${`${r.stdout}${r.stderr}`.trim().split("\n").pop()}`);
+      plainLog(`check ${cli}: FAILED: ${`${r.stdout}${r.stderr}`.trim().split("\n").pop()}`);
       fail = 1;
     }
   }
@@ -124,12 +123,12 @@ export async function build(opts: BuildOptions): Promise<number> {
       `building ${plan.length} drivers into drivers/${opts.name}/ (practice on ${opts.practice.join(",")}), ` +
         `${jobs} at a time, ${opts.timeout} min each:`,
     );
-    for (const e of plan) console.log(`  ${e.provider}  ${e.id}  ${e.name}  ${e.effort}`);
+    for (const e of plan) console.log(`  ${e.cli}  ${e.id}  ${e.name}  ${e.effort}`);
   }
   const promptTemplate = readFileSync(join(repo, "ddk/PROMPT_LAUNCH.md"), "utf8").replace(/\n$/, "");
   if (opts.dryRun) {
     const e = plan[0]!;
-    const cmd = cliCmd(e.provider, e.id, e.effort, promptTemplate);
+    const cmd = cliCmd(e.cli, e.id, e.effort, promptTemplate);
     console.log("command for the first model, in its sandbox:");
     console.log(cmd.map((c) => (c === promptTemplate ? "<prompt>" : JSON.stringify(c))).join(" "));
     return 0;
@@ -151,7 +150,7 @@ export async function build(opts: BuildOptions): Promise<number> {
   if (opts.check) {
     try {
       service = (await startService(repo, opts.port, join(wsRoot, "serve.log"), plainLog)).child;
-      return check(repo, opts, [...new Set(plan.map((e) => e.provider))], wsRoot, url);
+      return check(repo, opts, [...new Set(plan.map((e) => e.cli))], wsRoot, url);
     } finally {
       cleanup();
     }

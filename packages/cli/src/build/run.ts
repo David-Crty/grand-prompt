@@ -175,11 +175,11 @@ export async function buildOne(ctx: Context, e: PlanEntry): Promise<void> {
   const prompt = fillPrompt(ctx.promptTemplate, opts.timeout, deadline);
   writeFileSync(join(logs, "prompt.txt"), `${prompt}\n`);
   store.update(e.slug, { state: "running", startedAt: start, deadline, activity: "starting" });
-  store.say(`${e.slug}: started (${e.provider}, effort ${e.effort}, until ${deadline})`);
+  store.say(`${e.slug}: started (${e.cli}, effort ${e.effort}, until ${deadline})`);
 
   const out = createWriteStream(join(logs, "output.json"));
   const err = openSync(join(logs, "stderr.txt"), "w");
-  const cmd = cliCmd(e.provider, e.id, e.effort, prompt);
+  const cmd = cliCmd(e.cli, e.id, e.effort, prompt);
   const child = spawn("bwrap", [...sandboxArgs(ws, ctx.repo, ctx.home), ...cmd], {
     stdio: ["ignore", "pipe", err],
     detached: true,
@@ -207,7 +207,7 @@ export async function buildOne(ctx: Context, e: PlanEntry): Promise<void> {
     const lines = buf.split("\n");
     buf = lines.pop()!;
     for (const line of lines) {
-      const acts = parseActivity(e.provider, line);
+      const acts = parseActivity(e.cli, line);
       if (!acts.length) continue;
       toolCalls += acts.filter((a) => a.tool).length;
       store.update(e.slug, { toolCalls, activity: acts[acts.length - 1]!.text });
@@ -244,7 +244,7 @@ export async function buildOne(ctx: Context, e: PlanEntry): Promise<void> {
   if (existsSync(driver)) cpSync(driver, join(logs, "driver.js"));
 
   const outcome = outcomeOf({ ...exit, timedOut }, constants.signals as Record<string, number>);
-  const usage = parseUsage(e.provider, readFileSync(join(logs, "output.json"), "utf8"));
+  const usage = parseUsage(e.cli, readFileSync(join(logs, "output.json"), "utf8"));
   const empty = !existsSync(driver) || readFileSync(driver).length === 0;
   if (empty || readFileSync(driver).equals(readFileSync(ctx.baseline))) {
     store.update(e.slug, { state: "no driver", outcome, usage, activity: "" });

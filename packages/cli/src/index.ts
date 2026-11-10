@@ -30,7 +30,7 @@ drivers
       --budget <n>               practice runs per model, shared across circuits (default 10)
       --jobs <n>                 models built at once (default all)
       --timeout <min>            wall-time limit per model, stated in its prompt (default 30)
-      --only <list>              providers or model ids to build
+      --only <list>              providers, CLIs or model ids to build
       --models <file>            model list (default models.json)
       --effort <level>           low, medium, high, xhigh or max for every model (default: models.json)
       --plain                    log lines instead of the live view

@@ -236,6 +236,9 @@ importers:
       '@bench/sim':
         specifier: workspace:*
         version: link:../sim
+      '@bench/ui':
+        specifier: workspace:*
+        version: link:../ui
       ink:
         specifier: 8.0.0
         version: 8.0.0(@types/react@19.3.0)(react@19.3.1)

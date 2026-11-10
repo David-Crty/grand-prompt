@@ -1,5 +1,5 @@
 import * as React from "react";
-import { type Entry, entryVar, PROVIDER_LABEL } from "../entries.js";
+import { type Entry, entryVar } from "../entries.js";
 import { Icon, type IconName, LogoMark } from "./icons.js";
 
 /** Inline style carrying the entry colour as `--entry`, which every `gp-` entry rule reads. */
@@ -37,7 +37,7 @@ export function EntryName({ entry, meta = false }: { entry: Entry; meta?: boolea
         {meta ? (
           <span className="gp-entry__meta">
             <span className="gp-body-swatch" style={{ background: entry.body }} />
-            {PROVIDER_LABEL[entry.provider]}
+            {entry.providerLabel}
           </span>
         ) : null}
       </span>

@@ -1,16 +1,66 @@
 {
   "effort": "medium",
-  "claude": [
-    { "id": "claude-opus-5-5", "name": "Claude Opus 5.5" },
-    { "id": "claude-fable-5-1", "name": "Claude Fable 5.1" },
-    { "id": "claude-sonnet-5-5", "name": "Claude Sonnet 5.5" },
-    { "id": "claude-haiku-5-5", "name": "Claude Haiku 5.5" }
-  ],
-  "codex": [
-    { "id": "gpt-6.1-sol", "name": "GPT-6.1 Sol" },
-    { "id": "gpt-6.1-terra", "name": "GPT-6.1 Terra" },
-    { "id": "gpt-6-astra", "name": "GPT-6 Astra" },
-    { "id": "gpt-6-luna", "name": "GPT-6 Luna" }
-  ],
-  "gemini": []
+  "providers": {
+    "anthropic": { "label": "Anthropic", "cli": "claude", "body": "clay" },
+    "openai": { "label": "OpenAI", "cli": "codex", "body": "silver" },
+    "google": { "label": "Google", "cli": "gemini", "body": "cobalt" }
+  },
+  "models": [
+    {
+      "id": "claude-opus-5-5",
+      "name": "Claude Opus 5.5",
+      "code": "OPU",
+      "provider": "anthropic",
+      "color": "lime"
+    },
+    {
+      "id": "claude-fable-5-1",
+      "name": "Claude Fable 5.1",
+      "code": "FAB",
+      "provider": "anthropic",
+      "color": "blush"
+    },
+    {
+      "id": "claude-sonnet-5-5",
+      "name": "Claude Sonnet 5.5",
+      "code": "SON",
+      "provider": "anthropic",
+      "color": "magenta"
+    },
+    {
+      "id": "claude-haiku-5-5",
+      "name": "Claude Haiku 5.5",
+      "code": "HAI",
+      "provider": "anthropic",
+      "color": "cobalt"
+    },
+    {
+      "id": "gpt-6.1-sol",
+      "name": "GPT-6.1 Sol",
+      "code": "SOL",
+      "provider": "openai",
+      "color": "mint"
+    },
+    {
+      "id": "gpt-6.1-terra",
+      "name": "GPT-6.1 Terra",
+      "code": "TER",
+      "provider": "openai",
+      "color": "jade"
+    },
+    {
+      "id": "gpt-6-astra",
+      "name": "GPT-6 Astra",
+      "code": "AST",
+      "provider": "openai",
+      "color": "sky"
+    },
+    {
+      "id": "gpt-6-luna",
+      "name": "GPT-6 Luna",
+      "code": "LUN",
+      "provider": "openai",
+      "color": "ochre"
+    }
+  ]
 }

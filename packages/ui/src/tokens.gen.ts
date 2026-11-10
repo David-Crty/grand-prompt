@@ -69,6 +69,7 @@ export const COLORS = {
   "map-track-edge": "#ffffff1f"
 } as const;
 export const ENTRY_COLORS = ["#fdaaaf","#4288fb","#c7fb2a","#f51c91","#61d4fd","#ac8715","#90fed6","#20c368","#95a3fc","#fc75b7","#fed98f","#e81ee9"] as const;
+export const ENTRY_COLOR_NAMES = ["blush","cobalt","lime","magenta","sky","ochre","mint","jade","periwinkle","rose","butter","fuchsia"] as const;
 export const VALUES = {
   "space-px": "2px",
   "space-1": "4px",

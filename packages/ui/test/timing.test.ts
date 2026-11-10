@@ -9,7 +9,6 @@ import {
   mergeMarkers,
   niceStep,
   niceTop,
-  PROVIDER_LABEL,
   pathOf,
   shares,
   spreadLabels,
@@ -72,7 +71,6 @@ describe("timing labels", () => {
     expect(entryVar({ slot: 12 })).toBe("var(--entry-12)");
     expect(entryVar({ slot: 0 })).toBe("var(--entry-none)");
     expect(entryVar(null)).toBe("var(--entry-none)");
-    expect(PROVIDER_LABEL.openai).toBe("OpenAI");
   });
 });
 

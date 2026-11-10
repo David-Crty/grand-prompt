@@ -46,7 +46,7 @@ this file is for working on it.
 - `packages/ui`: the design system shared by the viewer (and a future video). Tokens in
   `tokens.json` (`make tokens` regenerates `tokens.gen.*`), styles in `components.css` (prefix
   `gp-`), presentational React components in `src/react`, entries (code, colour slot, provider)
-  from `resolveEntries`.
+  from `resolveEntries`, filled from the roster `models.json` (`roster.ts`) for the models it lists.
 - `apps/viewer`: Vite + React Three Fiber. Pure logic in `src/lib` (tested), the 3D scene in
   `src/scene`, the HUD in `src/components`, the pages by path in `src/lib/route.ts` (`/`, `/drivers`,
   `/races/<id>`). The dev server serves `results/` at `/results/` and builds `/results/index.json`

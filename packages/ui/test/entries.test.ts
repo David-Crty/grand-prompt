@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveCode, entryMap, providerOf, resolveEntries, SLOT_COUNT } from "../src/entries.js";
+import { deriveCode, entryMap, resolveEntries, SLOT_COUNT } from "../src/entries.js";
 import { COLORS, ENTRY_COLORS } from "../src/tokens.gen.js";
 
 const gp1 = [
@@ -34,33 +34,28 @@ describe("deriveCode", () => {
   });
 });
 
-describe("providerOf", () => {
-  it.each([
-    ["claude-fable-5-1", "anthropic"],
-    ["gpt-6-astra", "openai"],
-    ["o3-mini", "openai"],
-    ["gemini-3-pro", "google"],
-    ["grok-5", "xai"],
-    ["devstral-2", "mistral"],
-    ["baseline", "other"],
-  ])("%s is %s", (id, p) => expect(providerOf(id)).toBe(p));
-});
-
 describe("resolveEntries", () => {
-  it("gives gp-1 slots in input order, codes, entry colours and provider bodies", () => {
+  it("gives entries without explicit identity slots in input order, derived codes and the neutral provider", () => {
     const e = resolveEntries(gp1);
     expect(e.map((x) => x.slot)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     expect(e[1]).toMatchObject({
       code: "FAB",
-      provider: "anthropic",
+      provider: "other",
+      providerLabel: "Other",
       color: ENTRY_COLORS[1],
-      body: COLORS["body-clay"],
+      body: COLORS["body-graphite"],
     });
-    expect(e[6]).toMatchObject({
-      code: "AST",
-      provider: "openai",
-      body: COLORS["body-silver"],
-    });
+  });
+
+  it("keeps reserved slots free for their owners", () => {
+    const e = resolveEntries(
+      [
+        { id: "a", name: "Alpha" },
+        { id: "b", name: "Bravo", slot: 2 },
+      ],
+      [1, 2, 3],
+    );
+    expect(e.map((x) => x.slot)).toEqual([4, 2]);
   });
 
   it("honours explicit free slots, then fills the lowest free ones", () => {
@@ -93,6 +88,12 @@ describe("resolveEntries", () => {
       { id: "q", name: "Pilot" },
     ]);
     expect(twins.map((x) => x.code)).toEqual(["PI1", "PI2"]);
+    const clash = resolveEntries([
+      { id: "a", name: "Claude Opus 6" },
+      { id: "b", name: "Roster Opus", code: "OPU" },
+      { id: "c", name: "Twin", code: "OPU" },
+    ]);
+    expect(clash.map((x) => x.code)).toEqual(["OP6", "OPU", "OP1"]);
   });
 
   it("runs out of slots past twelve", () => {

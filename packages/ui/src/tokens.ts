@@ -6,6 +6,8 @@
 
 export interface ColorToken {
   name: string;
+  /** The colour's name where people pick it (an entry colour in `models.json`). */
+  label?: string;
   value: string | Record<string, string>;
   usage?: string;
 }
@@ -125,13 +127,18 @@ export function toTs(tokens: TokenFile): string {
   const colors: Record<string, string> = {};
   for (const t of tokens.color.tokens) colors[t.name] = resolveColor(tokens, t.name);
   const entries: string[] = [];
-  for (let k = 1; colors[entryTokenName(k)] !== undefined; k++) entries.push(colors[entryTokenName(k)]!);
+  const labels: string[] = [];
+  for (let k = 1; colors[entryTokenName(k)] !== undefined; k++) {
+    entries.push(colors[entryTokenName(k)]!);
+    labels.push(tokens.color.tokens.find((t) => t.name === entryTokenName(k))?.label ?? entryTokenName(k));
+  }
   const values: Record<string, string> = {};
   for (const fam of PLAIN_FAMILIES) for (const t of plain(tokens, fam)) values[t.name] = t.value;
   const lines = [
     "// Generated from packages/ui/tokens.json by scripts/gen-tokens.ts. Do not edit.",
     `export const COLORS = ${JSON.stringify(colors, null, 2)} as const;`,
     `export const ENTRY_COLORS = ${JSON.stringify(entries)} as const;`,
+    `export const ENTRY_COLOR_NAMES = ${JSON.stringify(labels)} as const;`,
     `export const VALUES = ${JSON.stringify(values, null, 2)} as const;`,
     "export type ColorName = keyof typeof COLORS;",
     "",

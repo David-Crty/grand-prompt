@@ -31,16 +31,30 @@ circuit, put its extract in `tracks/sources/` and an entry in `TRACK_SOURCES`
 
 ## 2. Build drivers
 
-The models are listed in [models.json](models.json), by CLI:
+The models are listed in [models.json](models.json), the roster: everything that identifies a
+model, for the build and for the viewer alike. Each provider names the CLI that builds its models
+and its car body paint; each model has its name, a three-letter code and an entry colour of its own
+(the chip, trail and livery stripe), the same in every event:
 
 ```json
-{ "effort": "medium", "claude": [{ "id": "claude-opus-5-5", "name": "Claude Opus 5.5" }], "codex": [], "gemini": [] }
+{
+  "effort": "medium",
+  "providers": { "anthropic": { "label": "Anthropic", "cli": "claude", "body": "clay" } },
+  "models": [
+    { "id": "claude-opus-5-5", "name": "Claude Opus 5.5", "code": "OPU", "provider": "anthropic", "color": "lime" }
+  ]
+}
 ```
+
+Colours are names from the design tokens (`packages/ui/tokens.json`): `color` is the `label` of an
+`entry-*` token, unique in the roster, and `body` (on a provider, or on a model to override it) a
+`body-*` token without its prefix. A model may set its own `effort`. A car that is not on the
+roster still races, with a code from its name and a colour no roster model owns.
 
 ```shell
 pnpm bench build gp-2 --check          # sandbox, practice service and CLIs, no model run
 pnpm bench build gp-2                  # every model in parallel, with a live view
-pnpm bench build gp-2 --only codex     # one provider, or a model id
+pnpm bench build gp-2 --only codex     # a provider, a CLI or a model id
 ```
 
 Each model's CLI runs unattended in its own bubblewrap sandbox that sees only its workspace: the
