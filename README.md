@@ -61,7 +61,7 @@ come from OpenStreetMap and the TUMFTM racetrack database (see
 ## Status
 
 The current results come from `gp-1`: eleven Claude, GPT and Gemini models, each built once at
-medium effort. Next: wheel-to-wheel racing, with a shared track, collisions and a new driver API.
+medium effort.
 
 ## Run it yourself
 
