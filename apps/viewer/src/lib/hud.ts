@@ -64,11 +64,6 @@ export function fastestId(rows: StandingRow[]): string | null {
   return p1?.finished && !p1.deleted ? p1.id : null;
 }
 
-/** Under the track name: why the cars drive through each other. */
-export function ghostLine(cars: number): string {
-  return cars === 1 ? "1 car, driving alone" : `${cars} cars, each driving alone`;
-}
-
 /** Cars that crossed the finish line in the played span (from, to]. */
 export function crossedLine(cars: CarIndex[], from: number, to: number): string[] {
   return cars

@@ -101,8 +101,8 @@ export function TimingTower({
   onMode: (m: GapMode) => void;
   /** `sheet`: the phone's full tower, without the panel chrome and header. */
   layout?: "panel" | "sheet";
-  /** The panel's header: the way back to the race list, the circuit, and a line under it. */
-  head?: { track: string; sub: string; backHref?: string; backLabel?: string };
+  /** The panel's header: the way back to the race list and the circuit. */
+  head?: { track: string; backHref?: string; backLabel?: string };
   /** Below the footer: the minimap on desktop. */
   children?: React.ReactNode;
 }) {
@@ -143,7 +143,6 @@ export function TimingTower({
           ) : null}
           <div className="gp-tower__title">
             <span className="gp-session__name">{head.track}</span>
-            <span className="gp-session__sub">{head.sub}</span>
           </div>
           {final ? <span className="gp-tower__lap gp-c">FINAL</span> : null}
         </div>

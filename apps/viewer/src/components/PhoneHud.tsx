@@ -20,7 +20,6 @@ import {
   TimingTower,
   TowerStrip,
 } from "@bench/ui/react";
-import { ghostLine } from "../lib/hud.js";
 import type { Incident } from "../lib/incidents.js";
 import { TOAST_KIND } from "../lib/messages.js";
 import type { ViewerModel } from "../lib/model.js";
@@ -100,7 +99,6 @@ export function PhoneHud({
         backHref={backHref}
         backLabel={backLabel}
         track={model.replay.track.name}
-        sub={ghostLine(model.cars.length)}
         final={final}
         t={snap.t}
       />

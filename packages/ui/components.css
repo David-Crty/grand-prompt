@@ -704,11 +704,6 @@
   line-height: 18px;
   letter-spacing: 0.02em;
 }
-.gp-session__sub {
-  font-size: 12px;
-  color: var(--text-300);
-  line-height: 16px;
-}
 .gp-session__clock {
   font-variation-settings: "wdth" 75;
   font-weight: 700;

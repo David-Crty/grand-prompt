@@ -645,20 +645,17 @@ export function MiniMap({
 
 // ------------------------------------------------------------------ phone
 
-/** The phone's header bar: back, track, the ghost line, and the clock. */
+/** The phone's header bar: back, track and the clock. */
 export function SessionBar({
   backHref,
   backLabel,
   track,
-  sub,
   final = false,
   t,
 }: {
   backHref?: string;
   backLabel?: string;
   track: string;
-  /** "8 cars, each driving alone". */
-  sub: string;
   /** Every car has finished or retired. */
   final?: boolean;
   t: number;
@@ -676,7 +673,6 @@ export function SessionBar({
       ) : null}
       <div className="gp-bar__track">
         <span className="gp-session__name">{track}</span>
-        <span className="gp-session__sub">{sub}</span>
       </div>
       {final ? <span className="gp-c gp-bar__lap">FINAL</span> : null}
       <span className="gp-session__clock gp-c gp-bar__clock">{formatClock(t)}</span>

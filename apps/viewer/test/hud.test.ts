@@ -9,7 +9,6 @@ import {
   fastestId,
   finishers,
   focusAfter,
-  ghostLine,
   justOut,
   mapCars,
   mapPins,
@@ -167,12 +166,5 @@ describe("hud data", () => {
     expect(impactKmh(cars[0]!, 29.3)).toBe(106);
     const plain = indexReplay(makeReplay([makeCar(track, { id: "y", speed: 40 })], track));
     expect(impactKmh(plain[0]!, 29.3)).toBe(105);
-  });
-});
-
-describe("ghost line", () => {
-  it("says the cars drive alone", () => {
-    expect(ghostLine(8)).toBe("8 cars, each driving alone");
-    expect(ghostLine(1)).toBe("1 car, driving alone");
   });
 });

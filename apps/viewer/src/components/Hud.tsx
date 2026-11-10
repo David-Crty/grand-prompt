@@ -17,7 +17,7 @@ import {
 import { useMemo } from "react";
 import { sliderToZoom, TV_TILT, TV_TILT_MAX, TV_TILT_MIN, zoomToSlider } from "../lib/camera.js";
 import type { CarSample } from "../lib/frames.js";
-import { entriesOf, ghostLine, mapCars, mapPins } from "../lib/hud.js";
+import { entriesOf, mapCars, mapPins } from "../lib/hud.js";
 import { type Incident, impactText, incidentTitle, replayCountdown } from "../lib/incidents.js";
 import { type RaceMessage, TOAST_KIND } from "../lib/messages.js";
 import { buildMinimap } from "../lib/minimap.js";
@@ -80,7 +80,7 @@ export function Tower({
         justOut={snap.justOut}
         onFocus={onFocus}
         onMode={onMode}
-        head={{ track: model.replay.track.name, sub: ghostLine(model.cars.length), backHref, backLabel }}
+        head={{ track: model.replay.track.name, backHref, backLabel }}
       >
         <div className="hud-map">
           <MiniMap
