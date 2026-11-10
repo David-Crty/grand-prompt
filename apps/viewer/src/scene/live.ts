@@ -1,7 +1,7 @@
 import type * as THREE from "three";
 import type { Vec3 } from "../lib/coords.js";
 import type { CarSample } from "../lib/frames.js";
-import type { Pack } from "../lib/pack.js";
+import type { PackHold } from "../lib/pack.js";
 import type { CameraMode } from "../lib/params.js";
 import type { PlaybackClock } from "../lib/playback.js";
 import type { StandingRow } from "../lib/timing.js";
@@ -30,7 +30,9 @@ export interface LiveState {
   cars: (CarHandles | null)[];
   labels: (HTMLDivElement | null)[];
   /** The pack of overlapping cars drawn with a single label this frame. */
-  labelPack: (Pack & { others: string[] }) | null;
+  /** The cars under the pack label, if it is shown. */
+  labelPack: { others: string[] } | null;
+  packHold: PackHold | null;
   packLabel: HTMLDivElement | null;
   /** Height (px) of a bottom sheet the TV camera should frame the car above, or null. */
   insetBottom: number | null;

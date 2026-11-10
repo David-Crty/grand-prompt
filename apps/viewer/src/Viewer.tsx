@@ -71,6 +71,7 @@ export function Viewer({
       cars: [],
       labels: [],
       labelPack: null,
+      packHold: null,
       packLabel: null,
       insetBottom: null,
       cam: {

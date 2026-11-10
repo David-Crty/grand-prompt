@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { indexReplay, sampleCar } from "../src/lib/frames.js";
-import { carPlacement, findPacks, labelPack, type PackCar, packChips } from "../src/lib/pack.js";
+import {
+  carPlacement,
+  findPacks,
+  holdPack,
+  labelPack,
+  PACK_JOIN_HOLD,
+  PACK_LEAVE_HOLD,
+  type PackCar,
+  type PackHold,
+  packChips,
+} from "../src/lib/pack.js";
 import { makeCar, makeReplay, stadiumTrack } from "./fixtures.js";
 
 const car = (id: string, progress: number, o: Partial<PackCar> = {}): PackCar => ({
@@ -55,6 +65,48 @@ describe("packs", () => {
     expect(packChips(["b", "a"], () => "X", 9).ids).toEqual(["a", "b"]);
     expect(packChips([], code, 4)).toEqual({ ids: [], hidden: 0 });
     expect(labelPack(findPacks([car("a", 0), car("b", 1), car("c", 2)], 8.4), "a")).toBeNull();
+  });
+});
+
+describe("held pack label", () => {
+  const alive = new Set(["f", "a", "b", "c"]);
+  const step = 0.25;
+  const run = (raws: string[][], start: PackHold | null) => {
+    let h = start;
+    const seen: string[][] = [];
+    for (const raw of raws) {
+      h = holdPack(h, raw, "f", alive, step);
+      seen.push(h.ids);
+    }
+    return { h: h!, seen };
+  };
+
+  it("decides at once on a new focus or with no history", () => {
+    expect(holdPack(null, ["a", "b", "x"], "f", alive, step).ids).toEqual(["a", "b"]);
+    const other = { focusId: "z", ids: ["c"], wait: {} };
+    expect(holdPack(other, ["a"], "f", alive, step).ids).toEqual(["a"]);
+  });
+
+  it("lets cars join only after the join hold, and restarts it when they drift out", () => {
+    const start = { focusId: "f", ids: [], wait: {} };
+    const n = Math.ceil(PACK_JOIN_HOLD / step);
+    const { h, seen } = run(Array(n).fill(["a", "b", "c"]), start);
+    expect(seen.slice(0, -1).every((ids) => ids.length === 0)).toBe(true);
+    expect(h.ids).toEqual(["a", "b", "c"]);
+    expect(h.wait).toEqual({});
+    const flicker = run([["a"], [], ["a"], [], ["a"]], start);
+    expect(flicker.seen.every((ids) => ids.length === 0)).toBe(true);
+  });
+
+  it("keeps cars for the leave hold, but drops a stopped car and the focus at once", () => {
+    const start = { focusId: "f", ids: ["a", "b", "c"], wait: {} };
+    const n = Math.ceil(PACK_LEAVE_HOLD / step);
+    const { h, seen } = run(Array(n).fill([]), start);
+    expect(seen.slice(0, -1).every((ids) => ids.length === 3)).toBe(true);
+    expect(h.ids).toEqual([]);
+    const gone = holdPack(start, ["a", "b", "c"], "f", new Set(["a", "b"]), step);
+    expect(gone.ids).toEqual(["a", "b"]);
+    expect(holdPack({ ...start, ids: ["a", "f"] }, ["a"], "f", new Set(["a", "f"]), step).ids).toEqual(["a"]);
   });
 });
 

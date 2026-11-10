@@ -22,7 +22,7 @@ import { type Incident, impactText, incidentTitle, replayCountdown } from "../li
 import { type RaceMessage, TOAST_KIND } from "../lib/messages.js";
 import { buildMinimap } from "../lib/minimap.js";
 import type { ViewerModel } from "../lib/model.js";
-import { PACK_CHIPS, type Pack, packChips } from "../lib/pack.js";
+import { PACK_CHIPS, packChips } from "../lib/pack.js";
 import { SPEEDS } from "../lib/params.js";
 import type { StandingRow } from "../lib/timing.js";
 
@@ -40,7 +40,7 @@ export interface HudSnapshot {
   /** Cars that retired in the last few seconds, tinted on the tower. */
   justOut: Set<string>;
   /** The pack of ghost cars drawn with one label, if any. */
-  pack: (Pack & { others: string[] }) | null;
+  pack: { others: string[] } | null;
   fpsMs: number;
   stats: { jsMs: number; calls: number; tris: number };
 }

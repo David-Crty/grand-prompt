@@ -17,7 +17,7 @@ import { damp, dampAngle, type Vec3 } from "../lib/coords.js";
 import { sampleCar } from "../lib/frames.js";
 import { type LabelBox, stackLabels } from "../lib/labels.js";
 import type { ViewerModel } from "../lib/model.js";
-import { carPlacement, findPacks, labelPack, PACK_LENGTHS } from "../lib/pack.js";
+import { carPlacement, findPacks, holdPack, labelPack, PACK_LABEL_MIN, PACK_LENGTHS } from "../lib/pack.js";
 import { liveStandings } from "../lib/timing.js";
 import { trailRibbon } from "../lib/trail.js";
 import { TRAIL_POINTS } from "./Cars.js";
@@ -55,7 +55,8 @@ export function Driver({
     const cam = camera as THREE.PerspectiveCamera;
     const prevT = L.clock.t;
     const t = L.clock.advance(dt);
-    if (Math.abs(t - prevT) > Math.max(2, L.clock.speed * dt * 4)) L.cam.init = false;
+    const jumped = Math.abs(t - prevT) > Math.max(2, L.clock.speed * dt * 4);
+    if (jumped) L.cam.init = false;
     const wall = performance.now() / 1000;
 
     model.cars.forEach((c, k) => {
@@ -71,7 +72,11 @@ export function Driver({
       }),
       PACK_LENGTHS * model.replay.header.car.length,
     );
-    L.labelPack = mapMode ? null : labelPack(packs, L.focusId);
+    const alive = new Set(model.cars.flatMap((c, k) => (L.samples[k]!.ended ? [] : [c.car.id])));
+    L.packHold = mapMode
+      ? null
+      : holdPack(jumped ? null : L.packHold, labelPack(packs, L.focusId)?.others ?? [], L.focusId, alive, dt);
+    L.labelPack = L.packHold && L.packHold.ids.length >= PACK_LABEL_MIN ? { others: L.packHold.ids } : null;
 
     model.cars.forEach((c, k) => {
       const h = L.cars[k];
