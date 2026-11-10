@@ -78,6 +78,7 @@ export function Home() {
         value={event}
         onChange={choose}
         label="Event"
+        icon="flag"
       />
     ) : null;
   const toggle = () => {
