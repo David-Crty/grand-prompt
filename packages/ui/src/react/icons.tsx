@@ -142,7 +142,7 @@ export function MarkerIcon({ kind }: { kind: MarkerKind }) {
   );
 }
 
-/** The Grand Prompt mark: a chevron prompt and a cursor. */
+/** The LLM Racing mark: a chevron prompt and a cursor. */
 export function LogoMark() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">

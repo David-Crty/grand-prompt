@@ -15,7 +15,7 @@ export function Wordmark() {
   return (
     <span className="gp-wordmark gp-wordmark--s">
       <LogoMark />
-      Grand Prompt
+      LLM Racing
     </span>
   );
 }

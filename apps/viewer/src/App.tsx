@@ -41,7 +41,7 @@ export function App() {
   return (
     <div className="race-load">
       <div className="race-load__card panel">
-        <div className="brand">GRAND PROMPT</div>
+        <div className="brand">LLM RACING</div>
         {error ? <p className="error">{error}</p> : <p>Loading the race…</p>}
         <a className="race-load__back" href="/">
           <Icon name="back" />

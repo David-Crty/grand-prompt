@@ -1,4 +1,4 @@
-/* Grand Prompt components. Every value comes from tokens.gen.css (var(--…));
+/* LLM Racing components. Every value comes from tokens.gen.css (var(--…));
    nothing here redeclares a token. Class prefix gp-. The React components in src/react use these classes. */
 
 /* ---------- base ---------- */

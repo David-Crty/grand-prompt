@@ -14,7 +14,7 @@ checks that it reproduces the committed track files.
 The OSM files are raw Overpass API output, fetched on 2026-11-09:
 
 ```bash
-curl -A "grand-prompt-track-import/0.1" --data-urlencode \
+curl -A "llm-racing-track-import/0.1" --data-urlencode \
   'data=[out:json][timeout:60];relation(148194);out geom;' \
   https://overpass-api.de/api/interpreter > osm-monaco.json
 ```

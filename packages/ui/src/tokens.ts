@@ -1,5 +1,5 @@
 /**
- * The design tokens in `packages/ui/tokens.json` (copied from the Grand Prompt design system) are the one
+ * The design tokens in `packages/ui/tokens.json` (copied from the LLM Racing design system) are the one
  * source for colours, type, spacing and motion. This module reads them and generates the CSS custom
  * properties for the DOM and a typed module for three.js materials and Remotion. Pure: no file access.
  */

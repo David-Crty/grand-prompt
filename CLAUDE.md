@@ -1,4 +1,4 @@
-# Grand Prompt
+# LLM Racing
 
 LLMs each write a driving program once (`bench build`), practising on a few circuits, then all
 programs drive one flying lap in the same car on every circuit, the unpractised ones included, in
