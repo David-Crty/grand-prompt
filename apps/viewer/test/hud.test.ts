@@ -3,6 +3,7 @@ import { detectCorners, whereOnLap } from "../src/lib/corners.js";
 import { indexReplay, sampleCar } from "../src/lib/frames.js";
 import {
   crossedLine,
+  defaultFocus,
   entriesOf,
   FINISH_HOLD,
   fastestId,
@@ -101,6 +102,9 @@ describe("hud data", () => {
 
   it("sees who crossed the line while playing, and who to follow next", () => {
     const a = model.cars[0]!;
+    expect(defaultFocus(model.cars, model.duration)).toBe("a");
+    expect(defaultFocus([model.cars[2]!, model.cars[1]!, model.cars[0]!], model.duration)).toBe("a");
+    expect(defaultFocus([model.cars[2]!], model.duration)).toBe("c");
     expect(finishers(model.cars)).toEqual(["a", "b"]);
     expect(finishers([model.cars[1]!, a])).toEqual(["a", "b"]);
     expect(finishers([model.cars[2]!])).toEqual([]);

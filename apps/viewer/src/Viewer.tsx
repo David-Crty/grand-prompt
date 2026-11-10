@@ -19,7 +19,7 @@ import {
 import { INCIDENT_SHEET_PX, PhoneHud, type PhoneSheet } from "./components/PhoneHud.js";
 import { clampTilt, clampZoom, stepZoom, TV_TILT } from "./lib/camera.js";
 import { cycleSpeed, pinchFactor, swipeDir } from "./lib/gestures.js";
-import { crossedLine, fastestId, finishers, focusAfter, justOut } from "./lib/hud.js";
+import { crossedLine, defaultFocus, fastestId, finishers, focusAfter, justOut } from "./lib/hud.js";
 import type { Incident } from "./lib/incidents.js";
 import { visibleToasts } from "./lib/messages.js";
 import type { ViewerModel } from "./lib/model.js";
@@ -49,8 +49,10 @@ export function Viewer({
   results?: EventResults | null;
 }) {
   const lightRef = useRef<THREE.DirectionalLight>(null);
-  const firstId = model.cars[0]!.car.id;
-  const initialFocus = params.car && model.cars.some((c) => c.car.id === params.car) ? params.car : firstId;
+  const initialFocus =
+    params.car && model.cars.some((c) => c.car.id === params.car)
+      ? params.car
+      : defaultFocus(model.cars, model.duration);
   const live = useRef<LiveState>(null as unknown as LiveState);
   if (live.current === null) {
     live.current = {

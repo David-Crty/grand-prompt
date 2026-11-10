@@ -89,6 +89,12 @@ export function crossedLine(cars: CarIndex[], from: number, to: number): string[
     .map((c) => c.car.id);
 }
 
+/** The car followed when a replay opens: the winner (fastest valid lap), else the first car. */
+export function defaultFocus(cars: CarIndex[], duration: number): string {
+  const top = liveStandings(cars, duration)[0];
+  return top?.finished && !top.deleted ? top.id : cars[0]!.car.id;
+}
+
 /** Cars that cross the finish line, in the order they cross it. */
 export function finishers(cars: CarIndex[]): string[] {
   return cars
