@@ -482,6 +482,10 @@ button {
   margin-top: 8px;
 }
 
+.classif__actions--touch > * {
+  flex: 1;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

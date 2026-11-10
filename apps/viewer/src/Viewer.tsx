@@ -352,6 +352,7 @@ export function Viewer({
     const L = live.current;
     setIncident(null);
     setClassif(false);
+    setSheet(null);
     L.focusId = initialFocus;
     L.clock.speed = 1;
     L.clock.seek(0);
@@ -463,6 +464,7 @@ export function Viewer({
           onWhy={onWhy}
           onReplay={replayIncident}
           onExitIncident={exitIncident}
+          onRestart={restart}
         />
       ) : null}
       {snap && hud && !phone ? (

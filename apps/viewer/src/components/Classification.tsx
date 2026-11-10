@@ -64,6 +64,33 @@ export function useClassification(model: ViewerModel, results: EventResults | nu
   }, [model, results]);
 }
 
+function Actions({
+  onRestart,
+  backHref,
+  touch = false,
+}: {
+  onRestart?: () => void;
+  backHref?: string;
+  touch?: boolean;
+}) {
+  if (!onRestart && !backHref) return null;
+  return (
+    <div className={touch ? "classif__actions classif__actions--touch" : "classif__actions"}>
+      {backHref ? (
+        <a href={backHref} className={`gp-btn gp-btn--secondary${touch ? " gp-btn--touch" : ""}`}>
+          <Icon name="back" />
+          All races
+        </a>
+      ) : null}
+      {onRestart ? (
+        <Button variant="primary" size={touch ? "touch" : "m"} icon="restart" onClick={onRestart}>
+          Restart
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
 export function Classification({
   model,
   results,
@@ -92,6 +119,7 @@ export function Classification({
         </div>
         <ResultList rows={c.rows} showBuild={c.full} />
         <p className="gp-table__foot">{c.phoneFoot}</p>
+        <Actions onRestart={onRestart} backHref={backHref} touch />
       </div>
     );
   return (
@@ -112,21 +140,7 @@ export function Classification({
             buildHelp={<BuildFactsHelp {...c.help} />}
           />
           <p className="gp-table__foot">{c.foot}</p>
-          {onRestart || backHref ? (
-            <div className="classif__actions">
-              {backHref ? (
-                <a href={backHref} className="gp-btn gp-btn--secondary">
-                  <Icon name="back" />
-                  All races
-                </a>
-              ) : null}
-              {onRestart ? (
-                <Button variant="primary" icon="restart" onClick={onRestart}>
-                  Restart
-                </Button>
-              ) : null}
-            </div>
-          ) : null}
+          <Actions onRestart={onRestart} backHref={backHref} />
           {pole?.lapTime != null ? (
             <span className="sr-only">
               {pole.entry.name} on pole in {formatLapTime(pole.lapTime)}

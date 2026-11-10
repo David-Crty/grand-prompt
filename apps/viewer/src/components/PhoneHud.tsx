@@ -58,6 +58,7 @@ export function PhoneHud({
   onWhy,
   onReplay,
   onExitIncident,
+  onRestart,
 }: {
   model: ViewerModel;
   snap: HudSnapshot;
@@ -79,6 +80,7 @@ export function PhoneHud({
   onWhy: (carId: string) => void;
   onReplay: (inc: Incident) => void;
   onExitIncident: () => void;
+  onRestart: () => void;
 }) {
   const final = towerFinal(snap.rows);
   const row = snap.rows.find((r) => r.id === snap.focusId);
@@ -220,7 +222,14 @@ export function PhoneHud({
       ) : null}
       {sheet === "result" ? (
         <Sheet top={96} label="Result" onClose={() => onSheet(null)}>
-          <Classification model={model} results={results} layout="sheet" onClose={() => onSheet(null)} />
+          <Classification
+            model={model}
+            results={results}
+            layout="sheet"
+            onClose={() => onSheet(null)}
+            onRestart={onRestart}
+            backHref={backHref}
+          />
         </Sheet>
       ) : null}
       {sheet === "analysis" ? (
