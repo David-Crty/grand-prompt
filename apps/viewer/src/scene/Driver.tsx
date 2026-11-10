@@ -191,13 +191,12 @@ export function Driver({
     if (pose.up) cam.up.set(...pose.up);
     else cam.up.copy(L.mode === "map" ? MAP_UP : UP);
     cam.lookAt(...(L.cam.look as Vec3));
-    if (Math.abs(cam.fov - L.cam.fov) > 1e-3) {
-      cam.fov = L.cam.fov;
-      cam.updateProjectionMatrix();
-    }
+    cam.fov = L.cam.fov;
     cam.near = L.mode === "onboard" ? 0.3 : L.mode === "map" ? 5 : 0.5;
     cam.far = 9000;
     cam.updateProjectionMatrix();
+    // The labels below project through this frame's camera, not the one from the last render.
+    cam.updateMatrixWorld();
 
     const light = lightRef.current;
     if (light) {
