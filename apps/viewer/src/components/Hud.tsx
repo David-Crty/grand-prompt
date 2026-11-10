@@ -1,18 +1,12 @@
-import { CAMERA_LABEL, type CameraMode, formatClock, type GapMode, type TimelineMarker } from "@bench/ui";
+import { type CameraMode, formatClock, type GapMode, type TimelineMarker } from "@bench/ui";
 import {
-  Button,
   CarLabel,
   FocusCard,
-  GhostNote,
-  IncidentBanner,
   IncidentCard,
   IncidentPin,
-  IncidentTrace,
   MiniMap,
   PackLabel,
   RaceToast,
-  SessionHeader,
-  StartBoard,
   TimingTower,
   ToastStack,
   TransportBar,
@@ -20,12 +14,12 @@ import {
 } from "@bench/ui/react";
 import { useMemo } from "react";
 import type { CarSample } from "../lib/frames.js";
-import { boardEntries, entriesOf, focusLap, mapCars, mapPins } from "../lib/hud.js";
-import { type Incident, incidentTitle } from "../lib/incidents.js";
+import { entriesOf, focusLap, ghostLine, mapCars, mapPins } from "../lib/hud.js";
+import { type Incident, impactText, incidentTitle, replayCountdown } from "../lib/incidents.js";
 import { type RaceMessage, TOAST_KIND } from "../lib/messages.js";
 import { buildMinimap } from "../lib/minimap.js";
 import type { ViewerModel } from "../lib/model.js";
-import { type LaunchBoard, type Pack, packGroups } from "../lib/pack.js";
+import { type Pack, packGroups } from "../lib/pack.js";
 import { SPEEDS } from "../lib/params.js";
 import type { StandingRow } from "../lib/timing.js";
 
@@ -44,8 +38,6 @@ export interface HudSnapshot {
   justOut: Set<string>;
   /** The pack of ghost cars drawn with one label, if any. */
   pack: (Pack & { others: string[] }) | null;
-  /** The start board while it is up (ghost start). */
-  launch: LaunchBoard | null;
   fpsMs: number;
   stats: { jsMs: number; calls: number; tris: number };
 }
@@ -60,6 +52,8 @@ export function Tower({
   onMode,
   onFocus,
   onPin,
+  backHref,
+  backLabel,
 }: {
   model: ViewerModel;
   snap: HudSnapshot;
@@ -67,6 +61,8 @@ export function Tower({
   onMode: (m: GapMode) => void;
   onFocus: (id: string) => void;
   onPin: (id: string) => void;
+  backHref?: string;
+  backLabel?: string;
 }) {
   const map = useMemo(() => buildMinimap(model.layout, MAP_W, MAP_H), [model]);
   return (
@@ -80,6 +76,7 @@ export function Tower({
         justOut={snap.justOut}
         onFocus={onFocus}
         onMode={onMode}
+        head={{ track: model.replay.track.name, sub: ghostLine(model.cars.length), backHref, backLabel }}
       >
         <div className="hud-map">
           <MiniMap
@@ -98,56 +95,21 @@ export function Tower({
   );
 }
 
+/** Top right: the race messages, which give way to the incident card while it is open. */
 export function TopRight({
   model,
   snap,
-  mode,
-  backHref,
-  backLabel,
-  ghostOpen,
-  onGhost,
   onWhy,
   incident,
-  onReplay,
-  onMap,
-  onCloseIncident,
 }: {
   model: ViewerModel;
   snap: HudSnapshot;
-  mode: CameraMode;
-  backHref?: string;
-  backLabel?: string;
-  ghostOpen: boolean;
-  onGhost: () => void;
   onWhy: (carId: string) => void;
   incident: Incident | null;
-  onReplay: (inc: Incident) => void;
-  onMap: () => void;
-  onCloseIncident: () => void;
 }) {
-  const sub = `Flying lap · ${CAMERA_LABEL[mode]}`;
   return (
     <div className="hud-topright">
-      <SessionHeader
-        backHref={backHref}
-        backLabel={backLabel}
-        track={model.replay.track.name}
-        sub={sub}
-        t={snap.t}
-        speed={snap.speed}
-        ghostOpen={ghostOpen}
-        onGhost={onGhost}
-      />
-      {ghostOpen ? <GhostNote count={model.cars.length} onClose={onGhost} /> : null}
-      {incident ? (
-        <IncidentPanel
-          model={model}
-          incident={incident}
-          onReplay={onReplay}
-          onMap={onMap}
-          onClose={onCloseIncident}
-        />
-      ) : snap.toasts.length ? (
+      {!incident && snap.toasts.length ? (
         <ToastStack>
           {snap.toasts.map((m) => {
             const kind = TOAST_KIND[m.kind];
@@ -170,69 +132,51 @@ export function TopRight({
 
 export function IncidentPanel({
   model,
+  snap,
   incident,
   onReplay,
-  onMap,
   onClose,
   layout = "card",
 }: {
-  layout?: "card" | "sheet";
   model: ViewerModel;
+  snap: HudSnapshot;
   incident: Incident;
   onReplay: (inc: Incident) => void;
-  onMap: () => void;
   onClose: () => void;
+  layout?: "card" | "sheet";
 }) {
   const entry = model.entries.get(incident.carId);
   if (!entry) return null;
-  const marks = incident.spins.map((s, k) => ({ t: s.t, label: k ? "SPIN 2" : "SPIN" }));
   return (
     <IncidentCard
       title={incidentTitle(incident)}
       where={incident.where}
       entry={entry}
-      sentence={incident.error ? `${incident.sentence} ${incident.error}` : incident.sentence}
-      trace={<IncidentTrace window={incident.window} marks={marks} entry={entry} />}
+      note={incident.error}
       facts={[
         { k: "Out at", v: formatClock(incident.t) },
-        { k: "Impact", v: incident.impactKmh !== null ? `${incident.impactKmh} km/h` : "–" },
-        { k: "Cause", v: incident.cause },
+        { k: "Impact", v: impactText(incident) },
+        replayCountdown(incident, snap.t),
       ]}
-      actions={
-        <>
-          <Button variant="primary" icon="back5" onClick={() => onReplay(incident)}>
-            Replay from {formatClock(incident.replayFrom)}
-          </Button>
-          <Button icon="map" onClick={onMap}>
-            Map
-          </Button>
-        </>
-      }
-      onClose={layout === "sheet" ? onClose : undefined}
+      restartLabel={`Replay from ${formatClock(incident.replayFrom)}`}
+      onRestart={() => onReplay(incident)}
+      onClose={onClose}
       layout={layout}
     />
   );
 }
 
-/** Top centre during an incident replay: whose incident, and how long until it ends. */
-export function IncidentMode({
-  model,
-  snap,
-  incident,
-  onExit,
-}: {
+/** Top centre during an incident replay. */
+export function IncidentMode(props: {
   model: ViewerModel;
   snap: HudSnapshot;
   incident: Incident;
-  onExit: () => void;
+  onReplay: (inc: Incident) => void;
+  onClose: () => void;
 }) {
-  const name = model.entries.get(incident.carId)?.name ?? incident.carId;
-  const dt = incident.t - snap.t;
-  const what = incident.impactKmh !== null ? "impact" : "retirement";
-  const text = `${name} · ${dt > 0 ? `${dt.toFixed(1)} s to ${what}` : `${what} ${(-dt).toFixed(1)} s ago`}`;
   return (
     <div className="hud-banner">
-      <IncidentBanner text={text} onExit={onExit} />
+      <IncidentPanel {...props} />
     </div>
   );
 }
@@ -369,17 +313,6 @@ export function Labels({
   );
 }
 
-export function Start({ model, snap }: { model: ViewerModel; snap: HudSnapshot }) {
-  const b = snap.launch;
-  if (!b) return null;
-  const { rows, same } = boardEntries(b, model.entries);
-  return (
-    <div className="hud-start">
-      <StartBoard t={snap.t - model.replay.header.launch.time} rows={rows} scale={b.scale} same={same} />
-    </div>
-  );
-}
-
 const KEYS: [string, string][] = [
   ["1 2 3 4", "TV, chase, onboard, map"],
   ["Tab / ] and Shift+Tab / [", "Next / previous car (or click one in the timing tower)"],
@@ -414,6 +347,12 @@ export function Help({ onClose }: { onClose: () => void }) {
             ))}
           </tbody>
         </table>
+        <h2>Ghost cars</h2>
+        <p className="hint">
+          Each car ran its flying lap alone, from the same run-up onto the line at the same speed. The replay
+          overlays the runs, so the cars sit on top of each other until they spread out after the line. Only
+          the followed car is solid; nothing is moved.
+        </p>
         <p className="hint">Drop a replay.json or replay.json.gz anywhere to load it.</p>
       </div>
     </div>

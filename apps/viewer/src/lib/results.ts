@@ -17,10 +17,8 @@ export interface EventResults {
         outputTokens?: number;
         costUsd?: number;
         wallTimeS?: number;
-        practiceRuns?: number;
       };
-      settings?: { cli?: string; effort?: string; timeLimitMin?: number; practiceLimit?: number };
-      provider?: string;
+      settings?: { timeLimitMin?: number };
     } | null;
   }[];
 }
@@ -41,14 +39,7 @@ export interface BuildFacts {
   tokensOut: number;
   cost: Cost | null;
   wallTimeS: number | null;
-  practiceRuns: number | null;
-  practiceLimit: number;
-  effort: string | null;
-  cli: string | null;
 }
-
-/** Practice runs per build (the workspace default), unless a manifest says otherwise. */
-export const PRACTICE_LIMIT = 10;
 
 /** Cost as the CLI reported it, or tokens × list price, marked as an estimate (not cache-adjusted: an upper bound). */
 export function buildCost(
@@ -75,15 +66,8 @@ export function buildFacts(id: string, results: EventResults | null, prices: Pri
     tokensOut: u.outputTokens ?? 0,
     cost: buildCost(id, u, prices),
     wallTimeS: u.wallTimeS ?? null,
-    practiceRuns: u.practiceRuns ?? null,
-    practiceLimit: m.settings?.practiceLimit ?? PRACTICE_LIMIT,
-    effort: m.settings?.effort ?? null,
-    cli: m.settings?.cli ?? null,
   };
 }
-
-/** Points by position for a timed lap (display only; the design's proposal until season standings exist). */
-export const POINTS = [10, 8, 6, 5, 4, 3, 2, 1];
 
 export interface ResultRow {
   id: string;
@@ -97,8 +81,9 @@ export interface ResultRow {
   gap: number | null;
   /** "Crashed · T2", "Lap deleted", "Time up" for a car without a time. */
   outText: string | null;
+  /** The timed lap's sectors; `fastest` marks the quickest anyone set in that sector. */
+  sectors: { time: number; fastest: boolean }[] | null;
   build: BuildFacts | null;
-  points: number;
 }
 
 function outWords(status: string, inc: Incident | undefined): string {
@@ -123,6 +108,12 @@ export function classificationRows(
   results: EventResults | null,
   prices: Prices,
 ): ResultRow[] {
+  const timedSectors = (r: ClassifiedResult) => (r.lapTime != null && r.lap ? r.lap.sectors : null);
+  const best: number[] = [];
+  for (const r of classification)
+    timedSectors(r)?.forEach((t, k) => {
+      if (best[k] === undefined || t < best[k]!) best[k] = t;
+    });
   return classification.map((r) => {
     const timed = r.lapTime != null;
     const position = timed ? r.position : null;
@@ -140,41 +131,10 @@ export function classificationRows(
             r.status,
             incidents.find((i) => i.carId === r.id),
           ),
+      sectors: timedSectors(r)?.map((t, k) => ({ time: t, fastest: t === best[k] })) ?? null,
       build: buildFacts(r.id, results, prices),
-      points: position !== null ? (POINTS[position - 1] ?? 0) : 0,
     };
   });
-}
-
-/**
- * What makes this result a trial rather than a ranking, from differences between the builds: reasoning effort,
- * time limit or practice budget not the same for every build, or a field from one provider only.
- */
-export function caveat(results: EventResults | null): string | null {
-  const ms = (results?.rows ?? []).flatMap((r) => (r.manifest ? [r.manifest] : []));
-  if (ms.length < 2) return null;
-  const notes: string[] = [];
-  const efforts = new Set(ms.map((m) => m.settings?.effort ?? "unset"));
-  if (efforts.size > 1) {
-    const byCli = new Map<string, Set<string>>();
-    for (const m of ms) {
-      const cli = m.settings?.cli ?? "other";
-      byCli.set(cli, (byCli.get(cli) ?? new Set()).add(m.settings?.effort ?? "unset"));
-    }
-    const parts = [...byCli].map(([cli, e]) => {
-      const list = [...e].map((x) => (x === "cli-default" ? "the CLI default" : x));
-      const name = cli.charAt(0).toUpperCase() + cli.slice(1);
-      return `${name} builds ran at ${list.length > 1 ? `${list.slice(0, -1).join(", ")} or ${list.at(-1)}` : list[0]}`;
-    });
-    notes.push(`Reasoning effort was not fixed: ${parts.join(", ")}.`);
-  }
-  const limits = new Set(ms.map((m) => m.settings?.timeLimitMin ?? null));
-  if (limits.size > 1) notes.push("Builds had different time limits.");
-  const budgets = new Set(ms.map((m) => m.settings?.practiceLimit ?? PRACTICE_LIMIT));
-  if (budgets.size > 1) notes.push("Builds had different practice budgets.");
-  const providers = new Set(ms.map((m) => m.provider ?? "other"));
-  if (providers.size === 1) notes.push("Every entry is from one provider.");
-  return notes.length ? `${notes.join(" ")} Read it as a dry run, not a ranking.` : null;
 }
 
 /** "2.17M", "649k". */

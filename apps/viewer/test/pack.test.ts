@@ -1,15 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { indexReplay, sampleCar } from "../src/lib/frames.js";
-import {
-  carPlacement,
-  findPacks,
-  ghostIds,
-  labelPack,
-  launchBoard,
-  type PackCar,
-  packGroups,
-  startBoardVisible,
-} from "../src/lib/pack.js";
+import { carPlacement, findPacks, ghostIds, labelPack, type PackCar, packGroups } from "../src/lib/pack.js";
 import { makeCar, makeReplay, stadiumTrack } from "./fixtures.js";
 
 const car = (id: string, progress: number, o: Partial<PackCar> = {}): PackCar => ({
@@ -64,29 +55,6 @@ describe("packs", () => {
     expect(packGroups(lp, lp.others)).toEqual([["fab"], ["hai"], ["son", "lun", "ter"], ["opu"]]);
     expect(packGroups(lp, ["lun", "opu"])).toEqual([["lun"], ["opu"]]);
     expect(labelPack(findPacks([car("a", 0), car("b", 1), car("c", 2)], 8.4), "a")).toBeNull();
-  });
-});
-
-describe("start board", () => {
-  it("lists distance from the line, front first, with identical launches", () => {
-    const b = launchBoard([
-      { id: "a", progress: 15.71, ended: false },
-      { id: "b", progress: 29.9, ended: false },
-      { id: "c", progress: 15.69, ended: false },
-      { id: "d", progress: -0.2, ended: false },
-    ]);
-    expect(b.rows.map((r) => r.id)).toEqual(["b", "a", "c", "d"]);
-    expect(b.rows[3]!.distance).toBe(0);
-    expect(b.same).toEqual([["a", "c"]]);
-    expect(b.scale).toBe(60);
-    expect(b.spread).toBeCloseTo(30.1, 6);
-    expect(launchBoard([{ id: "a", progress: 75, ended: false }]).scale).toBe(80);
-    expect(launchBoard([{ id: "a", progress: 5, ended: true }]).spread).toBe(0);
-  });
-  it("shows for the first 15 s while the field is within 60 m", () => {
-    expect(startBoardVisible(2.5, 14)).toBe(true);
-    expect(startBoardVisible(15, 14)).toBe(false);
-    expect(startBoardVisible(8, 60)).toBe(false);
   });
 });
 

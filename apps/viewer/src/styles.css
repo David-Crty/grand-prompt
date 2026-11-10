@@ -69,7 +69,6 @@ button {
 
 /* HUD layout (desktop): tower top-left, session and messages top-right, followed car bottom-left, transport. */
 .hud-tower,
-.hud-start,
 .hud-banner,
 .hud-topright,
 .hud-focus,
@@ -100,11 +99,6 @@ button {
 
 .hud-map svg {
   display: block;
-}
-
-.hud-start {
-  left: 388px;
-  top: 24px;
 }
 
 .hud-banner {
@@ -597,25 +591,14 @@ button {
 }
 
 .phone-strip,
-.phone-start,
-.phone-note,
 .phone-toast {
   position: absolute;
   z-index: 3;
   top: 60px;
 }
 
-.phone-strip,
-.phone-start {
+.phone-strip {
   left: 8px;
-}
-
-.phone-start .gp-launch {
-  width: 236px;
-}
-
-.phone-note {
-  right: 8px;
 }
 
 .phone-toast {

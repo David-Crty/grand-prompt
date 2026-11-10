@@ -1,6 +1,7 @@
 import type * as React from "react";
 import type { Entry } from "../entries.js";
 import { type GapMode, gapLabel, statusCell, type TimingRow, towerFinal } from "../timing.js";
+import { Icon } from "./icons.js";
 import {
   Chequer,
   cx,
@@ -9,7 +10,6 @@ import {
   PositionBox,
   SegmentedControl,
   StatusBadge,
-  Wordmark,
 } from "./primitives.js";
 
 export function GapText({
@@ -88,6 +88,7 @@ export function TimingTower({
   onFocus,
   onMode,
   layout = "panel",
+  head,
   children,
 }: {
   rows: TimingRow[];
@@ -100,6 +101,8 @@ export function TimingTower({
   onMode: (m: GapMode) => void;
   /** `sheet`: the phone's full tower, without the panel chrome and header. */
   layout?: "panel" | "sheet";
+  /** The panel's header: the way back to the race list, the circuit, and a line under it. */
+  head?: { track: string; sub: string; backHref?: string; backLabel?: string };
   /** Below the footer: the minimap on desktop. */
   children?: React.ReactNode;
 }) {
@@ -126,10 +129,23 @@ export function TimingTower({
       )}
       aria-label="Timing tower"
     >
-      {layout === "panel" ? (
+      {layout === "panel" && head ? (
         <div className="gp-tower__head">
-          <Wordmark />
-          <span className="gp-tower__lap gp-c">{final ? "FINAL" : "FLYING LAP"}</span>
+          {head.backHref ? (
+            <a
+              href={head.backHref}
+              className="gp-iconbtn gp-tower__back"
+              aria-label={`Back to ${head.backLabel ?? "the race list"}`}
+              title={`Back to ${head.backLabel ?? "the race list"}`}
+            >
+              <Icon name="back" />
+            </a>
+          ) : null}
+          <div className="gp-tower__title">
+            <span className="gp-session__name">{head.track}</span>
+            <span className="gp-session__sub">{head.sub}</span>
+          </div>
+          {final ? <span className="gp-tower__lap gp-c">FINAL</span> : null}
         </div>
       ) : null}
       <div className="gp-tower__rows">

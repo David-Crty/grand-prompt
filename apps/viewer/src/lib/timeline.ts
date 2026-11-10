@@ -4,6 +4,11 @@ import type { RaceMessage } from "./messages.js";
 /** Clicking a marker or stepping to it lands this many seconds before the event, to see it coming. */
 export const MARKER_LEAD = 3;
 
+/** The car to follow after jumping to a marker: the one that went out, for a retirement. */
+export function markerFocus(m: TimelineMarker): string | null {
+  return m.kind === "dnf" ? (m.carIds[0] ?? null) : null;
+}
+
 /**
  * Timeline markers from the race messages: the line, pole, deleted laps and code faults, retirements and the
  * chequered flag. Barrier contacts and the other timed laps are left out: there can be dozens.

@@ -18,99 +18,6 @@ import {
 } from "./primitives.js";
 import { GapText } from "./timing.js";
 
-// ------------------------------------------------------------------ session header
-
-export function SessionHeader({
-  backHref,
-  backLabel,
-  track,
-  sub,
-  t,
-  speed,
-  ghostOpen = false,
-  onGhost,
-}: {
-  backHref?: string;
-  backLabel?: string;
-  track: string;
-  /** "Flying lap · TV". */
-  sub: string;
-  t: number;
-  speed: number;
-  ghostOpen?: boolean;
-  onGhost?: () => void;
-}) {
-  return (
-    <div className="gp-session gp-panel">
-      {backHref ? (
-        <>
-          <a className="gp-btn gp-btn--ghost gp-session__back" href={backHref}>
-            <Icon name="back" />
-            {backLabel ?? "Back"}
-          </a>
-          <span className="gp-vrule" />
-        </>
-      ) : null}
-      <div className="gp-session__track">
-        <span className="gp-session__name">{track}</span>
-        <span className="gp-session__sub">{sub}</span>
-      </div>
-      <span className="gp-vrule" />
-      <span className="gp-session__clock gp-c">{formatClock(t)}</span>
-      <span className="gp-session__speed">{speed}×</span>
-      <button
-        type="button"
-        className="gp-badge gp-badge--ghost"
-        aria-expanded={ghostOpen}
-        onClick={onGhost}
-        title="What ghost cars are"
-      >
-        <Icon name="ghost" />
-        Ghost cars
-      </button>
-    </div>
-  );
-}
-
-/** What ghost cars are, shown under the badge: the runs are overlaid and nothing is moved. */
-export function GhostNote({
-  count,
-  short = false,
-  onClose,
-}: {
-  count: number;
-  /** The phone's three-line version. */
-  short?: boolean;
-  onClose?: () => void;
-}) {
-  if (short)
-    return (
-      <div className="gp-panel gp-panel--solid gp-note gp-note--short" role="note">
-        <StatusBadge kind="ghost" icon="ghost">
-          Ghost cars
-        </StatusBadge>
-        <p>Each car ran alone. The runs are overlaid; nothing is moved.</p>
-      </div>
-    );
-  return (
-    <div className="gp-panel gp-note" role="note">
-      <div className="gp-note__head">
-        <StatusBadge kind="ghost" icon="ghost">
-          Ghost cars
-        </StatusBadge>
-        {onClose ? (
-          <IconButton icon="cross" label="Close" className="gp-note__close" onClick={onClose} />
-        ) : null}
-      </div>
-      <p>
-        Each of the {count} cars ran its flying lap alone, from the same run-up onto the line at the same
-        speed. The replay overlays the runs, so the cars sit on top of each other until they spread out after
-        the line. Only the followed car is solid; nothing is moved.
-      </p>
-    </div>
-  );
-}
-
 // ------------------------------------------------------------------ telemetry and focus card
 
 /** Telemetry of one car at one instant. Speed in m/s; surface 0 track, 1 kerb, 2 grass, 3 gravel, 4 barrier. */
@@ -635,27 +542,23 @@ export function MiniMap({
 
 // ------------------------------------------------------------------ phone
 
-/** The phone's header bar: back, track and event, ghost badge, lap state and clock. */
+/** The phone's header bar: back, track, the ghost line, and the clock. */
 export function SessionBar({
   backHref,
   backLabel,
   track,
   sub,
-  lap,
+  final = false,
   t,
-  ghostOpen = false,
-  onGhost,
 }: {
   backHref?: string;
   backLabel?: string;
   track: string;
-  /** "gp-1 · Flying lap". */
+  /** "8 cars, each driving alone". */
   sub: string;
-  /** "FLYING" or "FINAL". */
-  lap: string;
+  /** Every car has finished or retired. */
+  final?: boolean;
   t: number;
-  ghostOpen?: boolean;
-  onGhost?: () => void;
 }) {
   return (
     <header className="gp-bar gp-panel gp-panel--solid">
@@ -672,16 +575,7 @@ export function SessionBar({
         <span className="gp-session__name">{track}</span>
         <span className="gp-session__sub">{sub}</span>
       </div>
-      <button
-        type="button"
-        className="gp-badge gp-badge--ghost gp-bar__ghost"
-        aria-expanded={ghostOpen}
-        onClick={onGhost}
-      >
-        <Icon name="ghost" />
-        Ghost
-      </button>
-      <span className="gp-c gp-bar__lap">{lap}</span>
+      {final ? <span className="gp-c gp-bar__lap">FINAL</span> : null}
       <span className="gp-session__clock gp-c gp-bar__clock">{formatClock(t)}</span>
     </header>
   );

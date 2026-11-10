@@ -11,7 +11,6 @@ import {
   type HudSnapshot,
   IncidentMode,
   Labels,
-  Start,
   TopRight,
   Tower,
   Transport,
@@ -23,11 +22,10 @@ import { fastestId, justOut } from "./lib/hud.js";
 import type { Incident } from "./lib/incidents.js";
 import { visibleToasts } from "./lib/messages.js";
 import type { ViewerModel } from "./lib/model.js";
-import { launchBoard, startBoardVisible } from "./lib/pack.js";
 import { CAMERA_MODES, type CameraMode, SPEEDS, stepSpeed, type ViewerParams } from "./lib/params.js";
 import { PlaybackClock } from "./lib/playback.js";
 import type { EventResults } from "./lib/results.js";
-import { MARKER_LEAD } from "./lib/timeline.js";
+import { MARKER_LEAD, markerFocus } from "./lib/timeline.js";
 import { Cars } from "./scene/Cars.js";
 import { Driver } from "./scene/Driver.js";
 import { IncidentRing } from "./scene/IncidentRing.js";
@@ -96,8 +94,6 @@ export function Viewer({
   const [fps, setFps] = useState(params.fps);
   const [help, setHelp] = useState(false);
   const [gapMode, setGapMode] = useState<GapMode>("gap");
-  // null: shown on its own while the start board is up; true or false once the viewer has toggled it.
-  const [ghostOpen, setGhostOpen] = useState<boolean | null>(null);
   const [classif, setClassif] = useState(false);
   // Incident replay: the card, the banner, slow motion and the ring on the ground, until Exit.
   const [incident, setIncident] = useState<Incident | null>(null);
@@ -138,10 +134,6 @@ export function Viewer({
       const L = live.current;
       const t = L.clock.t;
       const k = model.cars.findIndex((c) => c.car.id === L.focusId);
-      const board =
-        L.samples.length === model.cars.length
-          ? launchBoard(model.cars.map((c, j) => ({ id: c.car.id, ...L.samples[j]! })))
-          : null;
       setSnap({
         t,
         playing: L.clock.playing,
@@ -154,7 +146,6 @@ export function Viewer({
         toasts: visibleToasts(model.messages, t, L.clock.speed, 3),
         justOut: justOut(model.cars, t),
         pack: L.labelPack,
-        launch: board && startBoardVisible(t, board.spread) ? board : null,
         fpsMs: L.fps.avgMs,
         stats: { jsMs: L.fps.jsMs, calls: L.fps.calls, tris: L.fps.tris },
       });
@@ -169,9 +160,14 @@ export function Viewer({
     return () => window.clearInterval(id);
   }, [model]);
 
-  const seekMarker = useCallback((m: TimelineMarker) => {
-    live.current.clock.seek(Math.max(0, m.t - MARKER_LEAD));
-  }, []);
+  const seekMarker = useCallback(
+    (m: TimelineMarker) => {
+      const id = markerFocus(m);
+      if (id) focusCar(id);
+      live.current.clock.seek(Math.max(0, m.t - MARKER_LEAD));
+    },
+    [focusCar],
+  );
 
   const stepEvent = useCallback(
     (dir: 1 | -1) => {
@@ -300,7 +296,6 @@ export function Viewer({
   const registerPack = useCallback((el: HTMLDivElement | null) => {
     live.current.packLabel = el;
   }, []);
-  const ghostShown = ghostOpen ?? snap?.launch != null;
 
   const onSeek = useCallback((t: number) => live.current.clock.seek(t), []);
   const cursorS = useMemo(() => snap?.focus?.s ?? null, [snap]);
@@ -332,6 +327,14 @@ export function Viewer({
       replayIncident(inc);
     },
     [model, replayIncident],
+  );
+  const clickMarker = useCallback(
+    (m: TimelineMarker) => {
+      const id = markerFocus(m);
+      if (id && model.incidents.some((i) => i.carId === id)) onWhy(id);
+      else seekMarker(m);
+    },
+    [model, onWhy, seekMarker],
   );
   const exitIncident = useCallback(() => {
     setIncident(null);
@@ -425,8 +428,6 @@ export function Viewer({
           results={results}
           backHref={backHref}
           backLabel={backLabel}
-          ghostOpen={ghostShown}
-          onGhost={() => setGhostOpen(!ghostShown)}
           onSheet={setSheet}
           onFocus={focusCar}
           onGapMode={setGapMode}
@@ -437,7 +438,7 @@ export function Viewer({
             c.speed = cycleSpeed(SPEEDS, c.speed);
           }}
           onSeek={onSeek}
-          onMarker={seekMarker}
+          onMarker={clickMarker}
           onWhy={onWhy}
           onReplay={replayIncident}
           onExitIncident={exitIncident}
@@ -452,26 +453,20 @@ export function Viewer({
             onMode={setGapMode}
             onFocus={focusCar}
             onPin={onWhy}
-          />
-          {incident ? (
-            <IncidentMode model={model} snap={snap} incident={incident} onExit={exitIncident} />
-          ) : null}
-          <TopRight
-            model={model}
-            snap={snap}
-            mode={mode}
             backHref={backHref}
             backLabel={backLabel}
-            ghostOpen={ghostShown}
-            onGhost={() => setGhostOpen(!ghostShown)}
-            onWhy={onWhy}
-            incident={incident}
-            onReplay={replayIncident}
-            onMap={() => setMode("map")}
-            onCloseIncident={exitIncident}
           />
+          {incident ? (
+            <IncidentMode
+              model={model}
+              snap={snap}
+              incident={incident}
+              onReplay={replayIncident}
+              onClose={exitIncident}
+            />
+          ) : null}
+          <TopRight model={model} snap={snap} onWhy={onWhy} incident={incident} />
           <Focus model={model} snap={snap} />
-          {snap.launch ? <Start model={model} snap={snap} /> : null}
           <Transport
             model={model}
             snap={snap}
@@ -480,7 +475,7 @@ export function Viewer({
             activeT={incident?.t ?? null}
             onToggle={() => live.current.clock.toggle()}
             onSeek={onSeek}
-            onMarker={seekMarker}
+            onMarker={clickMarker}
             onSpeed={(dir) => {
               const c = live.current.clock;
               c.speed = stepSpeed(c.speed, dir);

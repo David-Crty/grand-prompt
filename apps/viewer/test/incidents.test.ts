@@ -2,177 +2,92 @@ import type { ReplayCar, SimEvent } from "@bench/sim";
 import { describe, expect, it } from "vitest";
 import { detectCorners } from "../src/lib/corners.js";
 import { indexCar } from "../src/lib/frames.js";
-import { analyseIncident, analyseIncidents, incidentTitle } from "../src/lib/incidents.js";
+import {
+  analyseIncident,
+  analyseIncidents,
+  impactText,
+  incidentTitle,
+  REPLAY_LEAD,
+  replayCountdown,
+} from "../src/lib/incidents.js";
 import { makeCar, stadiumTrack } from "./fixtures.js";
 
 const track = stadiumTrack();
 const corners = detectCorners(track);
-const RATE = 20;
+const RATE = 10;
 
-interface State {
-  /** Direction of travel and the way the car points (rad, 0 is along the first straight). */
-  dir: number;
-  yaw: number;
-  speed: number;
-  throttle?: number;
-  brake?: number;
-  surface?: number;
+/** A car at 20 m/s from the line that goes out at `at` with this status, after `events`. */
+function outCar(id: string, at: number, status: string, events: SimEvent[] = []): ReplayCar {
+  const c = makeCar(track, { id, speed: 20, laps: 1, dnfAt: at, frameRate: RATE });
+  return { ...c, events: [...events, { t: at, type: "status", detail: status }] };
 }
-
-/** A car on the first straight driven by `state(t)` up to `end`, then the given events. */
-function synth(id: string, end: number, state: (t: number) => State, events: SimEvent[]): ReplayCar {
-  const base = makeCar(track, { id, speed: 50 });
-  const f = {
-    x: [],
-    y: [],
-    yaw: [],
-    speed: [],
-    steer: [],
-    throttle: [],
-    brake: [],
-    surface: [],
-    lap: [],
-    s: [],
-  } as {
-    [K in keyof ReplayCar["frames"]]: number[];
-  };
-  let x = 0;
-  for (let k = 0; k <= Math.round(end * RATE); k++) {
-    const st = state(k / RATE);
-    if (k > 0) x += (st.speed * Math.cos(st.dir)) / RATE;
-    f.x.push(x);
-    f.y.push(0);
-    f.yaw.push(st.yaw);
-    f.speed.push(st.speed);
-    f.steer.push(0);
-    f.throttle.push(st.throttle ?? 0.3);
-    f.brake.push(st.brake ?? 0);
-    f.surface.push(st.surface ?? 0);
-    f.lap.push(1);
-    f.s.push(x);
-  }
-  return { ...base, frames: f, events };
-}
-
-const ramp = (t: number, t0: number, t1: number, a: number, b: number) =>
-  t <= t0 ? a : t >= t1 ? b : a + ((b - a) * (t - t0)) / (t1 - t0);
 const index = (c: ReplayCar) => indexCar(c, 0, RATE, track.length);
-const out = (t: number, detail: string): SimEvent => ({ t, type: "status", detail });
 
 describe("incidents", () => {
-  it("power oversteer, at rest facing the wrong way, wrong-way driving, then the barrier", () => {
-    const car = synth(
-      "son",
-      9.5,
-      (t) => {
-        if (t < 4) return { dir: 0, yaw: 0, speed: 50, throttle: t > 3.4 ? 1 : 0.4 };
-        if (t < 6)
-          return { dir: 0, yaw: ramp(t, 4, 5, 0, Math.PI), speed: ramp(t, 4, 6, 50, 0), throttle: 0.6 };
-        if (t < 6.5) return { dir: Math.PI, yaw: Math.PI, speed: 0 };
-        return { dir: Math.PI, yaw: Math.PI, speed: 10 };
-      },
-      [{ t: 9.5, type: "crash", value: 10 }, out(9.5, "DNF: CRASHED (hit the barrier at 36 km/h)")],
-    );
-    const inc = analyseIncident(index(car), track, corners)!;
-    expect(inc.sentence).toBe(
-      "Spun under full throttle before Turn 1 at 171 km/h, came to rest facing the wrong way, drove the wrong way for 3 s and hit the barrier at 36 km/h.",
-    );
-    expect(inc.causes).toEqual(["power-oversteer", "wrong-way", "barrier-contact"]);
-    expect(inc.cause).toBe("Power oversteer, then wrong way");
+  it("a crash: where, impact from the sim's status, and a replay from ten seconds before", () => {
+    const car = outCar("son", 20, "DNF: CRASHED (hit the barrier at 36 km/h)", [
+      { t: 20, type: "crash", value: 10 },
+    ]);
+    const inc = analyseIncident(index(car), corners)!;
+    expect(inc.kind).toBe("crashed");
+    expect(inc.t).toBe(20);
+    expect(inc.where).toBe("Turn 1");
+    expect(inc.corner).toBe(1);
     expect(inc.impactKmh).toBe(36);
+    expect(inc.replayFrom).toBe(20 - REPLAY_LEAD);
+    expect(inc.x).toBe(car.frames.x.at(-1));
+    expect(inc.y).toBe(car.frames.y.at(-1));
+    expect(inc.error).toBeUndefined();
+    expect(incidentTitle(inc)).toBe("DNF · Crashed");
+    expect(impactText(inc)).toBe("36 km/h");
+  });
+
+  it("falls back to the crash event's speed, and starts the replay at zero for an early exit", () => {
+    const inc = analyseIncident(
+      index(outCar("wall", 3, "DNF: CRASHED", [{ t: 3, type: "crash", value: 30 }])),
+      corners,
+    )!;
+    expect(inc.impactKmh).toBe(108);
+    expect(inc.replayFrom).toBe(0);
     expect(inc.where).toBe("before Turn 1");
-    expect(inc.replayFrom).toBe(1);
-    expect(inc.spins).toHaveLength(1);
-    expect(inc.window.t[0]).toBe(1);
-    expect(inc.window.t.at(-1)).toBeCloseTo(9.5, 6);
-    expect(inc.window.speedKmh).toHaveLength(121);
   });
 
-  it("two spins with a rejoin in between", () => {
-    const car = synth(
-      "lun",
-      11,
-      (t) => {
-        if (t < 4) return { dir: 0, yaw: 0, speed: 50, throttle: 0.6 };
-        if (t < 6)
-          return { dir: 0, yaw: ramp(t, 4, 5, 0, Math.PI / 2), speed: ramp(t, 4, 6, 50, 0), surface: 2 };
-        if (t < 7) return { dir: 0, yaw: Math.PI / 2, speed: 0, surface: 2 };
-        if (t < 8) return { dir: 0, yaw: ramp(t, 7, 8, Math.PI / 2, 0), speed: 1, surface: 2 };
-        if (t < 10) return { dir: 0, yaw: 0, speed: ramp(t, 8, 10, 1, 20), surface: t < 9 ? 2 : 0 };
-        return { dir: 0, yaw: ramp(t, 10, 10.5, 0, Math.PI / 2), speed: 20, throttle: 0.5 };
-      },
-      [{ t: 11, type: "crash", value: 20 }, out(11, "DNF: CRASHED (hit the barrier at 72 km/h)")],
-    );
-    const inc = analyseIncident(index(car), track, corners)!;
-    expect(inc.sentence).toBe(
-      "Spun under throttle before Turn 1 at 162 km/h, came to rest on the grass, rejoined at 0:09, lost the rear again under throttle before Turn 1 and hit the barrier at 72 km/h.",
-    );
-    expect(inc.cause).toBe("Power oversteer, twice");
+  it("a driver program failure, a stall and time running out have no impact", () => {
+    const ecu = analyseIncident(
+      index(outCar("ecu", 3, "DNF: ECU FAILURE (TypeError: x is undefined)")),
+      corners,
+    )!;
+    expect(ecu.kind).toBe("ecu-failure");
+    expect(ecu.error).toBe("TypeError: x is undefined");
+    expect(ecu.impactKmh).toBeNull();
+    expect(impactText(ecu)).toBe("–");
+    expect(incidentTitle(ecu)).toBe("DNF · Driver program failure");
+    const bare = outCar("ecu2", 3, "DNF: ECU FAILURE");
+    bare.result.errors = ["t=3.00: step threw: boom"];
+    expect(analyseIncident(index(bare), corners)!.error).toBe("t=3.00: step threw: boom");
+    const stall = analyseIncident(index(outCar("st", 4, "DNF: STALLED")), corners)!;
+    expect(stall.kind).toBe("stalled");
+    expect(incidentTitle(stall)).toBe("DNF · Stalled");
+    const slow = analyseIncident(index(outCar("slow", 5, "TIME UP")), corners)!;
+    expect(slow.kind).toBe("time-up");
+    expect(incidentTitle(slow)).toBe("Time up");
+    expect(analyseIncident(index(outCar("st", 4, "DNF: STALLED")), [])!.where).toBe("On the lap");
   });
 
-  it("a brake lock that ends in a stall", () => {
-    const car = synth(
-      "lock",
-      8,
-      (t) => {
-        if (t < 3) return { dir: 0, yaw: 0, speed: 50, throttle: t < 2.4 ? 1 : 0, brake: t < 2.4 ? 0 : 1 };
-        if (t < 5)
-          return {
-            dir: 0,
-            yaw: ramp(t, 3, 4, 0, 2),
-            speed: ramp(t, 3, 5, 50, 0),
-            brake: 1,
-            throttle: 0,
-            surface: t > 4 ? 3 : 0,
-          };
-        return { dir: 0, yaw: 2, speed: 0, surface: 3, throttle: 0 };
-      },
-      [out(8, "DNF: STALLED")],
-    );
-    const inc = analyseIncident(index(car), track, corners)!;
-    expect(inc.sentence).toBe(
-      "Spun under braking before Turn 1 at 167 km/h, came to rest on the grass and stalled.",
-    );
-    expect(inc.causes).toEqual(["brake-lock", "stalled"]);
-    expect(inc.impactKmh).toBeNull();
-    expect(inc.cause).toBe("Brake lock, then stalled");
-  });
-
-  it("a driver program failure, time running out, and a finisher", () => {
-    const ecu = synth("ecu", 3, () => ({ dir: 0, yaw: 0, speed: 30 }), [
-      out(3, "DNF: ECU FAILURE (TypeError: x is undefined)"),
-    ]);
-    const a = analyseIncident(index(ecu), track, corners)!;
-    expect(a.sentence).toBe("The driver program failed.");
-    expect(a.error).toBe("TypeError: x is undefined");
-    expect(a.cause).toBe("Driver program failure");
-    expect(a.replayFrom).toBe(0);
-    const slow = synth("slow", 3, () => ({ dir: 0, yaw: 0, speed: 5 }), [out(3, "TIME UP")]);
-    const b = analyseIncident(index(slow), track, corners)!;
-    expect(b.sentence).toBe("Ran out of time.");
-    expect(b.causes).toEqual(["time-up"]);
-    expect(b.error).toBeUndefined();
-    const crash = synth("wall", 3, () => ({ dir: 0, yaw: 0, speed: 30 }), [
-      out(3, "DNF: CRASHED (hit the barrier at 108 km/h)"),
-    ]);
-    const c = analyseIncident(index(crash), track, corners)!;
-    expect(c.sentence).toBe("Hit the barrier at 108 km/h.");
-    expect(c.cause).toBe("Barrier");
-    expect(analyseIncident(index(makeCar(track, { id: "fin", speed: 50 })), track, corners)).toBeNull();
+  it("only cars that went out, in time order", () => {
+    const fin = makeCar(track, { id: "fin", speed: 50, frameRate: RATE });
+    expect(analyseIncident(index(fin), corners)).toBeNull();
     const all = analyseIncidents(
-      [index(crash), index(ecu), index(makeCar(track, { id: "fin", speed: 50 }))],
-      track,
+      [index(outCar("late", 9, "DNF: STALLED")), index(fin), index(outCar("early", 2, "TIME UP"))],
       corners,
     );
-    expect(all.map((x) => x.carId).sort()).toEqual(["ecu", "wall"]);
+    expect(all.map((x) => x.carId)).toEqual(["early", "late"]);
   });
 });
 
-describe("incident titles", () => {
-  it("names the way the car went out", () => {
-    expect(incidentTitle({ causes: ["power-oversteer", "barrier-contact"] })).toBe("DNF · Crashed");
-    expect(incidentTitle({ causes: ["ecu-failure"] })).toBe("DNF · Driver program failure");
-    expect(incidentTitle({ causes: ["stalled"] })).toBe("DNF · Stalled");
-    expect(incidentTitle({ causes: ["time-up"] })).toBe("Time up");
+describe("incident replay countdown", () => {
+  it("counts down to the moment the car went out, then up from it", () => {
+    expect(replayCountdown({ t: 44 }, 40.8)).toEqual({ k: "Out in", v: "3.2 s" });
+    expect(replayCountdown({ t: 44 }, 51.1)).toEqual({ k: "Out", v: "7.1 s ago" });
   });
 });

@@ -1,7 +1,5 @@
-import type * as React from "react";
 import type { Entry } from "../entries.js";
 import { formatGap, formatLapTime } from "../format.js";
-import { Icon } from "./icons.js";
 import { EntryChip, EntryName, PositionBox, StatusBadge } from "./primitives.js";
 
 export interface ClassRow {
@@ -15,13 +13,13 @@ export interface ClassRow {
   gap: number | null;
   /** "Crashed · T2", "Lap deleted", "Time up". */
   outText: string | null;
+  /** The timed lap's sectors; `fastest` is the quickest anyone set in that sector. */
+  sectors: { time: number; fastest: boolean }[] | null;
   build: {
     cost: { usd: number; estimated: boolean } | null;
     tokens: string;
     buildTime: string;
-    practice: string;
   } | null;
-  points: number;
 }
 
 const dash = "–";
@@ -38,17 +36,6 @@ export function Cost({ cost }: { cost: { usd: number; estimated: boolean } | nul
   );
 }
 
-export function CaveatBanner({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="gp-caveat" role="note">
-      <Icon name="warn" />
-      <span>
-        <b>{title}</b> {children}
-      </span>
-    </div>
-  );
-}
-
 function NoTime({ row }: { row: ClassRow }) {
   return row.out ? (
     <StatusBadge kind="dnf">DNF</StatusBadge>
@@ -57,25 +44,49 @@ function NoTime({ row }: { row: ClassRow }) {
   );
 }
 
-/** The final classification; `full` adds what each driver program cost to build. */
-export function ClassificationTable({ rows, columns }: { rows: ClassRow[]; columns: "lap" | "full" }) {
+/**
+ * The final classification: the lap and its sectors on track, then, with `full`, what each driver program cost to
+ * build. A car without a time shows why in place of its lap time.
+ */
+export function ClassificationTable({
+  rows,
+  columns,
+  sectors = 3,
+}: {
+  rows: ClassRow[];
+  columns: "lap" | "full";
+  sectors?: number;
+}) {
+  const full = columns === "full";
+  const names = Array.from({ length: sectors }, (_, k) => `S${k + 1}`);
   return (
     <div className="gp-table__wrap">
       <table className="gp-table">
         <thead>
+          {full ? (
+            <tr className="gp-table__groups">
+              <th colSpan={2} />
+              <th colSpan={2 + sectors}>On track</th>
+              <th colSpan={3} className="gp-table__group">
+                The build
+              </th>
+            </tr>
+          ) : null}
           <tr>
             <th>Pos</th>
             <th>Driver program</th>
             <th className="n">Lap time</th>
             <th className="n">Gap</th>
-            <th>Status</th>
-            {columns === "full" ? (
+            {names.map((n) => (
+              <th key={n} className="n">
+                {n}
+              </th>
+            ))}
+            {full ? (
               <>
-                <th className="n">Cost</th>
+                <th className="n gp-table__group">Cost</th>
                 <th className="n">Tokens</th>
                 <th className="n">Build</th>
-                <th className="n">Practice</th>
-                <th className="n">Pts</th>
               </>
             ) : null}
           </tr>
@@ -93,28 +104,31 @@ export function ClassificationTable({ rows, columns }: { rows: ClassRow[]; colum
               <td>
                 <EntryName entry={r.entry} meta />
               </td>
-              <td className={`n${r.position === 1 ? " is-fastest" : ""}`}>
-                {r.lapTime != null ? formatLapTime(r.lapTime) : dash}
-              </td>
-              <td className="n">{r.gap != null ? formatGap(r.gap) : r.lapTime == null ? dash : ""}</td>
-              <td>
-                {r.lapTime == null ? (
-                  <>
-                    <NoTime row={r} /> <span className="gp-faint gp-outtext">{r.outText}</span>
-                  </>
-                ) : (
-                  <span className="gp-faint">Valid lap</span>
-                )}
-              </td>
-              {columns === "full" ? (
+              {r.lapTime != null ? (
                 <>
-                  <td className="n">
+                  <td className={`n${r.position === 1 ? " is-fastest" : ""}`}>{formatLapTime(r.lapTime)}</td>
+                  <td className="n">{r.gap != null ? formatGap(r.gap) : ""}</td>
+                  {names.map((n, k) => {
+                    const s = r.sectors?.[k];
+                    return (
+                      <td key={n} className={`n${s?.fastest ? " is-fastest" : ""}`}>
+                        {s ? formatLapTime(s.time) : dash}
+                      </td>
+                    );
+                  })}
+                </>
+              ) : (
+                <td colSpan={2 + sectors} className="gp-table__why">
+                  <NoTime row={r} /> <span className="gp-faint gp-outtext">{r.outText}</span>
+                </td>
+              )}
+              {full ? (
+                <>
+                  <td className="n gp-table__group">
                     <Cost cost={r.build?.cost ?? null} />
                   </td>
                   <td className="n">{r.build?.tokens ?? dash}</td>
                   <td className="n">{r.build?.buildTime ?? dash}</td>
-                  <td className="n">{r.build?.practice ?? dash}</td>
-                  <td className="n">{r.points}</td>
                 </>
               ) : null}
             </tr>

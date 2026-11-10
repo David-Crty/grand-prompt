@@ -9,18 +9,16 @@ import {
 import {
   Button,
   FocusRow,
-  GhostNote,
   IconButton,
   RaceToast,
   SegmentedControl,
   SessionBar,
   Sheet,
-  StartBoard,
   Timeline,
   TimingTower,
   TowerStrip,
 } from "@bench/ui/react";
-import { boardEntries } from "../lib/hud.js";
+import { ghostLine } from "../lib/hud.js";
 import type { Incident } from "../lib/incidents.js";
 import { TOAST_KIND } from "../lib/messages.js";
 import type { ViewerModel } from "../lib/model.js";
@@ -33,7 +31,7 @@ import { IncidentPanel } from "./Hud.js";
 export type PhoneSheet = "tower" | "result" | "incident" | "analysis";
 
 /** Height of the incident sheet: the TV camera frames the car in the space above it. */
-export const INCIDENT_SHEET_PX = 430;
+export const INCIDENT_SHEET_PX = 180;
 
 /**
  * The phone layout (below 600 px): header bar, collapsed tower strip, one message at a time, and a dock with the
@@ -49,8 +47,6 @@ export function PhoneHud({
   results,
   backHref,
   backLabel,
-  ghostOpen,
-  onGhost,
   onSheet,
   onFocus,
   onGapMode,
@@ -72,8 +68,6 @@ export function PhoneHud({
   results: EventResults | null;
   backHref?: string;
   backLabel?: string;
-  ghostOpen: boolean;
-  onGhost: () => void;
   onSheet: (s: PhoneSheet | null) => void;
   onFocus: (id: string) => void;
   onGapMode: (m: GapMode) => void;
@@ -87,78 +81,47 @@ export function PhoneHud({
   onExitIncident: () => void;
 }) {
   const final = towerFinal(snap.rows);
-  const lapText = final ? "FINAL" : "FLYING";
-  const sub = [backLabel && backLabel !== "All races" ? backLabel : null, "Flying lap"]
-    .filter(Boolean)
-    .join(" · ");
   const row = snap.rows.find((r) => r.id === snap.focusId);
   const entry = model.entries.get(snap.focusId);
   // One message at a time: a retirement or the result while it lasts, otherwise the latest.
   const toast =
     [...snap.toasts].reverse().find((m) => TOAST_KIND[m.kind] === "dnf" || m.kind === "chequered") ??
     snap.toasts.at(-1);
-  const b = snap.launch;
   return (
     <div className="phone">
       <SessionBar
         backHref={backHref}
         backLabel={backLabel}
         track={model.replay.track.name}
-        sub={sub}
-        lap={lapText}
+        sub={ghostLine(model.cars.length)}
+        final={final}
         t={snap.t}
-        ghostOpen={ghostOpen}
-        onGhost={onGhost}
       />
-      {b ? (
-        <>
-          <div className="phone-start">
-            <StartBoard
-              t={snap.t - model.replay.header.launch.time}
-              title="Past the line"
-              {...boardEntries(b, model.entries)}
-              scale={b.scale}
-            />
-          </div>
-          {ghostOpen ? (
-            <div className="phone-note">
-              <GhostNote count={model.cars.length} short />
-            </div>
-          ) : null}
-        </>
-      ) : (
-        <>
-          <div className="phone-strip">
-            <TowerStrip
-              rows={snap.rows}
-              entries={model.entries}
-              focusId={snap.focusId}
-              onExpand={() => onSheet("tower")}
-            />
-          </div>
-          {ghostOpen ? (
-            <div className="phone-note">
-              <GhostNote count={model.cars.length} short />
-            </div>
-          ) : toast ? (
-            <div className="phone-toast">
-              <RaceToast
-                compact
-                kind={TOAST_KIND[toast.kind]}
-                entry={model.entries.get(toast.carId) ?? null}
-                text={toast.short ?? toast.text}
-                action={
-                  TOAST_KIND[toast.kind] === "dnf"
-                    ? { label: "Why", onClick: () => onWhy(toast.carId) }
-                    : toast.kind === "chequered"
-                      ? { label: "Result", onClick: () => onSheet("result") }
-                      : null
-                }
-              />
-            </div>
-          ) : null}
-        </>
-      )}
+      <div className="phone-strip">
+        <TowerStrip
+          rows={snap.rows}
+          entries={model.entries}
+          focusId={snap.focusId}
+          onExpand={() => onSheet("tower")}
+        />
+      </div>
+      {toast ? (
+        <div className="phone-toast">
+          <RaceToast
+            compact
+            kind={TOAST_KIND[toast.kind]}
+            entry={model.entries.get(toast.carId) ?? null}
+            text={toast.short ?? toast.text}
+            action={
+              TOAST_KIND[toast.kind] === "dnf"
+                ? { label: "Why", onClick: () => onWhy(toast.carId) }
+                : toast.kind === "chequered"
+                  ? { label: "Result", onClick: () => onSheet("result") }
+                  : null
+            }
+          />
+        </div>
+      ) : null}
       <div className="gp-dock">
         <div className="gp-sheet__grab" />
         {row && entry ? (
@@ -248,12 +211,9 @@ export function PhoneHud({
           <IncidentPanel
             layout="sheet"
             model={model}
+            snap={snap}
             incident={incident}
             onReplay={onReplay}
-            onMap={() => {
-              onMode("map");
-              onExitIncident();
-            }}
             onClose={onExitIncident}
           />
         </Sheet>

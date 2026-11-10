@@ -104,52 +104,6 @@ export function carPlacement(s: Pick<CarSample, "x" | "y" | "yaw">): {
   return { position: toThree(s.x, s.y), yaw: s.yaw };
 }
 
-// ------------------------------------------------------------------ start board
-
-export interface LaunchRow {
-  id: string;
-  /** Metres from the line. */
-  distance: number;
-}
-
-export interface LaunchBoard {
-  rows: LaunchRow[];
-  /** Right end of the scale (m): at least 60, rounded up to 20. */
-  scale: number;
-  /** Cars with identical distance so far, two or more per group. */
-  same: string[][];
-  /** Lead minus last, among running cars (m). */
-  spread: number;
-}
-
-/** The board stays up for the first 15 s of replay (the run-up and 12 s of the lap), while the field is within 60 m. */
-export const START_BOARD_TIME = 15;
-export const START_BOARD_SPREAD = 60;
-
-export function launchBoard(cars: { id: string; progress: number; ended: boolean }[]): LaunchBoard {
-  const rows = cars
-    .map((c) => ({ id: c.id, distance: Math.max(0, c.progress) }))
-    .sort((a, b) => b.distance - a.distance);
-  const running = cars.filter((c) => !c.ended).map((c) => c.progress);
-  const spread = running.length ? Math.max(...running) - Math.min(...running) : 0;
-  const lead = rows[0]?.distance ?? 0;
-  const groups = new Map<string, string[]>();
-  for (const r of rows) {
-    const k = r.distance.toFixed(1);
-    groups.set(k, [...(groups.get(k) ?? []), r.id]);
-  }
-  return {
-    rows,
-    scale: Math.max(START_BOARD_SPREAD, Math.ceil(lead / 20) * 20),
-    same: [...groups.values()].filter((g) => g.length > 1),
-    spread,
-  };
-}
-
-export function startBoardVisible(t: number, spread: number): boolean {
-  return t < START_BOARD_TIME && spread < START_BOARD_SPREAD;
-}
-
 /** The pack label's chips: the listed cars in running order, identical positions grouped together. */
 export function packGroups(pack: Pack, ids: string[]): string[][] {
   const want = new Set(ids);

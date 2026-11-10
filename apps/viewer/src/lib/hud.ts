@@ -1,6 +1,5 @@
 import type { Entry } from "@bench/ui";
 import { type CarIndex, type CarSample, sampleCar } from "./frames.js";
-import type { LaunchBoard } from "./pack.js";
 import type { StandingRow } from "./timing.js";
 
 type Project = (x: number, y: number) => [number, number];
@@ -59,17 +58,6 @@ export function entriesOf(ids: string[], entries: Map<string, Entry>): Entry[] {
   return ids.flatMap((id) => entries.get(id) ?? []);
 }
 
-/** The start board's rows and same-place groups, as entries. */
-export function boardEntries(board: LaunchBoard, entries: Map<string, Entry>) {
-  return {
-    rows: board.rows.flatMap((r) => {
-      const entry = entries.get(r.id);
-      return entry ? [{ entry, distance: r.distance }] : [];
-    }),
-    same: board.same.map((g) => entriesOf(g, entries)),
-  };
-}
-
 /** The focus card's lap clock: the running time from the line, then the lap time once it is timed. */
 export function focusLap(
   c: CarIndex,
@@ -87,4 +75,9 @@ export function focusLap(
 export function fastestId(rows: StandingRow[]): string | null {
   const p1 = rows[0];
   return p1?.finished && !p1.deleted ? p1.id : null;
+}
+
+/** Under the track name: why the cars drive through each other. */
+export function ghostLine(cars: number): string {
+  return cars === 1 ? "1 car, driving alone" : `${cars} cars, each driving alone`;
 }

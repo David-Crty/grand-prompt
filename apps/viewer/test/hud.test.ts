@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { detectCorners, whereOnLap } from "../src/lib/corners.js";
 import { indexReplay, sampleCar } from "../src/lib/frames.js";
-import { boardEntries, entriesOf, fastestId, focusLap, justOut, mapCars, mapPins } from "../src/lib/hud.js";
+import { entriesOf, fastestId, focusLap, ghostLine, justOut, mapCars, mapPins } from "../src/lib/hud.js";
 import { impactKmh } from "../src/lib/messages.js";
 import { buildModel } from "../src/lib/model.js";
-import { timelineMarkers } from "../src/lib/timeline.js";
+import { markerFocus, timelineMarkers } from "../src/lib/timeline.js";
 import { liveStandings } from "../src/lib/timing.js";
 import { makeCar, makeReplay, stadiumTrack } from "./fixtures.js";
 
@@ -85,20 +85,6 @@ describe("hud data", () => {
     expect(fastestId(rows(end))).toBe("a");
     expect(fastestId([])).toBeNull();
     expect(entriesOf(["a", "nobody", "b"], model.entries).map((e) => e.id)).toEqual(["a", "b"]);
-    const board = boardEntries(
-      {
-        rows: [
-          { id: "a", distance: 3 },
-          { id: "x", distance: 1 },
-        ],
-        same: [["a", "b"]],
-        scale: 10,
-        spread: 0,
-      },
-      model.entries,
-    );
-    expect(board.rows.map((r) => [r.entry.id, r.distance])).toEqual([["a", 3]]);
-    expect(board.same[0]!.map((e) => e.id)).toEqual(["a", "b"]);
   });
 
   it("knows who retired and when", () => {
@@ -117,6 +103,8 @@ describe("hud data", () => {
     expect(kinds).toContain("dnf");
     expect(kinds).toContain("finish");
     expect(model.markers.find((m) => m.kind === "dnf")?.label).toBe(`${model.entries.get("c")!.code} out`);
+    expect(markerFocus(model.markers.find((m) => m.kind === "dnf")!)).toBe("c");
+    expect(markerFocus(model.markers.find((m) => m.kind === "fastest")!)).toBeNull();
     const warn = timelineMarkers(
       [
         { t: 1, carId: "a", kind: "deleted", text: "Lap deleted: track limits" },
@@ -152,5 +140,12 @@ describe("hud data", () => {
     expect(impactKmh(cars[0]!, 29.3)).toBe(106);
     const plain = indexReplay(makeReplay([makeCar(track, { id: "y", speed: 40 })], track));
     expect(impactKmh(plain[0]!, 29.3)).toBe(105);
+  });
+});
+
+describe("ghost line", () => {
+  it("says the cars drive alone", () => {
+    expect(ghostLine(8)).toBe("8 cars, each driving alone");
+    expect(ghostLine(1)).toBe("1 car, driving alone");
   });
 });

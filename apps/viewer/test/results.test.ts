@@ -13,45 +13,28 @@ import type { Incident } from "../src/lib/incidents.js";
 import {
   buildCost,
   buildFacts,
-  caveat,
   classificationRows,
   type EventResults,
   formatBuildTime,
   formatTokens,
-  POINTS,
 } from "../src/lib/results.js";
 import { makeCar, makeReplay, stadiumTrack } from "./fixtures.js";
 
 const track = stadiumTrack();
 const prices = { models: { "gpt-x": { inputPerM: 1, outputPerM: 10 } } };
-const manifest = (cli: string, effort: string, usage: object, extra: object = {}) => ({
-  usage,
-  settings: { cli, effort, timeLimitMin: 30, ...extra },
-  provider: cli === "codex" ? "openai" : "anthropic",
-});
+const manifest = (usage: object) => ({ usage, settings: { timeLimitMin: 30 } });
 const results: EventResults = {
   event: { id: "gp-1", name: "gp-1" },
   rows: [
     {
       slug: "gpt-x",
-      manifest: manifest("codex", "low", {
-        inputTokens: 2e6,
-        outputTokens: 1e5,
-        wallTimeS: 882,
-        practiceRuns: 10,
-      }),
+      manifest: manifest({ inputTokens: 2e6, outputTokens: 1e5, wallTimeS: 882 }),
     },
     {
       slug: "claude-y",
-      manifest: manifest("claude", "cli-default", {
-        inputTokens: 5e5,
-        outputTokens: 1e4,
-        costUsd: 0.59,
-        wallTimeS: 153,
-        practiceRuns: 8,
-      }),
+      manifest: manifest({ inputTokens: 5e5, outputTokens: 1e4, costUsd: 0.59, wallTimeS: 153 }),
     },
-    { slug: "gpt-z", manifest: manifest("codex", "medium", { inputTokens: 1e6, outputTokens: 1e4 }) },
+    { slug: "gpt-z", manifest: manifest({ inputTokens: 1e6, outputTokens: 1e4 }) },
     { slug: "none", manifest: null },
   ],
 };
@@ -81,16 +64,8 @@ describe("build facts and cost", () => {
     expect(buildCost("gpt-x", { inputTokens: 1 }, prices)).toBeNull();
     expect(buildCost("gpt-x", undefined, prices)).toBeNull();
     const f = buildFacts("claude-y", results, prices)!;
-    expect(f).toMatchObject({
-      tokensIn: 5e5,
-      wallTimeS: 153,
-      practiceRuns: 8,
-      practiceLimit: 10,
-      effort: "cli-default",
-      cli: "claude",
-    });
-    const z = buildFacts("gpt-z", results, prices)!;
-    expect([z.wallTimeS, z.practiceRuns]).toEqual([null, null]);
+    expect(f).toMatchObject({ tokensIn: 5e5, wallTimeS: 153 });
+    expect(buildFacts("gpt-z", results, prices)!.wallTimeS).toBeNull();
     expect(buildFacts("none", results, prices)).toBeNull();
     expect(buildFacts("gpt-x", null, prices)).toBeNull();
     const bare = buildFacts(
@@ -98,46 +73,12 @@ describe("build facts and cost", () => {
       { event: results.event, rows: [{ slug: "b", manifest: { usage: {} } }] },
       prices,
     )!;
-    expect([bare.tokensIn, bare.effort, bare.cli]).toEqual([0, null, null]);
+    expect([bare.tokensIn, bare.tokensOut]).toEqual([0, 0]);
     expect(formatTokens(2.17e6)).toBe("2.17M");
     expect(formatTokens(649e3)).toBe("649k");
     expect(formatBuildTime(882)).toBe("14m42");
     expect(formatBuildTime(57)).toBe("0m57");
     expect(formatBuildTime(null)).toBe("–");
-  });
-
-  it("calls the result a trial when the builds differ", () => {
-    expect(caveat(results)).toBe(
-      "Reasoning effort was not fixed: Codex builds ran at low or medium, Claude builds ran at the CLI default. Read it as a dry run, not a ranking.",
-    );
-    const same = (p: object) => ({
-      event: results.event,
-      rows: [
-        { slug: "a", manifest: manifest("claude", "medium", {}, p) },
-        { slug: "b", manifest: manifest("claude", "medium", {}) },
-      ],
-    });
-    expect(caveat(same({ timeLimitMin: 20 }))).toBe(
-      "Builds had different time limits. Every entry is from one provider. Read it as a dry run, not a ranking.",
-    );
-    expect(caveat(same({ practiceLimit: 5 }))).toContain("different practice budgets");
-    const mixed = {
-      event: results.event,
-      rows: [
-        { slug: "a", manifest: manifest("claude", "medium", {}) },
-        { slug: "b", manifest: manifest("codex", "medium", {}) },
-      ],
-    };
-    expect(caveat(mixed)).toBeNull();
-    expect(caveat(null)).toBeNull();
-    const unset = {
-      event: results.event,
-      rows: [
-        { slug: "a", manifest: { usage: {} } },
-        { slug: "b", manifest: { usage: {}, settings: { effort: "high" } } },
-      ],
-    };
-    expect(caveat(unset)).toContain("Other builds ran at unset or high");
   });
 });
 
@@ -145,9 +86,9 @@ describe("classification rows", () => {
   const incident = { carId: "son", corner: 2 } as Incident;
   const rows = classificationRows(
     [
-      row({ id: "gpt-x", position: 1, lapTime: 48.5 }),
-      row({ id: "claude-y", position: 2, gap: 5.057, lapTime: 53.557 }),
-      row({ id: "del", position: 3, lapTime: null }),
+      row({ id: "gpt-x", position: 1, lapTime: 48.5, lap: lap(48.5, [16, 17, 15.5]) }),
+      row({ id: "claude-y", position: 2, gap: 5.057, lapTime: 53.557, lap: lap(53.557, [15.9, 19, 18.657]) }),
+      row({ id: "del", position: 3, lapTime: null, lap: lap(40, [10, 10, 20], false) }),
       row({ id: "tu", position: 4, status: "TIME UP", lapTime: null }),
       row({ id: "son", position: 5, status: "DNF: CRASHED", lapTime: null }),
       row({ id: "ecu", position: 6, status: "DNF: ECU FAILURE", lapTime: null }),
@@ -158,7 +99,7 @@ describe("classification rows", () => {
     results,
     prices,
   );
-  it("shapes the table: positions, gaps, why a car has no time, build facts and points", () => {
+  it("shapes the table: positions, gaps, why a car has no time, sectors and build facts", () => {
     expect(rows.map((r) => r.position)).toEqual([1, 2, null, null, null, null, null, null]);
     expect(rows[0]!.gap).toBeNull();
     expect(rows[1]!.gap).toBe(5.057);
@@ -182,12 +123,16 @@ describe("classification rows", () => {
       [true, false],
       [true, false],
     ]);
-    expect(rows.map((r) => r.points)).toEqual([10, 8, 0, 0, 0, 0, 0, 0]);
+    expect(rows[0]!.sectors).toEqual([
+      { time: 16, fastest: false },
+      { time: 17, fastest: true },
+      { time: 15.5, fastest: true },
+    ]);
+    expect(rows[1]!.sectors!.map((s) => s.fastest)).toEqual([true, false, false]);
+    expect(rows[2]!.sectors).toBeNull();
     expect(rows[0]!.build?.cost).toEqual({ usd: 3, estimated: true });
     expect(rows[2]!.lapTime).toBeNull();
-    expect(POINTS).toHaveLength(8);
-    const ninth = classificationRows([row({ id: "n", position: 9 })], [], null, prices);
-    expect(ninth[0]!.points).toBe(0);
+    expect(classificationRows([row({ id: "n", position: 9 })], [], null, prices)[0]!.sectors).toBeNull();
   });
 });
 

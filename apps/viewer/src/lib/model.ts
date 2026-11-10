@@ -29,7 +29,7 @@ export interface ViewerModel {
   /** Corners numbered from the line, for "Turn 2" in messages and incident cards. */
   corners: Corner[];
   markers: TimelineMarker[];
-  /** Why each retired car went out, in time order. */
+  /** How each retired car went out, in time order. */
   incidents: Incident[];
   grandstands: Grandstand[];
   trees: Placement[];
@@ -52,7 +52,7 @@ export function buildModel(replay: Replay, treeCount = 1400): ViewerModel {
     messages,
     corners,
     markers: timelineMarkers(messages, entries),
-    incidents: analyseIncidents(cars, replay.track, corners),
+    incidents: analyseIncidents(cars, corners),
     grandstands,
     trees: placeTrees(layout, treeCount, replay.header.seed || 7, grandstands),
   };
