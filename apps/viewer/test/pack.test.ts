@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { indexReplay, sampleCar } from "../src/lib/frames.js";
-import { carPlacement, findPacks, labelPack, type PackCar, packGroups } from "../src/lib/pack.js";
+import { carPlacement, clipGroups, findPacks, labelPack, type PackCar, packGroups } from "../src/lib/pack.js";
 import { makeCar, makeReplay, stadiumTrack } from "./fixtures.js";
 
 const car = (id: string, progress: number, o: Partial<PackCar> = {}): PackCar => ({
@@ -44,6 +44,14 @@ describe("packs", () => {
     expect(lp.others).toEqual(["fab", "hai", "son", "lun", "ter", "opu"]);
     expect(packGroups(lp, lp.others)).toEqual([["fab"], ["hai"], ["son", "lun", "ter"], ["opu"]]);
     expect(packGroups(lp, ["lun", "opu"])).toEqual([["lun"], ["opu"]]);
+  });
+
+  it("lists at most a number of cars, cutting through a group of identical places, and counts the rest", () => {
+    const groups = [["fab"], ["hai"], ["son", "lun", "ter"], ["opu"]];
+    expect(clipGroups(groups, 4)).toEqual({ groups: [["fab"], ["hai"], ["son", "lun"]], hidden: 2 });
+    expect(clipGroups(groups, 6)).toEqual({ groups, hidden: 0 });
+    expect(clipGroups(groups, 9)).toEqual({ groups, hidden: 0 });
+    expect(clipGroups([], 4)).toEqual({ groups: [], hidden: 0 });
     expect(labelPack(findPacks([car("a", 0), car("b", 1), car("c", 2)], 8.4), "a")).toBeNull();
   });
 });

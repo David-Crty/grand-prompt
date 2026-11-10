@@ -606,6 +606,7 @@ button {
 /* Labels can be tapped or clicked to follow the car. */
 .label-hit {
   all: unset;
+  display: block;
   pointer-events: auto;
   cursor: pointer;
 }

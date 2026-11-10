@@ -92,6 +92,22 @@ export function carPlacement(s: Pick<CarSample, "x" | "y" | "yaw">): {
 }
 
 /** The pack label's chips: the listed cars in running order, identical positions grouped together. */
+/** Most cars a pack label lists before the rest become "+N": desktop, phone. */
+export const PACK_CHIPS = { desktop: 6, phone: 4 } as const;
+
+/** The first `max` cars of `groups`, in order, split groups kept as far as they go, and how many are left out. */
+export function clipGroups(groups: string[][], max: number): { groups: string[][]; hidden: number } {
+  const out: string[][] = [];
+  let left = max;
+  for (const g of groups) {
+    if (left <= 0) break;
+    out.push(g.slice(0, left));
+    left -= g.length;
+  }
+  const shown = out.reduce((n, g) => n + g.length, 0);
+  return { groups: out, hidden: groups.reduce((n, g) => n + g.length, 0) - shown };
+}
+
 export function packGroups(pack: Pack, ids: string[]): string[][] {
   const want = new Set(ids);
   const out: string[][] = [];

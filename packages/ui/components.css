@@ -1096,31 +1096,31 @@
 .gp-pack {
   position: absolute;
   transform: translate(-50%, -100%);
+  width: max-content;
   display: inline-flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 4px;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
   background: var(--hud-panel-solid);
   border: 1px solid var(--line-200);
   border-radius: var(--radius-2);
   box-shadow: var(--shadow-hud);
 }
-.gp-pack__head {
-  display: flex;
+.gp-pack__group {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 0 2px 2px;
-}
-.gp-pack__row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+  gap: 1px;
 }
 .gp-pack__eq {
   font-size: 12px;
   font-weight: 800;
   color: var(--text-300);
+}
+.gp-pack__more {
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-200);
 }
 .gp-pin {
   position: absolute;
@@ -1600,20 +1600,6 @@ fieldset.gp-seg {
   display: inline-flex;
   align-items: center;
   gap: 1px;
-}
-.gp-pack__count {
-  color: var(--text-100);
-}
-.gp-pack__same {
-  font-size: 11px;
-  color: var(--text-300);
-  margin-left: 4px;
-  white-space: nowrap;
-}
-.gp-pack--row {
-  flex-direction: row;
-  align-items: center;
-  gap: 4px;
 }
 .gp-incident__where {
   font-weight: 700;
