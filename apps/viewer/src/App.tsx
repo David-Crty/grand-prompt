@@ -6,7 +6,7 @@ import { fetchEventResults, fetchReplay } from "./lib/load.js";
 import { buildModel } from "./lib/model.js";
 import { parseParams } from "./lib/params.js";
 import type { EventResults } from "./lib/results.js";
-import { parseRoute, raceReplayUrl } from "./lib/route.js";
+import { parseRoute, raceReplayUrl, routeHref } from "./lib/route.js";
 import { PHONE_QUERY } from "./usePhone.js";
 import { Viewer } from "./Viewer.js";
 
@@ -36,14 +36,15 @@ export function App() {
   const model = useMemo(() => (replay ? buildModel(replay, trees) : null), [replay, trees]);
 
   if (!replayUrl) return <Home />;
+  const back = results ? routeHref({ page: "races", event: results.event.id }) : "/";
   if (model)
-    return <Viewer model={model} backHref="/" backLabel="All races" params={params} results={results} />;
+    return <Viewer model={model} backHref={back} backLabel="All races" params={params} results={results} />;
   return (
     <div className="race-load">
       <div className="race-load__card panel">
         <div className="brand">LLM RACING</div>
         {error ? <p className="error">{error}</p> : <p>Loading the race…</p>}
-        <a className="race-load__back" href="/">
+        <a className="race-load__back" href={back}>
           <Icon name="back" />
           All races
         </a>

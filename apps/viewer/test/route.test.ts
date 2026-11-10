@@ -16,6 +16,21 @@ describe("routes", () => {
     expect(parseRoute("/races/..")).toEqual({ page: "races" });
   });
 
+  it("reads the lists' event from the query", () => {
+    expect(parseRoute("/", "?event=r1-high")).toEqual({ page: "races", event: "r1-high" });
+    expect(parseRoute("/drivers", "?t=3&event=r1-high")).toEqual({ page: "drivers", event: "r1-high" });
+    expect(parseRoute("/drivers", "?event=")).toEqual({ page: "drivers" });
+    expect(parseRoute("/races/x", "?event=r1-high")).toEqual({ page: "race", id: "x" });
+    expect(routeHref({ page: "races", event: "r1 high" })).toBe("/?event=r1%20high");
+    expect(routeHref({ page: "drivers", event: "r1-high" })).toBe("/drivers?event=r1-high");
+    expect(
+      parseRoute("/drivers", routeHref({ page: "drivers", event: "a&b" }).slice("/drivers".length)),
+    ).toEqual({
+      page: "drivers",
+      event: "a&b",
+    });
+  });
+
   it("links each page and a race's replay", () => {
     expect(routeHref({ page: "races" })).toBe("/");
     expect(routeHref({ page: "drivers" })).toBe("/drivers");

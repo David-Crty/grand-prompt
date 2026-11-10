@@ -1,6 +1,14 @@
 import { type Entry, entryVar, formatGap, formatLapTime } from "@bench/ui";
 import { EntryChip, EntryDot, Popover } from "@bench/ui/react";
-import { type CSSProperties, type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  type KeyboardEvent,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { eventEntries } from "../lib/entries.js";
 import {
   clusterDots,
@@ -173,8 +181,16 @@ function Row({
   );
 }
 
-/** Home page: every replay under `results/`, newest first. */
-export function RaceList({ races, shown }: { races: RaceEntry[]; shown: boolean }) {
+/** Home page: the replays of one event, by circuit; `picker` chooses the event. */
+export function RaceList({
+  races,
+  shown,
+  picker,
+}: {
+  races: RaceEntry[];
+  shown: boolean;
+  picker?: ReactNode;
+}) {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState<string | null>(null);
   const list = useRef<HTMLDivElement>(null);
@@ -195,17 +211,20 @@ export function RaceList({ races, shown }: { races: RaceEntry[]; shown: boolean 
     <>
       <div className="home-head">
         <h1>Races</h1>
-        {races.length > 0 ? (
-          <input
-            id="race-search"
-            className="home-search"
-            type="search"
-            placeholder="Filter by circuit"
-            aria-label="Filter races by circuit"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        ) : null}
+        <div className="home-tools">
+          {picker}
+          {races.length > 0 ? (
+            <input
+              id="race-search"
+              className="home-search"
+              type="search"
+              placeholder="Filter by circuit"
+              aria-label="Filter races by circuit"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          ) : null}
+        </div>
       </div>
       {races.length === 0 ? (
         <p className="home-note">

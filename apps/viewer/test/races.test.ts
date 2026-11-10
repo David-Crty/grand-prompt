@@ -3,15 +3,17 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { scanResults } from "../server/results-index.js";
+import { readSiteConfig, scanResults } from "../server/results-index.js";
 import {
   clusterDots,
   fieldSpread,
   filterRaces,
   formatDate,
   formatLength,
+  pickEvent,
   type RaceSource,
   readReveal,
+  sortEvents,
   sortRaces,
   summarizeRace,
   timedField,
@@ -46,6 +48,7 @@ describe("summarizeRace", () => {
     const r = summarizeRace("monaco-001", source(), { track: { name: "Monaco", outline }, time: 1000 });
     expect(r).toEqual({
       id: "monaco-001",
+      event: null,
       trackName: "Monaco",
       outline,
       time: 1000,
@@ -55,6 +58,10 @@ describe("summarizeRace", () => {
         { id: "c", name: "c", time: null },
       ],
     });
+  });
+
+  it("keeps its event", () => {
+    expect(summarizeRace("e-monaco", source(), { event: "e", time: 0 }).event).toBe("e");
   });
 
   it("falls back to the track id", () => {
@@ -152,6 +159,51 @@ describe("hidden results", () => {
   });
 });
 
+describe("events", () => {
+  it("orders events by name, numbers by value", () => {
+    expect(sortEvents(["r10-medium", "r2-medium", "r1-medium", "r1-high", "r2-medium"])).toEqual([
+      "r1-high",
+      "r1-medium",
+      "r2-medium",
+      "r10-medium",
+    ]);
+  });
+
+  it("shows the event asked for, else the default, else the first", () => {
+    const events = ["r1-high", "r1-medium"];
+    expect(pickEvent("r1-high", events, "r1-medium")).toBe("r1-high");
+    expect(pickEvent(undefined, events, "r1-medium")).toBe("r1-medium");
+    expect(pickEvent("nope", events, "r1-medium")).toBe("r1-medium");
+    expect(pickEvent(undefined, events, "gone")).toBe("r1-high");
+    expect(pickEvent(undefined, events, null)).toBe("r1-high");
+    expect(pickEvent("r1-high", [], "r1-high")).toBeNull();
+  });
+});
+
+describe("readSiteConfig", () => {
+  let dir: string;
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "site-"));
+  });
+  afterEach(() => rmSync(dir, { recursive: true, force: true }));
+  const config = (text: string) => {
+    writeFileSync(join(dir, "site.json"), text);
+    return readSiteConfig(join(dir, "site.json"));
+  };
+
+  it("reads the default event, and none without the file or the key", () => {
+    expect(config('{ "defaultEvent": "r1-medium" }')).toEqual({ defaultEvent: "r1-medium" });
+    expect(config("{}")).toEqual({ defaultEvent: null });
+    expect(readSiteConfig(join(dir, "missing.json"))).toEqual({ defaultEvent: null });
+  });
+
+  it("refuses a broken file or a default that is not an id", () => {
+    expect(() => config("{")).toThrow(/site.json/);
+    expect(() => config('{ "defaultEvent": 1 }')).toThrow(/defaultEvent is an event id/);
+    expect(() => config('{ "defaultEvent": "" }')).toThrow(/defaultEvent is an event id/);
+  });
+});
+
 describe("scanResults", () => {
   let root: string;
   let results: string;
@@ -225,32 +277,38 @@ describe("scanResults", () => {
     expect(scanResults(results, tracks).races.map((r) => r.trackName)).toEqual(["broken", "broken"]);
   });
 
-  it("lists the models that raced, with their results in their newest event", () => {
-    const table = (id: string, ev: string, track: string, sec: number, rows: object[]) => {
-      const f = join(dir(id), "event-results.json");
-      writeFileSync(f, JSON.stringify({ event: { id: ev }, track, rows }));
-      touch(f, sec);
+  it("lists the models that raced, one row per event, and the events with races", () => {
+    const table = (id: string, ev: string, track: string, rows: object[]) => {
+      writeFileSync(join(dir(id), "event-results.json"), JSON.stringify({ event: { id: ev }, track, rows }));
     };
     const manifest = {
       provider: "openai",
       usage: { inputTokens: 10, outputTokens: 2, wallTimeS: 60, practiceRuns: 3 },
       settings: { cli: "codex", effort: "low" },
     };
-    table("old-monaco", "old", "monaco", 100, [
+    table("old-monaco", "old", "monaco", [
       { slug: "m1", name: "Model One", position: 2, lapTime: 90 },
       { slug: "m2", name: "Another", position: 1, lapTime: 89, manifest },
     ]);
-    table("new-monaco", "new", "monaco", 200, [
-      { slug: "m1", name: "Model One", position: 1, lapTime: null },
-    ]);
-    table("new-ring", "new", "ring", 150, [{ slug: "m1", name: "Model One", position: 1, lapTime: 61 }]);
+    table("new-monaco", "new", "monaco", [{ slug: "m1", name: "Model One", position: 1, lapTime: null }]);
+    table("new-ring", "new", "ring", [{ slug: "m1", name: "Model One", position: 1, lapTime: 61 }]);
+    race("new-ring");
+    race("loose");
     writeFileSync(join(dir("bad"), "event-results.json"), "{");
     writeFileSync(join(dir("other"), "event-results.json"), JSON.stringify({ event: { id: "x" }, rows: [] }));
 
-    const { drivers } = scanResults(results, tracks);
+    const index = scanResults(results, tracks, { defaultEvent: "new" });
+    expect(index.races.map((r) => [r.id, r.event]).sort()).toEqual([
+      ["loose", null],
+      ["new-ring", "new"],
+    ]);
+    expect(index.events).toEqual(["new"]);
+    expect(index.defaultEvent).toBe("new");
+    const { drivers } = index;
     expect(drivers.map((d) => [d.id, d.event])).toEqual([
       ["m2", "old"],
       ["m1", "new"],
+      ["m1", "old"],
     ]);
     expect(drivers[0]).toEqual({
       id: "m2",
@@ -262,7 +320,8 @@ describe("scanResults", () => {
       results: [{ track: "monaco", trackName: "Monaco", position: 1, lapTime: 89 }],
       points: 10,
     });
-    expect(drivers[1]!.points).toBe(8 + 0 + 10);
+    expect(drivers[1]!.points).toBe(0 + 10);
+    expect(drivers[2]!.points).toBe(8);
     expect(drivers[1]).toMatchObject({ provider: null, effort: null, usage: null });
     expect(drivers[1]!.results).toEqual([
       { track: "monaco", trackName: "Monaco", position: 1, lapTime: null },
@@ -271,6 +330,11 @@ describe("scanResults", () => {
   });
 
   it("returns nothing for a missing directory", () => {
-    expect(scanResults(join(root, "nope"), tracks)).toEqual({ races: [], drivers: [] });
+    expect(scanResults(join(root, "nope"), tracks)).toEqual({
+      races: [],
+      drivers: [],
+      events: [],
+      defaultEvent: null,
+    });
   });
 });

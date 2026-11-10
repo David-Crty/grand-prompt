@@ -55,10 +55,9 @@ describe("trackOutline", () => {
 });
 
 describe("drivers", () => {
-  const race = (ev: string, track: string, time: number, rows: EventResultsSource["rows"]) => ({
+  const race = (ev: string, track: string, rows: EventResultsSource["rows"]) => ({
     src: { event: { id: ev }, track, rows },
     trackName: track.toUpperCase(),
-    time,
   });
 
   it("recognises a race's table", () => {
@@ -69,43 +68,44 @@ describe("drivers", () => {
     expect(isEventResults({ event: { id: "e" }, track: "t", rows: [{ slug: "a" }] })).toBe(false);
   });
 
-  it("keeps each model's newest event, its races by circuit, rows by name", () => {
+  it("keeps one row per model and event, its races by circuit, rows by name then event", () => {
     const build = { settings: { effort: "cli-default" } };
     const rows = summarizeDrivers([
-      race("e1", "b", 10, [{ slug: "x", name: "Beta", manifest: build }]),
-      race("e1", "a", 30, [
+      race("e1", "b", [{ slug: "x", name: "Beta", manifest: build }]),
+      race("e1", "a", [
         { slug: "x", name: "Beta", manifest: build },
         { slug: "y", name: "Alpha", position: 1, lapTime: 9 },
       ]),
-      race("e0", "a", 20, [
+      race("e0", "a", [
         { slug: "y", name: "Alpha", position: 2, lapTime: 8 },
         { slug: "z", name: "Alpha" },
       ]),
     ]);
-    expect(rows.map((d) => `${d.id}@${d.event}`)).toEqual(["y@e1", "z@e0", "x@e1"]);
-    expect(rows[2]).toMatchObject({ effort: "cli-default", provider: null, usage: null });
-    expect(rows[2]!.results.map((r) => r.track)).toEqual(["a", "b"]);
-    expect(rows[0]!.results).toEqual([{ track: "a", trackName: "A", position: 1, lapTime: 9 }]);
+    expect(rows.map((d) => `${d.id}@${d.event}`)).toEqual(["y@e0", "y@e1", "z@e0", "x@e1"]);
+    expect(rows[3]).toMatchObject({ effort: "cli-default", provider: null, usage: null });
+    expect(rows[3]!.results.map((r) => r.track)).toEqual(["a", "b"]);
+    expect(rows[1]!.results).toEqual([{ track: "a", trackName: "A", position: 1, lapTime: 9 }]);
+    expect(rows.map((d) => d.points)).toEqual([8, 10, 0, 0]);
     expect(raceTracks(rows)).toEqual([
       { track: "a", trackName: "A" },
       { track: "b", trackName: "B" },
     ]);
     expect(
       summarizeDrivers([
-        race("e", "a", 1, [{ slug: "q", name: "Q" }]),
-        race("e", "b", 1, [{ slug: "q", name: "Q" }]),
+        race("e", "a", [{ slug: "q", name: "Q" }]),
+        race("e", "b", [{ slug: "q", name: "Q" }]),
       ])[0]!.results,
     ).toHaveLength(2);
   });
 
   it("scores every race the same and orders the standings by points only when shown", () => {
     const rows = summarizeDrivers([
-      race("e1", "a", 1, [
+      race("e1", "a", [
         { slug: "x", name: "Xan", position: 1, lapTime: 60 },
         { slug: "y", name: "Ann", position: 2, lapTime: 61 },
         { slug: "z", name: "Bob", position: 3, lapTime: null },
       ]),
-      race("e1", "b", 1, [
+      race("e1", "b", [
         { slug: "y", name: "Ann", position: 1, lapTime: 70 },
         { slug: "x", name: "Xan", position: 2, lapTime: 71 },
         { slug: "z", name: "Bob", position: 3, lapTime: 72 },

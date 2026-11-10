@@ -1,12 +1,18 @@
 /**
  * The site's pages by path: `/` (or `/races`) the race list, `/drivers` the drivers, `/races/<id>` one race,
- * whose files are in `results/races/<id>/`. Viewer options stay in the query (`?t=30&cam=tv`).
+ * whose files are in `results/races/<id>/`. The lists take the event they show from `?event=`; viewer options
+ * stay in the query too (`?t=30&cam=tv`).
  */
-export type Route = { page: "races" } | { page: "drivers" } | { page: "race"; id: string };
+export type Route =
+  | { page: "races"; event?: string }
+  | { page: "drivers"; event?: string }
+  | { page: "race"; id: string };
 
-export function parseRoute(pathname: string): Route {
+export function parseRoute(pathname: string, search = ""): Route {
   const parts = pathname.split("/").filter(Boolean);
-  if (parts[0] === "drivers" && parts.length === 1) return { page: "drivers" };
+  const event = new URLSearchParams(search).get("event") || undefined;
+  const list = (page: "races" | "drivers"): Route => (event ? { page, event } : { page });
+  if (parts[0] === "drivers" && parts.length === 1) return list("drivers");
   if (parts[0] === "races" && parts.length === 2) {
     try {
       const id = decodeURIComponent(parts[1]!);
@@ -15,13 +21,13 @@ export function parseRoute(pathname: string): Route {
       // A malformed escape is not a race id.
     }
   }
-  return { page: "races" };
+  return list("races");
 }
 
 export function routeHref(r: Route): string {
-  if (r.page === "drivers") return "/drivers";
   if (r.page === "race") return `/races/${encodeURIComponent(r.id)}`;
-  return "/";
+  const query = r.event ? `?event=${encodeURIComponent(r.event)}` : "";
+  return (r.page === "drivers" ? "/drivers" : "/") + query;
 }
 
 /** Where a race's replay is published. */

@@ -32,12 +32,12 @@ export interface DriverEntry {
   name: string;
   provider: string | null;
   effort: string | null;
-  /** The newest event the model entered, where its build and results come from. */
+  /** The event this row is for, where its build and results come from. */
   event: string;
   usage: DriverUsage | null;
   /** One per race of that event, by circuit name. */
   results: DriverResult[];
-  /** Over every race the model ran. */
+  /** Over the event's races. */
   points: number;
 }
 
@@ -73,27 +73,19 @@ export function isEventResults(v: unknown): v is EventResultsSource {
 export interface StoredRace {
   src: EventResultsSource;
   trackName: string;
-  /** Last modification, ms since epoch. */
-  time: number;
 }
 
 /**
- * One row per model, from the newest event it entered (an event is as new as its newest race), with its result
- * in each race of that event and its points over every race. Sorted by name.
+ * One row per model and event it entered, with its result in each race of that event and its points over them.
+ * Sorted by name, then event.
  */
 export function summarizeDrivers(races: StoredRace[]): DriverEntry[] {
-  const eventTime = new Map<string, number>();
-  for (const r of races) eventTime.set(r.src.event.id, Math.max(eventTime.get(r.src.event.id) ?? 0, r.time));
-  const ordered = [...races].sort(
-    (a, b) =>
-      eventTime.get(b.src.event.id)! - eventTime.get(a.src.event.id)! ||
-      a.src.event.id.localeCompare(b.src.event.id) ||
-      a.trackName.localeCompare(b.trackName),
-  );
+  const ordered = [...races].sort((a, b) => a.trackName.localeCompare(b.trackName));
   const out = new Map<string, DriverEntry>();
   for (const { src, trackName } of ordered) {
     for (const row of src.rows) {
-      let d = out.get(row.slug);
+      const key = `${src.event.id}\0${row.slug}`;
+      let d = out.get(key);
       if (!d) {
         d = {
           id: row.slug,
@@ -105,19 +97,20 @@ export function summarizeDrivers(races: StoredRace[]): DriverEntry[] {
           results: [],
           points: 0,
         };
-        out.set(row.slug, d);
+        out.set(key, d);
       }
       d.points += racePoints(row.position ?? null, row.lapTime ?? null);
-      if (d.event === src.event.id)
-        d.results.push({
-          track: src.track,
-          trackName,
-          position: row.position ?? null,
-          lapTime: row.lapTime ?? null,
-        });
+      d.results.push({
+        track: src.track,
+        trackName,
+        position: row.position ?? null,
+        lapTime: row.lapTime ?? null,
+      });
     }
   }
-  return [...out.values()].sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+  return [...out.values()].sort(
+    (a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id) || a.event.localeCompare(b.event),
+  );
 }
 
 /**

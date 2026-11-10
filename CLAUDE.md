@@ -36,7 +36,8 @@ commands.
   `TASK.md`) carries the prompt version (`agentic-0.5`) that each manifest records.
 - `models.json`: the roster (providers with their CLI and car body; models with id, name, code,
   colour). `prices.json`: list prices for the build cost when a CLI reports none (Codex,
-  `agy`).
+  `agy`). `site.json`: `defaultEvent`, the event the race and driver lists open on (`?event=`
+  picks another); the site build fails if it has no races.
 - `cars/proto.json`: the full car, hidden constants included. `cars/sources/*.stl` → the viewer's
   mesh (`make car`).
 - `drivers/<event>/`: `event.json` (name, seed) and `<model>/driver.js` + `manifest.json`.

@@ -6,6 +6,7 @@ import {
   type RaceEntry,
   type RaceIndex,
   type RaceSource,
+  sortEvents,
   sortRaces,
   summarizeRace,
   type TrackInfo,
@@ -48,11 +49,30 @@ function trackInfo(tracksDir: string): (id: string) => TrackInfo {
 
 const mtime = (path: string) => statSync(path).mtimeMs;
 
+/** The site's settings (`site.json` at the repo root): the event the lists open on. */
+export interface SiteConfig {
+  defaultEvent: string | null;
+}
+
+export function readSiteConfig(path: string): SiteConfig {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(readFileSync(path, "utf8"));
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === "ENOENT") return { defaultEvent: null };
+    throw new Error(`${path}: ${(e as Error).message}`);
+  }
+  const d = (raw as { defaultEvent?: unknown } | null)?.defaultEvent;
+  if (d !== undefined && (typeof d !== "string" || !d))
+    throw new Error(`${path}: defaultEvent is an event id`);
+  return { defaultEvent: d ?? null };
+}
+
 /**
  * Every race in `resultsDir/races/<id>/` (its `replay.json.gz` and `results.json`), summarised for the race list,
- * and the models that raced them (`event-results.json`), for the drivers page.
+ * and the models that raced them (`event-results.json`), for the drivers page, with the events they belong to.
  */
-export function scanResults(resultsDir: string, tracksDir: string): RaceIndex {
+export function scanResults(resultsDir: string, tracksDir: string, site?: SiteConfig): RaceIndex {
   const races: RaceEntry[] = [];
   const stored: StoredRace[] = [];
   const infoOf = trackInfo(tracksDir);
@@ -67,24 +87,30 @@ export function scanResults(resultsDir: string, tracksDir: string): RaceIndex {
   }
   for (const id of ids) {
     const dir = join(base, id);
-    try {
-      const src = READ(dir, "results.json");
-      if (isSource(src)) {
-        const time = Math.max(mtime(join(dir, "replay.json.gz")), mtime(join(dir, "results.json")));
-        races.push(summarizeRace(id, src, { track: infoOf(src.trackId), time }));
-      }
-    } catch {
-      // A race without its replay, or unreadable or half-written, is left out of the list rather than failing it.
-    }
+    let event: string | null = null;
     try {
       const ev = READ(dir, "event-results.json");
       if (isEventResults(ev)) {
-        const time = mtime(join(dir, "event-results.json"));
-        stored.push({ src: ev, trackName: infoOf(ev.track).name ?? ev.track, time });
+        event = ev.event.id;
+        stored.push({ src: ev, trackName: infoOf(ev.track).name ?? ev.track });
       }
     } catch {
       // A race without its table is still listed; its models are not.
     }
+    try {
+      const src = READ(dir, "results.json");
+      if (isSource(src)) {
+        const time = Math.max(mtime(join(dir, "replay.json.gz")), mtime(join(dir, "results.json")));
+        races.push(summarizeRace(id, src, { event, track: infoOf(src.trackId), time }));
+      }
+    } catch {
+      // A race without its replay, or unreadable or half-written, is left out of the list rather than failing it.
+    }
   }
-  return { races: sortRaces(races), drivers: summarizeDrivers(stored) };
+  return {
+    races: sortRaces(races),
+    drivers: summarizeDrivers(stored),
+    events: sortEvents(races.flatMap((r) => (r.event ? [r.event] : []))),
+    defaultEvent: site?.defaultEvent ?? null,
+  };
 }

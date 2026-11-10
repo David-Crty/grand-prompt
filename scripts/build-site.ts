@@ -1,14 +1,15 @@
 /**
  * Assembles the static site: the built viewer, the published result files under `results/races/`, the race
- * list the dev server otherwise builds per request, and the Cloudflare Pages headers. The site has no
- * 404.html, so Pages answers `/races/<id>` and `/drivers` with index.html and the viewer routes them.
+ * list the dev server otherwise builds per request (with `site.json`'s default event, which must have races),
+ * and the Cloudflare Pages headers. The site has no 404.html, so Pages answers `/races/<id>` and `/drivers`
+ * with index.html and the viewer routes them.
  *
  *   pnpm --filter @bench/viewer build && tsx scripts/build-site.ts [outDir]   (default site/)
  */
 import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { scanResults } from "../apps/viewer/server/results-index.js";
+import { readSiteConfig, scanResults } from "../apps/viewer/server/results-index.js";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const viewerDist = join(root, "apps/viewer/dist");
@@ -62,7 +63,13 @@ if (!existsSync(resultsDir)) {
 rmSync(out, { recursive: true, force: true });
 cpSync(viewerDist, out, { recursive: true });
 const files = existsSync(join(resultsDir, "races")) ? copyPublished(join(resultsDir, "races")) : 0;
-const index = scanResults(resultsDir, join(root, "tracks"));
+const index = scanResults(resultsDir, join(root, "tracks"), readSiteConfig(join(root, "site.json")));
+if (index.defaultEvent && !index.events.includes(index.defaultEvent)) {
+  console.error(`site.json: defaultEvent '${index.defaultEvent}' has no races (${index.events.join(", ")})`);
+  process.exit(1);
+}
 writeFileSync(join(out, "results/index.json"), JSON.stringify(index));
 writeFileSync(join(out, "_headers"), HEADERS);
-console.log(`${relative(root, out) || out}: ${index.races.length} races, ${files} result files`);
+console.log(
+  `${relative(root, out) || out}: ${index.races.length} races in ${index.events.length} events, ${files} result files`,
+);

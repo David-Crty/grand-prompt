@@ -18,6 +18,8 @@ export interface RaceDriver {
 export interface RaceEntry {
   /** Its directory under `results/races/`: `<event>-<track>`, e.g. "r1-medium-monaco". */
   id: string;
+  /** The event it belongs to, from its `event-results.json`; null without one. */
+  event: string | null;
   trackName: string;
   /** The circuit drawn for the list; null when its track file is missing or unreadable. */
   outline: Outline | null;
@@ -29,8 +31,28 @@ export interface RaceEntry {
 
 export interface RaceIndex {
   races: RaceEntry[];
-  /** Every model that built a driver for an event, from the latest event it entered. */
+  /** One row per model and event it entered. */
   drivers: DriverEntry[];
+  /** Every event with a race, in `sortEvents` order. */
+  events: string[];
+  /** The event the lists open on (`site.json`); null when none is set. */
+  defaultEvent: string | null;
+}
+
+/** "r1-high" before "r1-medium" before "r10-medium": by name, numbers by value. */
+export function sortEvents(ids: Iterable<string>): string[] {
+  return [...new Set(ids)].sort((a, b) => a.localeCompare(b, "en", { numeric: true }));
+}
+
+/** The event to show: the one asked for if it has races, else the default if it has, else the first. */
+export function pickEvent(
+  asked: string | undefined,
+  events: string[],
+  fallback: string | null,
+): string | null {
+  if (asked && events.includes(asked)) return asked;
+  if (fallback && events.includes(fallback)) return fallback;
+  return events[0] ?? null;
 }
 
 export interface TrackInfo {
@@ -41,13 +63,14 @@ export interface TrackInfo {
 export function summarizeRace(
   id: string,
   src: RaceSource,
-  opts: { track?: TrackInfo; time: number },
+  opts: { event?: string | null; track?: TrackInfo; time: number },
 ): RaceEntry {
   const drivers = [...src.classification]
     .sort((a, b) => a.position - b.position)
     .map((c) => ({ id: c.id, name: c.name, time: c.lapTime }));
   return {
     id,
+    event: opts.event ?? null,
     trackName: opts.track?.name ?? src.trackId,
     outline: opts.track?.outline ?? null,
     time: opts.time,

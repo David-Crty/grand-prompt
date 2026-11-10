@@ -62,10 +62,18 @@ function Results({
 }
 
 /**
- * Every model that built a driver: how it was built, where it finished on each circuit and its points, the
- * standings order, when results are shown.
+ * Every model that built a driver for one event: how it was built, where it finished on each circuit and its
+ * points, the standings order, when results are shown. `picker` chooses the event.
  */
-export function DriverList({ drivers, shown }: { drivers: DriverEntry[]; shown: boolean }) {
+export function DriverList({
+  drivers,
+  shown,
+  picker,
+}: {
+  drivers: DriverEntry[];
+  shown: boolean;
+  picker?: React.ReactNode;
+}) {
   const entries = useMemo(() => eventEntries(drivers), [drivers]);
   const tracks = useMemo(() => raceTracks(drivers), [drivers]);
   const rows = useMemo(() => standings(drivers, shown), [drivers, shown]);
@@ -73,6 +81,7 @@ export function DriverList({ drivers, shown }: { drivers: DriverEntry[]; shown: 
     <>
       <div className="home-head">
         <h1>Drivers</h1>
+        <div className="home-tools">{picker}</div>
       </div>
       {drivers.length === 0 ? (
         <p className="home-note">
@@ -81,8 +90,8 @@ export function DriverList({ drivers, shown }: { drivers: DriverEntry[]; shown: 
       ) : (
         <>
           <p className="home-note">
-            Each model wrote one driving program in its own coding CLI. Reasoning effort was not fixed between
-            builds. Points: 10-8-6-5-4-3-2-1 in every race, for a valid lap.
+            Each model wrote one driving program in its own coding CLI. Points: 10-8-6-5-4-3-2-1 in every
+            race, for a valid lap.
           </p>
           <div className="dl-scroll">
             <table className="gp-table dl-table">

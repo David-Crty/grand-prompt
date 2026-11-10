@@ -135,9 +135,10 @@ crossing the line together at the same speed, then one timed lap.
 make dev      # http://localhost:5173/
 ```
 
-The home page lists every race in `results/races/`, `/races/<id>` plays one (`/races/r2-medium-monaco`)
-and `/drivers` lists the models that built the drivers, with their standings: 10-8-6-5-4-3-2-1
-points in every race for a valid lap. Results stay hidden until you show them. Press `?` for the
+The home page lists the races of one event, `/races/<id>` plays one (`/races/r2-medium-monaco`)
+and `/drivers` lists the models that built the event's drivers, with their standings: 10-8-6-5-4-3-2-1
+points in every race for a valid lap. The lists open on `defaultEvent` in [site.json](site.json), and
+the event picker (or `?event=r2-medium`) shows another. Results stay hidden until you show them. Press `?` for the
 keyboard shortcuts. Below 600 px wide it switches to a phone layout.
 
 ### Make
