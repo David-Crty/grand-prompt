@@ -81,7 +81,8 @@ installed and logged in.
 ```shell
 pnpm bench build gp-2 --check          # sandbox, practice service and CLIs, no model run
 pnpm bench build gp-2                  # every model in models.json, in parallel, with a live view
-pnpm bench build gp-2 --only codex     # a provider, a CLI or a model id
+pnpm bench build gp-2 --only claude-opus-5-5     # a provider, a CLI or a model id
+pnpm bench build gp-2 --effort high     # every models with high effort
 ```
 
 Each model gets 30 minutes and 10 practice laps, shared between Monaco, Silverstone and Portimão
@@ -98,7 +99,6 @@ colour of its own (its chip, trail and livery stripe), the same in every event:
 
 ```json
 {
-  "effort": "medium",
   "providers": { "anthropic": { "label": "Anthropic", "cli": "claude", "body": "clay" } },
   "models": [
     { "id": "claude-opus-5-5", "name": "Claude Opus 5.5", "code": "OPU", "provider": "anthropic", "color": "lime" }
@@ -108,7 +108,6 @@ colour of its own (its chip, trail and livery stripe), the same in every event:
 
 - `color` (each model its own): `blush` `cobalt` `lime` `magenta` `sky` `ochre` `mint` `jade` `periwinkle` `rose` `butter` `fuchsia`
 - `body` (per provider, or per model to override it): `clay` `cobalt` `graphite` `pearl` `saffron` `silver`
-- `effort` (for every model or per model; `--effort` overrides both): `low` `medium` `high` `xhigh` `max`
 
 To work on a driver by hand: `pnpm bench validate <driver.js>` loads it and drives 10 s, and
 `pnpm bench practice <driver.js> --track monaco` drives a flying lap, with the telemetry, the

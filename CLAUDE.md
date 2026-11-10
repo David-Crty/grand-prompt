@@ -35,7 +35,7 @@ commands.
 - `driver-development-kit/`: everything a model sees. `PROMPT_AGENTIC.md` (copied in as
   `TASK.md`) carries the prompt version (`agentic-0.5`) that each manifest records.
 - `models.json`: the roster (providers with their CLI and car body; models with id, name, code,
-  colour, effort). `prices.json`: list prices for the build cost when a CLI reports none (Codex,
+  colour). `prices.json`: list prices for the build cost when a CLI reports none (Codex,
   `agy`).
 - `cars/proto.json`: the full car, hidden constants included. `cars/sources/*.stl` → the viewer's
   mesh (`make car`).

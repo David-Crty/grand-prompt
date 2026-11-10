@@ -1,5 +1,4 @@
 {
-  "effort": "medium",
   "providers": {
     "anthropic": { "label": "Anthropic", "cli": "claude", "body": "clay" },
     "openai": { "label": "OpenAI", "cli": "codex", "body": "silver" },

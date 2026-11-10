@@ -94,8 +94,8 @@ export function planBuilds(
   hasCli: (cli: string) => boolean,
 ): { plan: PlanEntry[]; skipped: string[] } {
   const roster = parseRoster(models);
-  const fallback = opts.effort ?? roster.effort ?? "medium";
-  if (!EFFORTS.includes(fallback)) throw new Error(`unknown effort '${fallback}' (${EFFORTS.join(", ")})`);
+  const effort = opts.effort ?? "medium";
+  if (!EFFORTS.includes(effort)) throw new Error(`unknown effort '${effort}' (${EFFORTS.join(", ")})`);
   const plan: PlanEntry[] = [];
   const skipped: string[] = [];
   for (const m of roster.models) {
@@ -106,8 +106,6 @@ export function planBuilds(
       skipped.push(`${m.id} (${cli} not installed)`);
       continue;
     }
-    const effort = opts.effort ?? m.effort ?? fallback;
-    if (!EFFORTS.includes(effort)) throw new Error(`${m.id}: unknown effort '${effort}'`);
     plan.push({ cli, provider: m.provider, id: m.id, name: m.name, effort, slug: slugify(m.id) });
   }
   return { plan, skipped };

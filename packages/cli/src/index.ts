@@ -32,7 +32,7 @@ drivers
       --timeout <min>            wall-time limit per model, stated in its prompt (default 30)
       --only <list>              providers, CLIs or model ids to build
       --models <file>            model list (default models.json)
-      --effort <level>           low, medium, high, xhigh or max for every model (default: models.json)
+      --effort <level>           low, medium, high, xhigh or max for every model (default: medium)
       --plain                    log lines instead of the live view
       --dry-run                  print the command for the first model, run nothing
       --check                    check the sandbox, the practice service and each CLI, run no model

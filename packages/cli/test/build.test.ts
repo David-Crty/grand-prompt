@@ -96,14 +96,13 @@ describe("prompt and formatting", () => {
 
 describe("planBuilds", () => {
   const models = {
-    effort: "medium",
     providers: {
       anthropic: { label: "Anthropic", cli: "claude", body: "clay" },
       openai: { label: "OpenAI", cli: "codex", body: "silver" },
     },
     models: [
       { id: "claude-a", name: "A", code: "AAA", provider: "anthropic", color: "blush" },
-      { id: "claude-b", name: "B", code: "BBB", provider: "anthropic", color: "lime", effort: "high" },
+      { id: "claude-b", name: "B", code: "BBB", provider: "anthropic", color: "lime" },
       { id: "gpt-x", name: "X", code: "XXX", provider: "openai", color: "sky" },
     ],
   };
@@ -111,7 +110,7 @@ describe("planBuilds", () => {
     const { plan, skipped } = planBuilds(models, { only: [], effort: undefined }, (c) => c !== "codex");
     expect(plan.map((e) => [e.id, e.cli, e.provider, e.effort])).toEqual([
       ["claude-a", "claude", "anthropic", "medium"],
-      ["claude-b", "claude", "anthropic", "high"],
+      ["claude-b", "claude", "anthropic", "medium"],
     ]);
     expect(skipped).toEqual(["gpt-x (codex not installed)"]);
     const forced = planBuilds(models, { only: ["claude-b"], effort: "low" }, () => true);
@@ -132,9 +131,7 @@ describe("planBuilds", () => {
       providers: { ...models.providers, openai: { label: "x", cli: "grok", body: "pearl" } },
     };
     expect(() => planBuilds(grok, none, () => true)).toThrow(/unknown cli 'grok'/);
-    expect(() => planBuilds(models, { only: [], effort: "turbo" }, () => true)).toThrow(/effort/);
-    const bad = { ...models, models: [{ ...models.models[0]!, effort: "turbo" }] };
-    expect(() => planBuilds(bad, none, () => true)).toThrow(/claude-a: unknown effort/);
+    expect(() => planBuilds(models, { only: [], effort: "turbo" }, () => true)).toThrow(/unknown effort/);
   });
   it("reads the repo's models.json", () => {
     const real = JSON.parse(readFileSync(join(import.meta.dirname, "../../../models.json"), "utf8"));

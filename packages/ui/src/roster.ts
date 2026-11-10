@@ -23,11 +23,9 @@ export interface RosterModel {
   color: string;
   /** Overrides the provider's body paint. */
   body?: string;
-  effort?: string;
 }
 
 export interface Roster {
-  effort?: string;
   providers: Record<string, RosterProvider>;
   models: RosterModel[];
 }
@@ -46,7 +44,6 @@ export function parseRoster(raw: unknown): Roster {
   };
   if (!isObject(raw)) fail("not an object");
   const r = raw as Record<string, unknown>;
-  if (r.effort !== undefined && typeof r.effort !== "string") fail("effort is a string");
   if (!isObject(r.providers)) fail("providers is an object of provider id to { label, cli, body }");
   if (!Array.isArray(r.models)) fail("models is a list");
   const str = (o: Record<string, unknown>, k: string, where: string) =>
@@ -86,14 +83,12 @@ export function parseRoster(raw: unknown): Roster {
     if (!(ENTRY_COLOR_NAMES as readonly string[]).includes(out.color))
       fail(`${id}: unknown color '${out.color}' (${ENTRY_COLOR_NAMES.join(", ")})`);
     if (m.body !== undefined) out.body = body(String(m.body), id);
-    if (m.effort !== undefined)
-      out.effort = typeof m.effort === "string" ? m.effort : fail(`${id}: effort is a string`);
     once("id", id, id);
     once("code", out.code, id);
     once("color", out.color, id);
     return out;
   });
-  return { ...(r.effort !== undefined ? { effort: r.effort as string } : {}), providers, models };
+  return { providers, models };
 }
 
 /** The colour slot (1 to 12) of an entry colour name. */

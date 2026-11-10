@@ -7,7 +7,6 @@ import { COLORS, ENTRY_COLOR_NAMES, ENTRY_COLORS } from "../src/tokens.gen.js";
 const models = JSON.parse(readFileSync(join(import.meta.dirname, "../../../models.json"), "utf8"));
 
 const base = () => ({
-  effort: "medium",
   providers: {
     anthropic: { label: "Anthropic", cli: "claude", body: "clay" },
     openai: { label: "OpenAI", cli: "codex", body: "silver" },
@@ -21,7 +20,6 @@ const base = () => ({
       provider: "openai",
       color: "blush",
       body: "pearl",
-      effort: "high",
     },
   ] as Record<string, unknown>[],
 });
@@ -42,16 +40,12 @@ describe("models.json", () => {
 describe("parseRoster", () => {
   it("keeps every field", () => {
     const r = parseRoster(base());
-    expect(r.effort).toBe("medium");
     expect(r.providers.openai).toEqual({ label: "OpenAI", cli: "codex", body: "silver" });
-    expect(r.models[1]).toMatchObject({ body: "pearl", effort: "high" });
-    const { effort: _, ...noEffort } = base();
-    expect(parseRoster(noEffort).effort).toBeUndefined();
+    expect(r.models[1]).toMatchObject({ body: "pearl" });
   });
 
   const broken: [string, (r: ReturnType<typeof base>) => unknown, RegExp][] = [
     ["not an object", () => [], /not an object/],
-    ["a numeric effort", (r) => ({ ...r, effort: 3 }), /effort is a string/],
     ["no providers", (r) => ({ ...r, providers: [] }), /providers is an object/],
     ["no model list", (r) => ({ ...r, models: {} }), /models is a list/],
     ["a provider that is not an object", (r) => ({ ...r, providers: { x: "y" } }), /provider x is an object/],
@@ -71,7 +65,6 @@ describe("parseRoster", () => {
     ["an unknown provider", (r) => withModel(r, 0, { provider: "xai" }), /unknown provider 'xai'/],
     ["an unknown colour", (r) => withModel(r, 0, { color: "teal" }), /unknown color 'teal'/],
     ["a model body that is not a token", (r) => withModel(r, 0, { body: "gold" }), /claude-a: unknown body/],
-    ["a numeric model effort", (r) => withModel(r, 0, { effort: 2 }), /claude-a: effort is a string/],
     [
       "a shared colour",
       (r) => withModel(r, 1, { color: "cobalt" }),
