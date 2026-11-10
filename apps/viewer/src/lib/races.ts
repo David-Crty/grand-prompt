@@ -81,12 +81,40 @@ export function timedField(r: Pick<RaceEntry, "drivers">): (RaceDriver & { time:
  * one sits at 0.
  */
 export function fieldSpread(r: Pick<RaceEntry, "drivers">): {
-  dots: { id: string; at: number; gap: number }[];
+  dots: { id: string; name: string; time: number; at: number; gap: number }[];
   span: number;
 } {
   const field = timedField(r);
   const span = field.length ? field[field.length - 1]!.gap : 0;
-  return { dots: field.map((d) => ({ id: d.id, at: span > 0 ? d.gap / span : 0, gap: d.gap })), span };
+  return {
+    dots: field.map((d) => ({
+      id: d.id,
+      name: d.name,
+      time: d.time,
+      at: span > 0 ? d.gap / span : 0,
+      gap: d.gap,
+    })),
+    span,
+  };
+}
+
+/**
+ * The dots in groups of ones closer than `near` (in the same 0..1 as `at`) to their neighbour, each with where it
+ * starts and ends, so dots drawn on top of each other share one hover target.
+ */
+export function clusterDots<D extends { at: number }>(
+  dots: D[],
+  near: number,
+): { from: number; to: number; dots: D[] }[] {
+  const out: { from: number; to: number; dots: D[] }[] = [];
+  for (const d of [...dots].sort((a, b) => a.at - b.at)) {
+    const last = out[out.length - 1];
+    if (last && d.at - last.to < near) {
+      last.dots.push(d);
+      last.to = d.at;
+    } else out.push({ from: d.at, to: d.at, dots: [d] });
+  }
+  return out;
 }
 
 /** "3.31 km". */

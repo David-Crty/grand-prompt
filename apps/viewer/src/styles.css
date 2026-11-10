@@ -582,6 +582,22 @@ button {
   min-width: 0;
 }
 
+.rl-spread__track {
+  position: relative;
+  display: block;
+}
+
+.rl-spread .rl-spread__hit {
+  position: absolute;
+  top: -4px;
+  height: 24px;
+  display: block;
+}
+
+.rl-spread__row {
+  display: contents;
+}
+
 .rl-spread__strip {
   display: block;
   width: 100%;

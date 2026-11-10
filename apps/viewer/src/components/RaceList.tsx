@@ -1,8 +1,9 @@
 import { type Entry, entryVar, formatGap, formatLapTime } from "@bench/ui";
-import { EntryChip } from "@bench/ui/react";
-import { type CSSProperties, type KeyboardEvent, useMemo, useRef, useState } from "react";
+import { EntryChip, EntryDot, Popover } from "@bench/ui/react";
+import { type CSSProperties, type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { eventEntries } from "../lib/entries.js";
 import {
+  clusterDots,
   fieldSpread,
   filterRaces,
   formatDate,
@@ -43,23 +44,80 @@ function Podium({ r, entries }: { r: RaceEntry; entries: Map<string, Entry> }) {
   );
 }
 
-function Spread({ r, entries }: { r: RaceEntry; entries: Map<string, Entry> }) {
-  const { dots, span } = fieldSpread(r);
+/** The strip runs from 4% to 96% of its width. */
+const STRIP_FROM = 4;
+const STRIP_SPAN = 92;
+/** Dots nearer than this, in px, share a popover; the hover target reaches this far past the outer ones. */
+const DOT_NEAR = 12;
+const DOT_REACH = 7;
+
+/** The strip's width in px, followed as the layout changes. */
+function useWidth(ref: React.RefObject<HTMLElement | null>): number {
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setWidth(e!.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [ref]);
+  return width;
+}
+
+function Spread({ r, entries, shown }: { r: RaceEntry; entries: Map<string, Entry>; shown: boolean }) {
+  const { dots, span } = useMemo(() => fieldSpread(r), [r]);
   const untimed = r.drivers.length - dots.length;
+  const ref = useRef<HTMLSpanElement>(null);
+  const width = useWidth(ref);
+  const groups = useMemo(() => {
+    const ranked = dots.map((d, i) => ({ ...d, place: i + 1 }));
+    return width > 0 ? clusterDots(ranked, DOT_NEAR / ((width * STRIP_SPAN) / 100)) : [];
+  }, [dots, width]);
+  const pct = (at: number) => STRIP_FROM + at * STRIP_SPAN;
   return (
     <span className="rl-spread">
-      <svg className="rl-spread__strip" aria-hidden="true">
-        <line x1="4%" x2="96%" y1="8" y2="8" />
-        {[...dots].reverse().map((d) => (
-          <circle
-            key={d.id}
-            cx={`${(4 + d.at * 92).toFixed(2)}%`}
-            cy="8"
-            r="4.5"
-            style={{ "--dot": entryVar(entries.get(d.id)) } as CSSProperties}
-          />
-        ))}
-      </svg>
+      <span className="rl-spread__track" ref={ref}>
+        <svg className="rl-spread__strip" aria-hidden="true">
+          <line x1={`${STRIP_FROM}%`} x2={`${STRIP_FROM + STRIP_SPAN}%`} y1="8" y2="8" />
+          {[...dots].reverse().map((d) => (
+            <circle
+              key={d.id}
+              cx={`${pct(d.at).toFixed(2)}%`}
+              cy="8"
+              r="4.5"
+              style={{ "--dot": entryVar(entries.get(d.id)) } as CSSProperties}
+            />
+          ))}
+        </svg>
+        {shown
+          ? groups.map((g) => (
+              <Popover
+                key={g.dots[0]!.id}
+                className="rl-spread__hit"
+                style={{
+                  left: `calc(${pct(g.from).toFixed(2)}% - ${DOT_REACH}px)`,
+                  width: `calc(${((g.to - g.from) * STRIP_SPAN).toFixed(2)}% + ${2 * DOT_REACH}px)`,
+                }}
+                label={g.dots.map((d) => d.name).join(", ")}
+                passive
+              >
+                <span className="gp-pop__rows">
+                  {g.dots.map((d) => (
+                    <span key={d.id} className="rl-spread__row">
+                      <EntryDot entry={entries.get(d.id)} />
+                      <span>
+                        P{d.place} {d.name}
+                      </span>
+                      <span className="n">
+                        {d.place === 1 ? formatLapTime(d.time) : `${formatGap(d.gap)}s`}
+                      </span>
+                    </span>
+                  ))}
+                </span>
+              </Popover>
+            ))
+          : null}
+      </span>
       <span className="rl-spread__ends">
         <span>Pole</span>
         <span>
@@ -105,7 +163,7 @@ function Row({
       </span>
       <span className={shown ? "rl-results" : "rl-results is-concealed"} aria-hidden={!shown}>
         <Podium r={r} entries={entries} />
-        <Spread r={r} entries={entries} />
+        <Spread r={r} entries={entries} shown={shown} />
       </span>
       <span className="rl-watch">
         Watch

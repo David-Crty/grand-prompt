@@ -28,6 +28,11 @@ export function EntryChip({ entry, out = false }: { entry: Entry; out?: boolean 
   );
 }
 
+/** A round mark in the entry colour, for a list that names entries without their chips. */
+export function EntryDot({ entry }: { entry: Pick<Entry, "slot"> | null | undefined }) {
+  return <span className="gp-dot" style={entryStyle(entry)} aria-hidden="true" />;
+}
+
 /** Chip plus name, with the provider and its body paint underneath when `meta` is set. */
 export function EntryName({ entry, meta = false }: { entry: Entry; meta?: boolean }) {
   return (
@@ -280,11 +285,18 @@ export function Popover({
   children,
   trigger,
   hover = false,
+  passive = false,
+  className,
+  style,
 }: {
   label: string;
   children: React.ReactNode;
   trigger?: React.ReactNode;
   hover?: boolean;
+  /** Hover only, with no button: for a trigger inside a link, where a click must still follow it. */
+  passive?: boolean;
+  className?: string;
+  style?: React.CSSProperties;
 }) {
   const [pinned, setPinned] = React.useState(false);
   const [peek, setPeek] = React.useState(false);
@@ -317,31 +329,40 @@ export function Popover({
     };
   }, [open]);
   const onMouse = (show: boolean) => (e: React.PointerEvent) => {
-    if (hover && e.pointerType === "mouse") setPeek(show);
+    if ((hover || passive) && e.pointerType === "mouse") setPeek(show);
   };
   return (
-    <span className="gp-pop" ref={ref} onPointerEnter={onMouse(true)} onPointerLeave={onMouse(false)}>
-      <button
-        type="button"
-        className={cx("gp-pop__btn", trigger != null && "gp-pop__btn--text")}
-        aria-label={label}
-        aria-expanded={open}
-        aria-controls={open ? id : undefined}
-        title={hover ? undefined : label}
-        onClick={() => setPinned((v) => !v)}
-        onFocus={hover ? () => setPeek(true) : undefined}
-        onBlur={hover ? () => setPeek(false) : undefined}
-      >
-        {trigger ?? <Icon name="help" />}
-      </button>
+    <span
+      className={cx("gp-pop", className)}
+      style={style}
+      ref={ref}
+      onPointerEnter={onMouse(true)}
+      onPointerLeave={onMouse(false)}
+    >
+      {passive ? (
+        trigger
+      ) : (
+        <button
+          type="button"
+          className={cx("gp-pop__btn", trigger != null && "gp-pop__btn--text")}
+          aria-label={label}
+          aria-expanded={open}
+          aria-controls={open ? id : undefined}
+          title={hover ? undefined : label}
+          onClick={() => setPinned((v) => !v)}
+          onFocus={hover ? () => setPeek(true) : undefined}
+          onBlur={hover ? () => setPeek(false) : undefined}
+        >
+          {trigger ?? <Icon name="help" />}
+        </button>
+      )}
       {open
         ? createPortal(
             <span
               ref={bodyRef}
               id={id}
               className="gp gp-pop__body gp-panel gp-panel--solid"
-              role="dialog"
-              aria-label={label}
+              {...(passive ? { role: "tooltip" } : { role: "dialog", "aria-label": label })}
               style={pos ?? { visibility: "hidden" }}
             >
               {children}

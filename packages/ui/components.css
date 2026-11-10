@@ -1397,6 +1397,26 @@
   color: var(--text-200);
   box-shadow: var(--shadow-overlay);
 }
+.gp-pop__rows {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  gap: 4px 10px;
+  align-items: center;
+  margin: 0;
+  white-space: nowrap;
+}
+.gp-pop__rows .n {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-300);
+}
+.gp-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--entry);
+}
 .gp-pop__body p {
   margin: 0 0 8px;
 }

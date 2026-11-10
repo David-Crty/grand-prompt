@@ -5,6 +5,7 @@ import { gzipSync } from "node:zlib";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { scanResults } from "../server/results-index.js";
 import {
+  clusterDots,
   fieldSpread,
   filterRaces,
   formatDate,
@@ -94,19 +95,33 @@ describe("race list helpers", () => {
       ["a", 0],
       ["b", 0.5],
     ]);
-    expect(fieldSpread(r)).toEqual({
+    expect(fieldSpread(r)).toMatchObject({
       dots: [
         { id: "a", at: 0, gap: 0 },
         { id: "b", at: 1, gap: 0.5 },
       ],
       span: 0.5,
     });
+    expect(fieldSpread(r).dots[1]).toMatchObject({ name: r.drivers[1]!.name, time: r.drivers[1]!.time });
     const one = summarizeRace("r", source({ classification: [row({ id: "a", position: 1 })] }), {
       time: 0,
     });
-    expect(fieldSpread(one)).toEqual({ dots: [{ id: "a", at: 0, gap: 0 }], span: 0 });
+    expect(fieldSpread(one)).toMatchObject({ dots: [{ id: "a", at: 0, gap: 0 }], span: 0 });
     const none = summarizeRace("r", source({ classification: [] }), { time: 0 });
     expect(fieldSpread(none)).toEqual({ dots: [], span: 0 });
+  });
+});
+
+describe("spread clusters", () => {
+  it("groups dots closer than the limit to their neighbour, in order", () => {
+    const at = (...xs: number[]) => xs.map((x, i) => ({ id: String(i), at: x }));
+    const groups = clusterDots(at(0.5, 0, 0.03, 0.06, 1), 0.04);
+    expect(groups.map((g) => [g.from, g.to, g.dots.map((d) => d.id)])).toEqual([
+      [0, 0.06, ["1", "2", "3"]],
+      [0.5, 0.5, ["0"]],
+      [1, 1, ["4"]],
+    ]);
+    expect(clusterDots([], 0.1)).toEqual([]);
   });
 });
 
