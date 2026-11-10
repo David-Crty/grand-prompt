@@ -52,7 +52,7 @@ const STRIP_SPAN = 92;
 const DOT_NEAR = 12;
 const DOT_REACH = 7;
 
-function Spread({ r, entries, shown }: { r: RaceEntry; entries: Map<string, Entry>; shown: boolean }) {
+function Spread({ r, entries }: { r: RaceEntry; entries: Map<string, Entry> }) {
   const { dots, span } = useMemo(() => fieldSpread(r), [r]);
   const untimed = r.drivers.length - dots.length;
   const ref = useRef<HTMLSpanElement>(null);
@@ -77,34 +77,30 @@ function Spread({ r, entries, shown }: { r: RaceEntry; entries: Map<string, Entr
             />
           ))}
         </svg>
-        {shown
-          ? groups.map((g) => (
-              <Popover
-                key={g.dots[0]!.id}
-                className="rl-spread__hit"
-                style={{
-                  left: `calc(${pct(g.from).toFixed(2)}% - ${DOT_REACH}px)`,
-                  width: `calc(${((g.to - g.from) * STRIP_SPAN).toFixed(2)}% + ${2 * DOT_REACH}px)`,
-                }}
-                label={g.dots.map((d) => d.name).join(", ")}
-                passive
-              >
-                <span className="gp-pop__rows">
-                  {g.dots.map((d) => (
-                    <span key={d.id} className="rl-spread__row">
-                      <EntryDot entry={entries.get(d.id)} />
-                      <span>
-                        P{d.place} {d.name}
-                      </span>
-                      <span className="n">
-                        {d.place === 1 ? formatLapTime(d.time) : `${formatGap(d.gap)}s`}
-                      </span>
-                    </span>
-                  ))}
+        {groups.map((g) => (
+          <Popover
+            key={g.dots[0]!.id}
+            className="rl-spread__hit"
+            style={{
+              left: `calc(${pct(g.from).toFixed(2)}% - ${DOT_REACH}px)`,
+              width: `calc(${((g.to - g.from) * STRIP_SPAN).toFixed(2)}% + ${2 * DOT_REACH}px)`,
+            }}
+            label={g.dots.map((d) => d.name).join(", ")}
+            passive
+          >
+            <span className="gp-pop__rows">
+              {g.dots.map((d) => (
+                <span key={d.id} className="rl-spread__row">
+                  <EntryDot entry={entries.get(d.id)} />
+                  <span>
+                    P{d.place} {d.name}
+                  </span>
+                  <span className="n">{d.place === 1 ? formatLapTime(d.time) : `${formatGap(d.gap)}s`}</span>
                 </span>
-              </Popover>
-            ))
-          : null}
+              ))}
+            </span>
+          </Popover>
+        ))}
       </span>
       <span className="rl-spread__ends">
         <span>Pole</span>
@@ -117,17 +113,7 @@ function Spread({ r, entries, shown }: { r: RaceEntry; entries: Map<string, Entr
   );
 }
 
-function Row({
-  r,
-  active,
-  shown,
-  onActivate,
-}: {
-  r: RaceEntry;
-  active: boolean;
-  shown: boolean;
-  onActivate: () => void;
-}) {
+function Row({ r, active, onActivate }: { r: RaceEntry; active: boolean; onActivate: () => void }) {
   const entries = useMemo(() => eventEntries(r.drivers), [r.drivers]);
   // The Watch link covers the whole row, so a click anywhere plays the replay; Results sits above it.
   return (
@@ -146,9 +132,9 @@ function Row({
           <span>{formatDate(r.time)}</span>
         </span>
       </span>
-      <span className={shown ? "rl-results" : "rl-results is-concealed"} aria-hidden={!shown}>
+      <span className="rl-results">
         <Podium r={r} entries={entries} />
-        <Spread r={r} entries={entries} shown={shown} />
+        <Spread r={r} entries={entries} />
       </span>
       <span className="rl-go">
         <a
@@ -172,15 +158,7 @@ function Row({
 }
 
 /** Home page: the replays of one event, by circuit; `picker` chooses the event. */
-export function RaceList({
-  races,
-  shown,
-  picker,
-}: {
-  races: RaceEntry[];
-  shown: boolean;
-  picker?: ReactNode;
-}) {
+export function RaceList({ races, picker }: { races: RaceEntry[]; picker?: ReactNode }) {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState<string | null>(null);
   const list = useRef<HTMLDivElement>(null);
@@ -227,7 +205,7 @@ export function RaceList({
       {/* biome-ignore lint/a11y/noStaticElementInteractions: arrow keys move focus between the rows' Watch links. */}
       <div className="rl-rows" ref={list} onKeyDown={onKeyDown}>
         {visible.map((r) => (
-          <Row key={r.id} r={r} active={r.id === activeId} shown={shown} onActivate={() => setActive(r.id)} />
+          <Row key={r.id} r={r} active={r.id === activeId} onActivate={() => setActive(r.id)} />
         ))}
       </div>
     </>

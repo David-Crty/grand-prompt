@@ -98,7 +98,7 @@ describe("drivers", () => {
     ).toHaveLength(2);
   });
 
-  it("scores every race the same and orders the standings by points only when shown", () => {
+  it("scores every race the same and orders the standings by points", () => {
     const rows = summarizeDrivers([
       race("e1", "a", [
         { slug: "x", name: "Xan", position: 1, lapTime: 60 },
@@ -116,8 +116,7 @@ describe("drivers", () => {
       ["z", 6],
       ["x", 18],
     ]);
-    expect(standings(rows, true).map((d) => `${d.place} ${d.name}`)).toEqual(["1 Ann", "1 Xan", "3 Bob"]);
-    expect(standings(rows, false).map((d) => d.name)).toEqual(["Ann", "Bob", "Xan"]);
+    expect(standings(rows).map((d) => `${d.place} ${d.name}`)).toEqual(["1 Ann", "1 Xan", "3 Bob"]);
   });
 
   it("gives points to the first eight with a valid lap", () => {

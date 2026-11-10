@@ -12,13 +12,11 @@ import {
   formatLength,
   pickEvent,
   type RaceSource,
-  readReveal,
   sortEvents,
   sortRaces,
   summarizeRace,
   timedField,
   trackEvents,
-  writeReveal,
 } from "../src/lib/races.js";
 
 type Row = RaceSource["classification"][number];
@@ -129,33 +127,6 @@ describe("spread clusters", () => {
       [1, 1, ["4"]],
     ]);
     expect(clusterDots([], 0.1)).toEqual([]);
-  });
-});
-
-describe("hidden results", () => {
-  it("keeps results hidden unless the viewer chose to see them", () => {
-    const store = new Map<string, string>();
-    const storage = {
-      getItem: (k: string) => store.get(k) ?? null,
-      setItem: (k: string, v: string) => void store.set(k, v),
-    };
-    expect(readReveal(storage)).toBe(false);
-    writeReveal(storage, true);
-    expect(readReveal(storage)).toBe(true);
-    writeReveal(storage, false);
-    expect(readReveal(storage)).toBe(false);
-    expect(readReveal(null)).toBe(false);
-    const broken = {
-      getItem: () => {
-        throw new Error("denied");
-      },
-      setItem: () => {
-        throw new Error("denied");
-      },
-    };
-    expect(readReveal(broken)).toBe(false);
-    expect(() => writeReveal(broken, true)).not.toThrow();
-    expect(() => writeReveal(undefined, true)).not.toThrow();
   });
 });
 

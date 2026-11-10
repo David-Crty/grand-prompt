@@ -1,7 +1,6 @@
 import { type Entry, entryVar, formatGap, formatLapTime } from "@bench/ui";
 import {
   BuildFactsHelp,
-  Button,
   ClassificationTable,
   type ClassRow,
   Dropdown,
@@ -43,26 +42,20 @@ const LANES = 3;
 /** Below this many px between ticks, only every other one is labelled. */
 const TICK_GAP = 44;
 
-const EXTRAS = [
-  { label: "Top speed", result: true },
-  { label: "Off-track", result: true },
-  { label: "Pts", result: true },
-];
+const EXTRAS = [{ label: "Top speed" }, { label: "Off-track" }, { label: "Pts" }];
 
-/** The events at the circuit, one tab each: its effort, its field and, when results are shown, its pole. */
+/** The events at the circuit, one tab each: its effort, its field and its pole. */
 function EventTabs({
   races,
   event,
   efforts,
   entries,
-  shown,
   onPick,
 }: {
   races: RaceEntry[];
   event: string;
   efforts: Map<string, string | null>;
   entries: Map<string, Entry>;
-  shown: boolean;
   onPick: (event: string) => void;
 }) {
   return (
@@ -87,12 +80,10 @@ function EventTabs({
                 {r.drivers.length} {r.drivers.length === 1 ? "car" : "cars"}
               </span>
             </span>
-            <span className={shown ? "rp-tab__pole" : "rp-tab__pole is-concealed"} aria-hidden={!shown}>
+            <span className="rp-tab__pole">
               <span className="gp-faint">P1</span>
-              {shown && e ? <EntryChip entry={e} /> : null}
-              <span className="is-fastest">
-                {!shown ? "0:00.000" : pole?.time != null ? formatLapTime(pole.time) : "No lap"}
-              </span>
+              {e ? <EntryChip entry={e} /> : null}
+              <span className="is-fastest">{pole?.time != null ? formatLapTime(pole.time) : "No lap"}</span>
             </span>
           </button>
         );
@@ -133,13 +124,11 @@ function FieldStrip({
   scale,
   entries,
   trackName,
-  shown,
 }: {
   race: RaceEntry;
   scale: StripScale | null;
   entries: Map<string, Entry>;
   trackName: string;
-  shown: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const width = useWidth(ref);
@@ -171,38 +160,33 @@ function FieldStrip({
               </span>
             ) : null,
           )}
-          {shown
-            ? timed.map((d, i) => {
-                const e = entries.get(d.id);
-                return e ? (
-                  <span
-                    key={d.id}
-                    className="rp-strip__car"
-                    title={`${e.name}: ${formatLapTime(d.time)}`}
-                    style={
-                      {
-                        left: `${at(d.time) * 100}%`,
-                        "--dot": entryVar(e),
-                        "--lane": lanes[i],
-                      } as CSSProperties
-                    }
-                  >
-                    <span className="rp-strip__dot" />
-                    <EntryChip entry={e} />
-                  </span>
-                ) : null;
-              })
-            : null}
-          {shown ? null : <span className="rp-strip__hidden gp-faint">Hidden until you show results</span>}
+          {timed.map((d, i) => {
+            const e = entries.get(d.id);
+            return e ? (
+              <span
+                key={d.id}
+                className="rp-strip__car"
+                title={`${e.name}: ${formatLapTime(d.time)}`}
+                style={
+                  {
+                    left: `${at(d.time) * 100}%`,
+                    "--dot": entryVar(e),
+                    "--lane": lanes[i],
+                  } as CSSProperties
+                }
+              >
+                <span className="rp-strip__dot" />
+                <EntryChip entry={e} />
+              </span>
+            ) : null;
+          })}
         </div>
         <div className="rp-strip__none">
           <span className="gp-label">No time</span>
-          {shown
-            ? untimed.map((d) => {
-                const e = entries.get(d.id);
-                return e ? <EntryChip key={d.id} entry={e} out /> : null;
-              })
-            : null}
+          {untimed.map((d) => {
+            const e = entries.get(d.id);
+            return e ? <EntryChip key={d.id} entry={e} out /> : null;
+          })}
         </div>
       </div>
     </section>
@@ -211,22 +195,17 @@ function FieldStrip({
 
 /**
  * One race's results, beside the circuit's other events: a tab per event, the podium, the field on an axis shared
- * by every event there, and the full classification. While results are hidden the rows go by name and every
- * result is blurred; what it took to build each driver stays, since it is not a result.
+ * by every event there, and the full classification.
  */
 export function ResultPage({
   index,
   track,
   event,
-  shown,
-  onShow,
   onOpen,
 }: {
   index: RaceIndex;
   track: string;
   event: string;
-  shown: boolean;
-  onShow: () => void;
   /** Go to another race's results, by circuit and event. */
   onOpen: (track: string, event: string) => void;
 }) {
@@ -284,12 +263,12 @@ export function ResultPage({
       };
     });
     return {
-      rows: shown ? rows : [...rows].sort((a, b) => a.entry.name.localeCompare(b.entry.name)),
+      rows,
       full: rows.some((r) => r.build),
       sectors: Math.max(1, ...current.classification.map((c) => c.lap?.sectors.length ?? 0)),
       help: buildHelp(current.results),
     };
-  }, [current, entries, shown]);
+  }, [current, entries]);
 
   const allRaces = routeHref({
     page: "races",
@@ -338,7 +317,6 @@ export function ResultPage({
         event={event}
         efforts={efforts}
         entries={entries}
-        shown={shown}
         onPick={(ev) => onOpen(track, ev)}
       />
       {race ? (
@@ -352,7 +330,7 @@ export function ResultPage({
               Drivers in {event}
             </a>
             <span className="gp-flex" />
-            {shown && summary ? (
+            {summary ? (
               <span className="rp-summary">
                 <b>
                   {summary.valid} of {summary.cars}
@@ -367,19 +345,13 @@ export function ResultPage({
               </span>
             ) : null}
           </div>
-          {shown ? null : (
-            <div className="rp-banner gp-panel gp-panel--solid">
-              <span>Results are hidden, so you can watch the race first.</span>
-              <Button onClick={onShow}>Show results</Button>
-            </div>
-          )}
-          {shown && !phone ? <Podium race={race} entries={entries} /> : null}
-          <FieldStrip race={race} scale={scale} entries={entries} trackName={info.trackName} shown={shown} />
+          {!phone ? <Podium race={race} entries={entries} /> : null}
+          <FieldStrip race={race} scale={scale} entries={entries} trackName={info.trackName} />
           {typeof current === "string" ? <p className="home-note error">{current}</p> : null}
           {current === undefined ? <p className="home-note">Loading the results…</p> : null}
           {table ? (
             phone ? (
-              <ResultList rows={table.rows} showBuild={table.full} concealed={!shown} />
+              <ResultList rows={table.rows} showBuild={table.full} />
             ) : (
               <ClassificationTable
                 rows={table.rows}
@@ -387,7 +359,6 @@ export function ResultPage({
                 sectors={table.sectors}
                 buildHelp={<BuildFactsHelp {...table.help} />}
                 extras={EXTRAS}
-                concealed={!shown}
               />
             )
           ) : null}

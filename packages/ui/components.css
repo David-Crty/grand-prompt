@@ -1464,11 +1464,6 @@
   content: "\2248";
   color: var(--text-300);
 }
-.gp-concealed {
-  filter: blur(7px);
-  user-select: none;
-  color: var(--text-300);
-}
 /* result list (phone classification) */
 .gp-rlist {
   display: flex;

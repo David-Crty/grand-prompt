@@ -114,15 +114,12 @@ export function summarizeDrivers(races: StoredRace[]): DriverEntry[] {
 }
 
 /**
- * The standings: by points, then name, each with its place (equal points share it). While results are hidden the
- * rows keep their order by name, which gives nothing away.
+ * The standings: by points, then name, each with its place (equal points share it).
  */
-export function standings(drivers: DriverEntry[], byPoints: boolean): (DriverEntry & { place: number })[] {
-  const sorted = byPoints
-    ? [...drivers].sort(
-        (a, b) => b.points - a.points || a.name.localeCompare(b.name) || a.id.localeCompare(b.id),
-      )
-    : drivers;
+export function standings(drivers: DriverEntry[]): (DriverEntry & { place: number })[] {
+  const sorted = [...drivers].sort(
+    (a, b) => b.points - a.points || a.name.localeCompare(b.name) || a.id.localeCompare(b.id),
+  );
   const byPlace = [...drivers].sort((a, b) => b.points - a.points);
   return sorted.map((d) => ({ ...d, place: byPlace.findIndex((x) => x.points === d.points) + 1 }));
 }

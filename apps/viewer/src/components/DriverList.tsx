@@ -16,26 +16,13 @@ import { driverSourceUrl } from "../lib/route.js";
 
 const PRICES = prices as Prices;
 
-/** A result, or while results are hidden the same blurred mark in every cell, so not even its width tells. */
-function Hidden({ shown, children }: { shown: boolean; children: React.ReactNode }) {
-  return shown ? (
-    <span className="dl-result">{children}</span>
-  ) : (
-    <span className="dl-result is-concealed" aria-hidden="true">
-      P0
-    </span>
-  );
-}
-
 /** A driver's place in each race, one mark per circuit in the columns' order; each names its circuit. */
 function Results({
   results,
   tracks,
-  shown,
 }: {
   results: DriverResult[];
   tracks: { track: string; trackName: string }[];
-  shown: boolean;
 }) {
   return (
     <span className="dl-results">
@@ -50,11 +37,11 @@ function Results({
               ? "is-fastest"
               : undefined;
         return (
-          <Hidden key={t.track} shown={shown}>
+          <span key={t.track} className="dl-result">
             <Popover label={`${t.trackName}: ${text}`} trigger={<span className={cls}>{text}</span>} hover>
               {t.trackName}
             </Popover>
-          </Hidden>
+          </span>
         );
       })}
     </span>
@@ -63,20 +50,12 @@ function Results({
 
 /**
  * Every model that built a driver for one event: how it was built, where it finished on each circuit and its
- * points, the standings order, when results are shown. `picker` chooses the event.
+ * points, in standings order. `picker` chooses the event.
  */
-export function DriverList({
-  drivers,
-  shown,
-  picker,
-}: {
-  drivers: DriverEntry[];
-  shown: boolean;
-  picker?: React.ReactNode;
-}) {
+export function DriverList({ drivers, picker }: { drivers: DriverEntry[]; picker?: React.ReactNode }) {
   const entries = useMemo(() => eventEntries(drivers), [drivers]);
   const tracks = useMemo(() => raceTracks(drivers), [drivers]);
-  const rows = useMemo(() => standings(drivers, shown), [drivers, shown]);
+  const rows = useMemo(() => standings(drivers), [drivers]);
   return (
     <>
       <div className="home-head">
@@ -115,7 +94,7 @@ export function DriverList({
                   return (
                     <tr key={d.id}>
                       <td className="n">
-                        <Hidden shown={shown}>{d.place}</Hidden>
+                        <span className="dl-result">{d.place}</span>
                       </td>
                       <td>
                         <span className="dl-driver">
@@ -135,10 +114,10 @@ export function DriverList({
                       </td>
                       <td className="n">{u?.practiceRuns != null ? `${u.practiceRuns} runs` : "–"}</td>
                       <td>
-                        <Results results={d.results} tracks={tracks} shown={shown} />
+                        <Results results={d.results} tracks={tracks} />
                       </td>
                       <td className="n">
-                        <Hidden shown={shown}>{d.points}</Hidden>
+                        <span className="dl-result">{d.points}</span>
                       </td>
                     </tr>
                   );

@@ -161,22 +161,3 @@ export function formatDate(ms: number): string {
   if (!Number.isFinite(d.getTime())) return "--";
   return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
-
-const REVEAL_KEY = "gp.results.shown";
-
-/** Whether the viewer chose to see results on the home pages; hidden by default, and when storage fails. */
-export function readReveal(storage: Pick<Storage, "getItem"> | null | undefined): boolean {
-  try {
-    return storage?.getItem(REVEAL_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-export function writeReveal(storage: Pick<Storage, "setItem"> | null | undefined, shown: boolean): void {
-  try {
-    storage?.setItem(REVEAL_KEY, shown ? "1" : "0");
-  } catch {
-    // Private windows and blocked storage keep the choice for this page only.
-  }
-}

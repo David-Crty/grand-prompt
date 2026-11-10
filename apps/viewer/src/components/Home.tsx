@@ -1,19 +1,11 @@
-import { Button, Dropdown, StarLink, Wordmark } from "@bench/ui/react";
+import { Dropdown, StarLink, Wordmark } from "@bench/ui/react";
 import { type MouseEvent, useEffect, useMemo, useState } from "react";
-import { pickEvent, type RaceIndex, readReveal, writeReveal } from "../lib/races.js";
+import { pickEvent, type RaceIndex } from "../lib/races.js";
 import { INDEX_URL, parseRoute, REPO_URL, type Route, routeHref } from "../lib/route.js";
 import { DriverList } from "./DriverList.js";
 import { RaceList } from "./RaceList.js";
 import { ResultPage } from "./ResultPage.js";
 import { StarNote } from "./StarNote.js";
-
-const storage = () => {
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-};
 
 /** The pages under one top bar, all reading `/results/index.json`: races, drivers, and one race's results. */
 type ListPage = "races" | "drivers";
@@ -25,7 +17,6 @@ export function Home() {
   const page: ListPage = route.page === "drivers" ? "drivers" : "races";
   /** The event asked for in the address, if any; a results page's own event carries over to the lists. */
   const asked = route.page === "race" ? undefined : route.event;
-  const [shown, setShown] = useState(() => readReveal(storage()));
   const [index, setIndex] = useState<RaceIndex | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
 
@@ -72,10 +63,6 @@ export function Home() {
         icon="flag"
       />
     ) : null;
-  const toggle = () => {
-    writeReveal(storage(), !shown);
-    setShown(!shown);
-  };
   const link = (to: ListPage, label: string) => (
     <a
       className="home-nav__link"
@@ -96,9 +83,6 @@ export function Home() {
           {link("drivers", "Drivers")}
         </nav>
         <StarLink className="home-star" href={REPO_URL} />
-        <Button className="home-reveal" aria-pressed={shown} onClick={toggle}>
-          {shown ? "Hide results" : "Show results"}
-        </Button>
       </header>
       <main className="home-page">
         {failed ? <p className="home-note error">Could not list races: {failed}</p> : null}
@@ -109,14 +93,12 @@ export function Home() {
               index={index}
               track={route.track}
               event={route.event}
-              shown={shown}
-              onShow={toggle}
               onOpen={(track, event) => visit(routeHref({ page: "result", track, event }))}
             />
           ) : page === "drivers" ? (
-            <DriverList drivers={drivers} shown={shown} picker={picker} />
+            <DriverList drivers={drivers} picker={picker} />
           ) : (
-            <RaceList races={races} shown={shown} picker={picker} />
+            <RaceList races={races} picker={picker} />
           )
         ) : null}
       </main>
