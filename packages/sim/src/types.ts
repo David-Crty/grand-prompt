@@ -1,4 +1,4 @@
-// Public driver API types. Mirrored (by hand, checked by a test) in ddk/driver.d.ts.
+// Public driver API types. Mirrored (by hand, checked by a test) in driver-development-kit/driver.d.ts.
 
 export type Surface = "track" | "kerb" | "grass" | "gravel";
 export type SurfaceOrBarrier = Surface | "barrier";

@@ -1,6 +1,6 @@
 // Feature tests: full simulations through race control.
 import { describe, expect, it } from "vitest";
-import * as baseline from "../../../ddk/baseline-driver.js";
+import * as baseline from "../../../driver-development-kit/baseline-driver.js";
 import {
   CarSim,
   type Controls,
@@ -25,8 +25,8 @@ const runOne = (
   track = protoRing(),
 ) => new CarSim(track, car, { id: "x", name: "x", runtime }, cfg(c)).run();
 
-describe("the DDK baseline", () => {
-  it("the DDK baseline sets a valid flying lap", () => {
+describe("the baseline driver", () => {
+  it("the baseline driver sets a valid flying lap", () => {
     const r = runOne(baseline).result;
     expect(r.status).toBe("FINISHED");
     expect(r.lap!.valid).toBe(true);

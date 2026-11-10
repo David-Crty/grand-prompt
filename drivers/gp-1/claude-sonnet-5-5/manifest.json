@@ -3,7 +3,7 @@
   "provider": "anthropic",
   "mode": "agentic",
   "promptVersion": "agentic-0.5",
-  "ddkVersion": "0.4.0",
+  "driverDevelopmentKitVersion": "0.4.0",
   "simVersion": "0.2.0",
   "usage": {
     "inputTokens": 1351912,

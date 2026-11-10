@@ -10,7 +10,7 @@ import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
-import { DDK_VERSION, SIM_VERSION } from "@bench/sim";
+import { DRIVER_DEVELOPMENT_KIT_VERSION, SIM_VERSION } from "@bench/sim";
 import { render } from "ink";
 import { readJson, repoRoot, trackPath, writeJson } from "../load.js";
 import { trackIds } from "../tracks.js";
@@ -107,6 +107,7 @@ export async function build(opts: BuildOptions): Promise<number> {
 
   const out = join(repo, "drivers", opts.name);
   const res = join(repo, "results", "builds", opts.name);
+  const driverDevelopmentKit = join(repo, "driver-development-kit");
   const url = `http://127.0.0.1:${opts.port}`;
   const { plan, skipped } = planBuilds(readJson(opts.models), opts, has);
   for (const s of skipped) console.log(`skipping ${s}`);
@@ -125,7 +126,10 @@ export async function build(opts: BuildOptions): Promise<number> {
     );
     for (const e of plan) console.log(`  ${e.cli}  ${e.id}  ${e.name}  ${e.effort}`);
   }
-  const promptTemplate = readFileSync(join(repo, "ddk/PROMPT_LAUNCH.md"), "utf8").replace(/\n$/, "");
+  const promptTemplate = readFileSync(join(driverDevelopmentKit, "PROMPT_LAUNCH.md"), "utf8").replace(
+    /\n$/,
+    "",
+  );
   if (opts.dryRun) {
     const e = plan[0]!;
     const cmd = cliCmd(e.cli, e.id, e.effort, promptTemplate);
@@ -170,10 +174,10 @@ export async function build(opts: BuildOptions): Promise<number> {
     res,
     url,
     promptTemplate,
-    promptVersion: promptVersion(readFileSync(join(repo, "ddk/PROMPT_AGENTIC.md"), "utf8")),
+    promptVersion: promptVersion(readFileSync(join(driverDevelopmentKit, "PROMPT_AGENTIC.md"), "utf8")),
     simVersion: SIM_VERSION,
-    ddkVersion: DDK_VERSION,
-    baseline: join(repo, "ddk/baseline-driver.js"),
+    driverDevelopmentKitVersion: DRIVER_DEVELOPMENT_KIT_VERSION,
+    baseline: join(driverDevelopmentKit, "baseline-driver.js"),
     store,
   };
 

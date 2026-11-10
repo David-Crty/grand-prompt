@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import * as baseline from "../../../ddk/baseline-driver.js";
+import * as baseline from "../../../driver-development-kit/baseline-driver.js";
 import {
   CarSim,
   chainWays,
@@ -215,7 +215,7 @@ describe("imported circuits (feature)", () => {
     { id: "portimao", official: 4653 },
   ];
   for (const c of circuits) {
-    it(`${c.id}: real length, licensed, and the DDK baseline laps it cleanly`, () => {
+    it(`${c.id}: real length, licensed, and the baseline driver laps it cleanly`, () => {
       const file = JSON.parse(readFileSync(`${root}tracks/${c.id}.json`, "utf8")) as TrackFile;
       expect(file.id).toBe(c.id);
       expect(file.license).toBeTruthy();

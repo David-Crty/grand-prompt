@@ -17,7 +17,7 @@ export interface Manifest {
   provider?: string;
   mode?: string;
   promptVersion?: string;
-  ddkVersion?: string;
+  driverDevelopmentKitVersion?: string;
   simVersion?: string;
   usage?: {
     inputTokens?: number;

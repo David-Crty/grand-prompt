@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import * as baseline from "../../../ddk/baseline-driver.js";
+import * as baseline from "../../../driver-development-kit/baseline-driver.js";
 import {
   type CarResult,
   classify,

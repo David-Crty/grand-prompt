@@ -452,7 +452,7 @@ export interface ManifestInput {
   entry: PlanEntry;
   opts: Pick<BuildOptions, "practice" | "timeout">;
   promptVersion: string;
-  ddkVersion: string;
+  driverDevelopmentKitVersion: string;
   simVersion: string;
   outcome: string;
   source: string;
@@ -478,7 +478,7 @@ export function buildManifest(m: ManifestInput): Record<string, unknown> {
     provider: m.entry.provider,
     mode: "agentic",
     promptVersion: m.promptVersion,
-    ddkVersion: m.ddkVersion,
+    driverDevelopmentKitVersion: m.driverDevelopmentKitVersion,
     simVersion: m.simVersion,
     usage,
     settings: {

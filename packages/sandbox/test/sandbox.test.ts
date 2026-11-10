@@ -257,7 +257,9 @@ describe("feature: sandboxed drivers in the sim", () => {
   });
 
   it("the sandboxed baseline is deterministic across runs", async () => {
-    const src = bundleDriverFile(new URL("../../../ddk/baseline-driver.js", import.meta.url).pathname);
+    const src = bundleDriverFile(
+      new URL("../../../driver-development-kit/baseline-driver.js", import.meta.url).pathname,
+    );
     const hash = async () => {
       const d = await SandboxedDriver.create(src);
       return runSession(protoRing(), protoCar(), [{ id: "b", name: "b", runtime: d }], { seed: 1 }).results;

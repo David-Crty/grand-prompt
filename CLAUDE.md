@@ -11,16 +11,16 @@ this file is for working on it.
   Same inputs, bit-identical state hash.
 - **Separation.** The sim has no rendering dependency; the viewer runs no physics and only plays
   replays. What viewers see is exactly what was timed: nothing moves a car to make it look better.
-- **Fairness.** Every driver gets the same information (the DDK, public car parameters only), the
-  same compute budget, the same sandbox and the same session.
-- **Versioned results.** Replays and results carry `SIM_VERSION`, `API_VERSION` and `DDK_VERSION`
-  (`packages/sim/src/version.ts`).
+- **Fairness.** Every driver gets the same information (the driver development kit, public car
+  parameters only), the same compute budget, the same sandbox and the same session.
+- **Versioned results.** Replays and results carry `SIM_VERSION`, `API_VERSION` and
+  `DRIVER_DEVELOPMENT_KIT_VERSION` (`packages/sim/src/version.ts`).
 - **Ask** before freezing the driver API for a season, or before anything that invalidates past
   results.
 
 ## Status
-- Done: sim, sandbox, DDK, practice service, sandboxed agentic builds, races, viewer (desktop and
-  phone) with the race list and the drivers' standings.
+- Done: sim, sandbox, driver development kit, practice service, sandboxed agentic builds, races,
+  viewer (desktop and phone) with the race list and the drivers' standings.
 - `gp-1`: 9 Claude and GPT models, built for the flying-lap session at medium effort
   (`agentic-0.5`); `pnpm determinism` uses its drivers.
 - Not done: a Gemini build (`models.json` lists Gemini 4 Argon and 3.8 Flash, built through
@@ -52,9 +52,9 @@ this file is for working on it.
   `/races/<id>`). The dev server serves `results/` at `/results/` and builds `/results/index.json`
   per request (`server/results-index.ts`). The car mesh
   `src/lib/car-model.gen.json` comes from `cars/sources/*.stl` (`make car`).
-- `ddk/`: everything a model sees: `DRIVER_SPEC.md`, `driver.d.ts`, `baseline-driver.js`,
-  `car-public.json`, the practice client `bench-client.mjs`, the brief `PROMPT_AGENTIC.md` (copied
-  as `TASK.md`) and the launch prompt `PROMPT_LAUNCH.md`.
+- `driver-development-kit/`: everything a model sees: `DRIVER_SPEC.md`, `driver.d.ts`,
+  `baseline-driver.js`, `car-public.json`, the practice client `bench-client.mjs`, the brief
+  `PROMPT_AGENTIC.md` (copied as `TASK.md`) and the launch prompt `PROMPT_LAUNCH.md`.
 - `drivers/<event>/`: an event's inputs: `event.json` (circuit, seed) and one folder per model
   with `driver.js` and `manifest.json`. `results/` is generated output only, not committed:
   `races/<event>-<track>/` every race, `builds/<event>/` build logs,
@@ -75,7 +75,7 @@ site has no 404.html. The infrastructure is Terraform in `David-Crty/infra`
 ```bash
 make                                    # the shortcuts
 pnpm bench --help                       # every command
-pnpm bench practice ddk/baseline-driver.js --track monaco
+pnpm bench practice driver-development-kit/baseline-driver.js --track monaco
 pnpm bench race gp-1                    # drivers/gp-1/* on every circuit -> results/races/gp-1-<track>/
 pnpm --filter @bench/viewer dev         # http://localhost:5173/
 ```
@@ -94,10 +94,11 @@ pnpm lint && pnpm typecheck && pnpm coverage && pnpm determinism && pnpm --filte
   reversing, track limits, barriers, full lock at speed); keep them passing after physics changes.
 
 ## Conventions and gotchas
-- The DDK is what models read. Changing it (or the `Telemetry`/`TrackInfo`/`CarSpec`/`Controls`
-  shapes, which `sim/test/ddk.test.ts` checks against `driver.d.ts`) changes the benchmark: bump
-  `DDK_VERSION` or `API_VERSION` and say so. Hidden car constants (aero, tyres, brakes) never go in
-  it.
+- The driver development kit is what models read. Changing it (or the
+  `Telemetry`/`TrackInfo`/`CarSpec`/`Controls` shapes, which
+  `sim/test/driver-development-kit.test.ts` checks against `driver.d.ts`) changes the benchmark:
+  bump `DRIVER_DEVELOPMENT_KIT_VERSION` or `API_VERSION` and say so. Hidden car constants (aero,
+  tyres, brakes) never go in it.
 - Every race is one flying lap, so there is no session type to choose. One comes with the API season
   that brings wheel-to-wheel racing, not before.
 - Results are produced sandboxed; sandboxed and unsandboxed hashes differ (QuickJS has its own

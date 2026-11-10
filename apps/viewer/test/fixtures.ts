@@ -179,7 +179,7 @@ export function makeReplay(cars: ReplayCar[], track = stadiumTrack(), frameRate 
     header: {
       simVersion: "0",
       apiVersion: "0",
-      ddkVersion: "0",
+      driverDevelopmentKitVersion: "0",
       trackId: track.id,
       trackHash: track.hash,
       carId: "c",

@@ -13,7 +13,7 @@ import type { Replay, ReplayCar } from "./replay.js";
 import { encodeFrames } from "./replay.js";
 import type { Track } from "./track/track.js";
 import type { CarConfig } from "./types.js";
-import { API_VERSION, DDK_VERSION, SIM_VERSION } from "./version.js";
+import { API_VERSION, DRIVER_DEVELOPMENT_KIT_VERSION, SIM_VERSION } from "./version.js";
 
 export interface SessionEntry extends CarEntry {
   /** Content hash of the driver's source, recorded with its result. */
@@ -30,7 +30,7 @@ export interface ClassifiedResult extends CarResult {
 export interface SessionResults {
   simVersion: string;
   apiVersion: string;
-  ddkVersion: string;
+  driverDevelopmentKitVersion: string;
   session: SessionConfig;
   trackId: string;
   trackHash: string;
@@ -101,7 +101,7 @@ export function runSession(
   const results: SessionResults = {
     simVersion: SIM_VERSION,
     apiVersion: API_VERSION,
-    ddkVersion: DDK_VERSION,
+    driverDevelopmentKitVersion: DRIVER_DEVELOPMENT_KIT_VERSION,
     session: cfg,
     trackId: track.id,
     trackHash: track.hash,
@@ -125,7 +125,7 @@ export function runSession(
     header: {
       simVersion: SIM_VERSION,
       apiVersion: API_VERSION,
-      ddkVersion: DDK_VERSION,
+      driverDevelopmentKitVersion: DRIVER_DEVELOPMENT_KIT_VERSION,
       trackId: track.id,
       trackHash: track.hash,
       carId: car.id,

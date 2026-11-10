@@ -324,7 +324,7 @@ describe("outcome and manifest", () => {
       },
       opts: { practice: ["monaco"], timeout: 30 },
       promptVersion: "p",
-      ddkVersion: "d",
+      driverDevelopmentKitVersion: "d",
       simVersion: "s",
       outcome: "ok",
       source: "driver.js",

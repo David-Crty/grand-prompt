@@ -70,7 +70,7 @@ export function fnDriver(step: (t: Telemetry) => unknown, init?: (track: TrackIn
   return { init: (track) => init?.(track), step };
 }
 
-/** Simple centerline follower used by feature tests (like the DDK baseline, but tunable). */
+/** Simple centerline follower used by feature tests (like the baseline driver, but tunable). */
 export function follower(
   opts: { speed: number; offset?: (s: number) => number; lookahead?: number } = { speed: 20 },
 ) {

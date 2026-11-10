@@ -20,7 +20,7 @@ export interface Replay {
 export interface ReplayHeader {
   simVersion: string;
   apiVersion: string;
-  ddkVersion: string;
+  driverDevelopmentKitVersion: string;
   trackId: string;
   trackHash: string;
   carId: string;

@@ -88,7 +88,7 @@ describe("practice service edge cases", () => {
     const root = mkdtempSync(join(tmpdir(), "svc-"));
     const prev = process.env.BENCH_ROOT;
     process.env.BENCH_ROOT = root;
-    for (const dir of ["tracks", "cars", "ddk"])
+    for (const dir of ["tracks", "cars", "driver-development-kit"])
       cpSync(join(repo, dir), join(root, dir), { recursive: true });
     const tok = registerToken("ts-model", 3, ["proto-ring", "monaco"]);
     const svc = await serve({ port: 0 });
@@ -105,7 +105,7 @@ describe("practice service edge cases", () => {
       expect(v.ok).toBe(true);
       const sneaky = await post("/validate", { token: tok, source: ts, track: "../etc/passwd" });
       expect(sneaky.status).toBe(403);
-      const base = readFileSync(join(repo, "ddk/baseline-driver.js"), "utf8");
+      const base = readFileSync(join(repo, "driver-development-kit/baseline-driver.js"), "utf8");
       const p = (await (await post("/practice", { token: tok, source: base })).json()) as Json;
       expect(p.ok).toBe(true);
       expect(p.text).toMatch(/FLYING LAP on proto-ring/);

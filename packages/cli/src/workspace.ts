@@ -5,8 +5,13 @@ import { registerToken } from "./service.js";
 
 export const DEFAULT_PRACTICE_BUDGET = 10;
 
-/** What a model gets from `ddk/`, besides TASK.md, its driver.js and the practice client. */
-const DDK_FILES = ["DRIVER_SPEC.md", "driver.d.ts", "baseline-driver.js", "car-public.json"];
+/** What a model gets from `driver-development-kit/`, besides TASK.md, its driver.js and the practice client. */
+const DRIVER_DEVELOPMENT_KIT_FILES = [
+  "DRIVER_SPEC.md",
+  "driver.d.ts",
+  "baseline-driver.js",
+  "car-public.json",
+];
 
 export interface WorkspaceOptions {
   model: string;
@@ -17,8 +22,9 @@ export interface WorkspaceOptions {
 }
 
 /**
- * An isolated workspace for an agentic build: the DDK, the practice circuits, a starting driver and a
- * practice client (`bench.mjs`) that talks to `bench serve`. No sim source and no hidden constants.
+ * An isolated workspace for an agentic build: the driver development kit, the practice circuits, a
+ * starting driver and a practice client (`bench.mjs`) that talks to `bench serve`. No sim source and
+ * no hidden constants.
  */
 export function createWorkspace(dir: string, opts: WorkspaceOptions): { dir: string; token: string } {
   const abs = resolve(dir);
@@ -26,12 +32,12 @@ export function createWorkspace(dir: string, opts: WorkspaceOptions): { dir: str
   if (!/^[a-z0-9][a-z0-9._-]*$/.test(opts.model)) throw new Error(`bad model slug '${opts.model}'`);
   if (!opts.tracks.length) throw new Error("workspace needs at least one practice track");
   for (const t of opts.tracks) if (!existsSync(trackPath(t))) throw new Error(`unknown track '${t}'`);
-  const ddk = join(repoRoot(), "ddk");
+  const driverDevelopmentKit = join(repoRoot(), "driver-development-kit");
   mkdirSync(join(abs, "tracks"), { recursive: true });
-  for (const f of DDK_FILES) copyFileSync(join(ddk, f), join(abs, f));
-  copyFileSync(join(ddk, "baseline-driver.js"), join(abs, "driver.js"));
-  copyFileSync(join(ddk, "bench-client.mjs"), join(abs, "bench.mjs"));
-  const task = readFileSync(join(ddk, "PROMPT_AGENTIC.md"), "utf8");
+  for (const f of DRIVER_DEVELOPMENT_KIT_FILES) copyFileSync(join(driverDevelopmentKit, f), join(abs, f));
+  copyFileSync(join(driverDevelopmentKit, "baseline-driver.js"), join(abs, "driver.js"));
+  copyFileSync(join(driverDevelopmentKit, "bench-client.mjs"), join(abs, "bench.mjs"));
+  const task = readFileSync(join(driverDevelopmentKit, "PROMPT_AGENTIC.md"), "utf8");
   writeFileSync(
     join(abs, "TASK.md"),
     task.replace("{{PRACTICE_TRACKS}}", opts.tracks.map((t) => `\`${t}\``).join(", ")),

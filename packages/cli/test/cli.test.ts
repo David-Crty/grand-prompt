@@ -30,7 +30,7 @@ const repo = new URL("../../../", import.meta.url).pathname;
 let root: string;
 let prevRoot: string | undefined;
 
-const baselineSrc = readFileSync(join(repo, "ddk/baseline-driver.js"), "utf8");
+const baselineSrc = readFileSync(join(repo, "driver-development-kit/baseline-driver.js"), "utf8");
 const slower = baselineSrc.replace("const LATERAL_ACCEL = 12;", "const LATERAL_ACCEL = 10;");
 
 async function cli(...args: string[]): Promise<{ code: number; out: string }> {
@@ -50,7 +50,8 @@ function file(rel: string, content: string): string {
 
 beforeAll(() => {
   root = mkdtempSync(join(tmpdir(), "bench-root-"));
-  for (const d of ["tracks", "cars", "ddk"]) cpSync(join(repo, d), join(root, d), { recursive: true });
+  for (const d of ["tracks", "cars", "driver-development-kit"])
+    cpSync(join(repo, d), join(root, d), { recursive: true });
   prevRoot = process.env.BENCH_ROOT;
   process.env.BENCH_ROOT = root;
 });
@@ -74,14 +75,14 @@ describe("argument handling", () => {
     await expect(cli("workspace", "/tmp/nope")).rejects.toThrow(/--model/);
     await expect(cli("practice", "missing.js")).rejects.toThrow(/driver not found/);
     await expect(
-      cli("practice", join(root, "ddk/baseline-driver.js"), "--track", "atlantis"),
+      cli("practice", join(root, "driver-development-kit/baseline-driver.js"), "--track", "atlantis"),
     ).rejects.toThrow(/unknown track/);
   });
 });
 
 describe("validate", () => {
   it("passes the baseline", async () => {
-    const r = await cli("validate", join(root, "ddk/baseline-driver.js"));
+    const r = await cli("validate", join(root, "driver-development-kit/baseline-driver.js"));
     expect(r.code).toBe(0);
     expect(r.out).toMatch(/ok {3}load/);
     expect(r.out).toMatch(/ok {3}init/);
@@ -114,7 +115,7 @@ describe("validate", () => {
 describe("practice", () => {
   it("writes telemetry, summaries, logs and a replay", async () => {
     const out = join(root, "results/p");
-    const r = await cli("practice", join(root, "ddk/baseline-driver.js"), "--out", out);
+    const r = await cli("practice", join(root, "driver-development-kit/baseline-driver.js"), "--out", out);
     expect(r.out).toMatch(/FLYING LAP on proto-ring/);
     expect(r.out).toMatch(/budget: init \d+ units/);
     for (const f of [
@@ -131,7 +132,7 @@ describe("practice", () => {
     expect(s.budgetUsage.steps).toBeGreaterThan(1000);
     expect(readFileSync(join(out, "telemetry.csv"), "utf8").split("\n")[0]).toMatch(/^t,s,speed/);
     // default output directory numbering
-    const auto = await cli("practice", join(root, "ddk/baseline-driver.js"));
+    const auto = await cli("practice", join(root, "driver-development-kit/baseline-driver.js"));
     expect(auto.out).toMatch(/baseline-driver-001/);
   });
 });

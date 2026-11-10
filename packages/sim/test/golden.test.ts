@@ -2,7 +2,7 @@
 // Regenerate with UPDATE_GOLDEN=1 pnpm vitest run packages/sim/test/golden.test.ts, and bump SIM_VERSION.
 import { readFileSync, writeFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import * as baseline from "../../../ddk/baseline-driver.js";
+import * as baseline from "../../../driver-development-kit/baseline-driver.js";
 import { runSession, SIM_VERSION } from "../src/index.js";
 import { protoCar, protoRing } from "./helpers.js";
 

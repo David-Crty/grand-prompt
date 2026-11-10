@@ -122,7 +122,7 @@ export interface Context {
   promptTemplate: string;
   promptVersion: string;
   simVersion: string;
-  ddkVersion: string;
+  driverDevelopmentKitVersion: string;
   baseline: string;
   store: Store;
 }
@@ -265,7 +265,7 @@ export async function buildOne(ctx: Context, e: PlanEntry): Promise<void> {
     entry: e,
     opts,
     promptVersion: ctx.promptVersion,
-    ddkVersion: ctx.ddkVersion,
+    driverDevelopmentKitVersion: ctx.driverDevelopmentKitVersion,
     simVersion: ctx.simVersion,
     outcome,
     source,
