@@ -26,7 +26,7 @@ describe("buildOptions", () => {
   it("applies defaults and options", () => {
     const o = buildOptions("gp-2", { jobs: "2", only: "codex,claude-haiku-5-5", "dry-run": true }, "m.json");
     expect(o).toMatchObject({ name: "gp-2", jobs: 2, only: ["codex", "claude-haiku-5-5"], dryRun: true });
-    expect(o).toMatchObject({ eventTrack: "barcelona", timeout: 30, models: "m.json", port: 8787 });
+    expect(o).toMatchObject({ timeout: 30, models: "m.json", port: 8787 });
     expect(buildOptions("x", { "practice-tracks": "a,b", budget: "3" }, "m")).toMatchObject({
       practice: ["a", "b"],
       budget: 3,
@@ -36,7 +36,6 @@ describe("buildOptions", () => {
     expect(() => buildOptions(undefined, {}, "m")).toThrow(/missing <name>/);
     expect(() => buildOptions("Bad_Name", {}, "m")).toThrow(/lowercase/);
     expect(() => buildOptions("x", { timeout: "0" }, "m")).toThrow(/number/);
-    expect(() => buildOptions("x", { "event-track": "monaco" }, "m")).toThrow(/practice track/);
   });
 });
 
@@ -225,7 +224,7 @@ describe("outcome and manifest", () => {
   it("drops missing usage fields but keeps settings nulls", () => {
     const m = buildManifest({
       entry: { provider: "codex", id: "gpt-x", name: "GPT X", effort: "medium", slug: "gpt-x" },
-      opts: { practice: ["monaco"], eventTrack: "barcelona", timeout: 30 },
+      opts: { practice: ["monaco"], timeout: 30 },
       promptVersion: "p",
       ddkVersion: "d",
       simVersion: "s",

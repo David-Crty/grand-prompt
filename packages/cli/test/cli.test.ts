@@ -1,6 +1,14 @@
 // Feature tests for the bench CLI: real sandboxed sessions, events, the practice service.
 import { execFile } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -9,7 +17,6 @@ import {
   createWorkspace,
   driverIdentity,
   type EventResults,
-  leaderboard,
   readReplay,
   readTokens,
   registerToken,
@@ -62,10 +69,8 @@ describe("argument handling", () => {
     await expect(cli("practice")).rejects.toThrow(/missing <driver>/);
     await expect(cli("validate", "x.js", "--seed", "abc")).rejects.toThrow(/--seed is a number/);
     await expect(cli("build")).rejects.toThrow(/missing <name>/);
-    await expect(cli("build", "x", "--event-track", "monaco")).rejects.toThrow(
-      /must not be a practice track/,
-    );
-    await expect(cli("event", "explode", "x")).rejects.toThrow(/unknown event subcommand/);
+    await expect(cli("race")).rejects.toThrow(/missing <event>/);
+    await expect(cli("reproduce")).rejects.toThrow(/missing <event>/);
     await expect(cli("workspace", "/tmp/nope")).rejects.toThrow(/--model/);
     await expect(cli("practice", "missing.js")).rejects.toThrow(/driver not found/);
     await expect(
@@ -131,47 +136,6 @@ describe("practice", () => {
   });
 });
 
-describe("qualify", () => {
-  it("runs a session and writes a replay", async () => {
-    const out = join(root, "results/q0");
-    const a = file("drivers/adhoc/alpha/driver.js", slower);
-    file("drivers/adhoc/alpha/manifest.json", JSON.stringify({ model: "alpha-model" }));
-    const r = await cli("qualify", a, join(root, "ddk/baseline-driver.js"), "--out", out, "--seed", "9");
-    expect(r.out).toMatch(/FLYING LAP on proto-ring/);
-    expect(r.out).toMatch(/P1 baseline-driver/);
-    expect(r.out).toMatch(/P2 alpha-model/);
-    const replay = readReplay(join(out, "replay.json.gz"));
-    expect(replay.cars).toHaveLength(2);
-    expect(replay.header.seed).toBe(9);
-    writeFileSync(join(out, "plain.json"), JSON.stringify(replay));
-    expect(readReplay(join(out, "plain.json")).header.stateHash).toBe(replay.header.stateHash);
-  });
-  it("lists the circuits and runs on one picked by id", async () => {
-    const list = (await cli("tracks")).out;
-    for (const id of ["monaco", "portimao", "proto-ring", "silverstone"])
-      expect(list).toMatch(new RegExp(`^${id} `, "m"));
-    expect(list).toMatch(/Monaco\s+3\.\d{3} km/);
-    const out = join(root, "results/monaco");
-    const r = await cli("qualify", join(root, "ddk/baseline-driver.js"), "--track", "monaco", "--out", out);
-    expect(r.out).toMatch(/FLYING LAP on monaco/);
-    expect(r.out).toMatch(/\[FINISHED\]/);
-    expect(readReplay(join(out, "replay.json.gz")).header.trackId).toBe("monaco");
-  });
-  it("qualifies two copies of the same driver under distinct ids", async () => {
-    const r = await cli(
-      "qualify",
-      join(root, "ddk/baseline-driver.js"),
-      join(root, "ddk/baseline-driver.js"),
-      "--out",
-      join(root, "results/q1"),
-    );
-    expect(r.out).toMatch(/FLYING LAP/);
-    expect(r.out).toMatch(/baseline-driver #2/);
-    const auto = await cli("qualify", join(root, "ddk/baseline-driver.js"));
-    expect(auto.out).toMatch(/proto-ring-001/);
-  });
-});
-
 describe("tracks import", () => {
   it("rebuilds the committed circuits byte for byte from tracks/sources/", async () => {
     const r = await cli("tracks", "import");
@@ -184,53 +148,75 @@ describe("tracks import", () => {
   });
 });
 
-describe("events: run, reproduce, leaderboard", () => {
-  it("runs an event end to end and reproduces it from the stored hashes", async () => {
+describe("races", () => {
+  const event = (ev: string, drivers: Record<string, string>) => {
+    file(`drivers/${ev}/event.json`, JSON.stringify({ name: `${ev} GP`, seed: 4 }));
+    for (const [slug, src] of Object.entries(drivers)) file(`drivers/${ev}/${slug}/driver.js`, src);
+  };
+
+  it("lists the circuits and races an event on one of them", async () => {
+    const list = (await cli("tracks")).out;
+    for (const id of ["monaco", "portimao", "proto-ring", "silverstone"])
+      expect(list).toMatch(new RegExp(`^${id} `, "m"));
+    expect(list).toMatch(/Monaco\s+3\.\d{3} km/);
+    event("ev-one", { "model-a": baselineSrc });
+    const out = join(root, "elsewhere");
+    const r = await cli("race", "ev-one", "--track", "monaco", "--out", out);
+    expect(r.out).toMatch(/ev-one GP \(ev-one\) on monaco, flying lap, seed 4/);
+    expect(r.out).toMatch(/\| 1 +\| model-a +\| \d:\d\d\.\d{3} \| FINISHED/);
+    const replay = readReplay(join(out, "ev-one-monaco", "replay.json.gz"));
+    expect(replay.header.trackId).toBe("monaco");
+    expect(replay.header.seed).toBe(4);
+    writeFileSync(join(out, "plain.json"), JSON.stringify(replay));
+    expect(readReplay(join(out, "plain.json")).header.stateHash).toBe(replay.header.stateHash);
+  });
+
+  it("races an event on every circuit by default", async () => {
+    event("ev-all", { broken: "export function step( {" });
+    const r = await cli("race", "ev-all");
+    for (const t of readdirSync(join(root, "tracks")).filter((f) => f.endsWith(".json"))) {
+      const id = t.slice(0, -5);
+      expect(r.out).toMatch(new RegExp(`on ${id}, flying lap`));
+      expect(existsSync(join(root, `results/races/ev-all-${id}/replay.json.gz`))).toBe(true);
+    }
+  });
+
+  it("reproduces an event's races", async () => {
     const ev = "ev-test";
-    file(`drivers/${ev}/event.json`, JSON.stringify({ name: "Test GP", track: "proto-ring", seed: 4 }));
-    file(`drivers/${ev}/model-a/driver.js`, baselineSrc);
+    event(ev, { "model-a": baselineSrc, "model-b": slower, "model-c": "export function step( {" });
     file(
       `drivers/${ev}/model-a/manifest.json`,
       JSON.stringify({ model: "Model A", usage: { inputTokens: 30000, outputTokens: 12000, costUsd: 0.42 } }),
     );
-    file(`drivers/${ev}/model-b/driver.js`, slower);
-    file(`drivers/${ev}/model-c/driver.js`, "export function step( {");
     file(`drivers/${ev}/not-a-driver/readme.txt`, "x");
-    const r = await cli("event", "run", ev);
-    expect(r.out).toMatch(/Test GP \(ev-test\) on proto-ring/);
+    await expect(cli("reproduce", ev)).rejects.toThrow(/no races of 'ev-test'/);
+    const r = await cli("race", ev, "--track", "proto-ring");
     expect(r.out).toMatch(/\| 1 +\| Model A +\| 1:\d\d\.\d{3} \| FINISHED/);
     expect(r.out).toMatch(/\$0\.42/);
     expect(r.out).toMatch(/42k/);
-    const res = JSON.parse(
-      readFileSync(join(root, `results/${ev}/event-results.json`), "utf8"),
-    ) as EventResults;
-    expect(res.event).toMatchObject({ id: ev, name: "Test GP", track: "proto-ring", seed: 4 });
+    const path = join(root, `results/races/${ev}-proto-ring/event-results.json`);
+    const res = JSON.parse(readFileSync(path, "utf8")) as EventResults;
+    expect(res.event).toEqual({ id: ev, name: "ev-test GP", seed: 4 });
+    expect(res.track).toBe("proto-ring");
     expect(res.rows.map((x) => x.slug)).toEqual(["model-a", "model-b", "model-c"]);
     expect(res.rows[0]!.manifest?.usage?.costUsd).toBe(0.42);
     expect(res.rows[1]!.manifest).toBeNull();
     expect(res.rows[2]!.status).toBe("DNF: ECU FAILURE");
-    expect(existsSync(join(root, `results/${ev}/qualify/replay.json.gz`))).toBe(true);
 
-    const rep = await cli("event", "reproduce", ev);
+    const rep = await cli("reproduce", ev);
     expect(rep.code).toBe(0);
+    expect(rep.out).toMatch(/^proto-ring$/m);
     expect(rep.out).toMatch(/REPRODUCED/);
 
     res.stateHash = "0000";
     res.simVersion = "0.0.0";
-    writeFileSync(join(root, `results/${ev}/event-results.json`), JSON.stringify(res));
-    const bad = await cli("event", "reproduce", ev);
+    writeFileSync(path, JSON.stringify(res));
+    const bad = await cli("reproduce", ev);
     expect(bad.code).toBe(3);
-    expect(bad.out).toMatch(/DIFF session/);
+    expect(bad.out).toMatch(/DIFF race/);
     expect(bad.out).toMatch(/note: stored sim 0.0.0/);
 
-    const lb = await cli("leaderboard", join(root, "results"));
-    expect(lb.out).toMatch(/# Leaderboard/);
-    expect(lb.out).toMatch(/\| 1 +\| Model A +\| 10 /);
-    expect(existsSync(join(root, "results/leaderboard.md"))).toBe(true);
-    await expect(cli("event", "run", "nope")).rejects.toThrow(/no event 'nope'/);
-  });
-  it("leaderboard on an empty directory", () => {
-    expect(leaderboard(mkdtempSync(join(tmpdir(), "empty-"))).text).toMatch(/no event-results/);
+    await expect(cli("race", "nope")).rejects.toThrow(/no event 'nope'/);
   });
 });
 

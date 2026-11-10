@@ -3,8 +3,8 @@
  * (claude, codex, gemini) running unattended in a bubblewrap sandbox that only sees its workspace.
  *
  * Output: drivers/<name>/<slug>/{driver.js,manifest.json} and drivers/<name>/event.json, so that
- * `bench event run <name>` times them on a circuit none of them practised on. Logs go to
- * results/<name>/<slug>/build/.
+ * `bench race <name>` times them on every circuit, the ones none of them practised on included. Logs go to
+ * results/builds/<name>/<slug>/build/.
  */
 import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, rmSync } from "node:fs";
@@ -13,6 +13,7 @@ import { join } from "node:path";
 import { DDK_VERSION, SIM_VERSION } from "@bench/sim";
 import { render } from "ink";
 import { readJson, repoRoot, trackPath, writeJson } from "../load.js";
+import { trackIds } from "../tracks.js";
 import { createWorkspace } from "../workspace.js";
 import { type BuildOptions, cliCmd, PROVIDERS, planBuilds, promptVersion, sandboxArgs } from "./lib.js";
 import { buildAll, type Context, children, makeWorkspace, practiceStatus, Store, stopAll } from "./run.js";
@@ -98,13 +99,15 @@ function check(repo: string, opts: BuildOptions, providers: string[], wsRoot: st
 
 export async function build(opts: BuildOptions): Promise<number> {
   const repo = repoRoot();
-  for (const t of [...opts.practice, opts.eventTrack])
+  for (const t of opts.practice)
     if (!existsSync(trackPath(t))) throw new Error(`unknown track '${t}' (see: bench tracks)`);
+  if (trackIds().every((t) => opts.practice.includes(t)))
+    throw new Error("practice covers every circuit: leave at least one that no model sees");
   if (!existsSync(opts.models)) throw new Error(`no model list at ${opts.models}`);
   for (const c of ["bwrap", "node", "pnpm"]) if (!has(c)) throw new Error(`${c} is required`);
 
   const out = join(repo, "drivers", opts.name);
-  const res = join(repo, "results", opts.name);
+  const res = join(repo, "results", "builds", opts.name);
   const url = `http://127.0.0.1:${opts.port}`;
   const { plan, skipped } = planBuilds(readJson(opts.models), opts, has);
   for (const s of skipped) console.log(`skipping ${s}`);
@@ -118,8 +121,8 @@ export async function build(opts: BuildOptions): Promise<number> {
   const live = !opts.plain && !opts.check && !opts.dryRun && process.stdout.isTTY === true;
   if (!live) {
     console.log(
-      `building ${plan.length} drivers into drivers/${opts.name}/ (practice on ${opts.practice.join(",")}, ` +
-        `event on ${opts.eventTrack}), ${jobs} at a time, ${opts.timeout} min each:`,
+      `building ${plan.length} drivers into drivers/${opts.name}/ (practice on ${opts.practice.join(",")}), ` +
+        `${jobs} at a time, ${opts.timeout} min each:`,
     );
     for (const e of plan) console.log(`  ${e.provider}  ${e.id}  ${e.name}  ${e.effort}`);
   }
@@ -156,7 +159,7 @@ export async function build(opts: BuildOptions): Promise<number> {
 
   mkdirSync(res, { recursive: true });
   const event = join(out, "event.json");
-  if (!existsSync(event)) writeJson(event, { name: opts.name, track: opts.eventTrack, seed: 2026 });
+  if (!existsSync(event)) writeJson(event, { name: opts.name, seed: 2026 });
 
   const store = new Store(plan);
   const ctx: Context = {
@@ -196,7 +199,6 @@ export async function build(opts: BuildOptions): Promise<number> {
   const header = {
     name: opts.name,
     practice: opts.practice,
-    eventTrack: opts.eventTrack,
     timeout: opts.timeout,
     jobs,
     effort: [...new Set(plan.map((e) => e.effort))].join("/"),

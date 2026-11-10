@@ -3,12 +3,11 @@
 SHELL := bash
 .DEFAULT_GOAL := help
 NAME  ?=
-TRACK ?= barcelona
 ARGS  ?=
 
 need-name = @[[ -n "$(NAME)" ]] || { echo "set NAME=<event>, e.g. make $@ NAME=gp-1"; exit 2; }
 
-.PHONY: help install dev gates format build event qualify golden tokens car clean
+.PHONY: help install dev gates format build race golden tokens car clean
 
 help: ## list the targets
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | sed -E 's/:.*## /\t/' | expand -t 10
@@ -29,13 +28,9 @@ build: ## one driver per model in models.json -> drivers/NAME/
 	$(need-name)
 	pnpm -s bench build $(NAME) $(ARGS)
 
-event: ## time drivers/NAME/ on its event circuit -> results/NAME/
+race: ## drivers/NAME/ on every circuit, or on TRACK -> results/races/NAME-<track>/
 	$(need-name)
-	pnpm bench event run $(NAME)
-
-qualify: ## flying lap of drivers/NAME/* on TRACK -> results/qualify/NAME-TRACK/
-	$(need-name)
-	pnpm bench qualify drivers/$(NAME)/*/driver.js --track $(TRACK) --out results/qualify/$(NAME)-$(TRACK)
+	pnpm bench race $(NAME) $(if $(TRACK),--track $(TRACK))
 
 golden: ## regenerate the golden hashes after a physics change (then bump SIM_VERSION)
 	UPDATE_GOLDEN=1 pnpm vitest run packages/sim/test/golden.test.ts

@@ -14,13 +14,17 @@ import {
 import { loadTrack, repoRoot } from "./load.js";
 import type { CommandOutput } from "./session.js";
 
-/** The circuits in `tracks/`, with their names and lengths. */
-export function listTracks(): CommandOutput {
-  const ids = readdirSync(join(repoRoot(), "tracks"))
+/** The ids of the circuits in `tracks/`, sorted. */
+export function trackIds(): string[] {
+  return readdirSync(join(repoRoot(), "tracks"))
     .filter((f) => f.endsWith(".json"))
     .map((f) => f.slice(0, -5))
     .sort();
-  const lines = ids.map((id) => {
+}
+
+/** The circuits in `tracks/`, with their names and lengths. */
+export function listTracks(): CommandOutput {
+  const lines = trackIds().map((id) => {
     const t = loadTrack(id);
     return `${id.padEnd(14)} ${t.name.padEnd(18)} ${(t.length / 1000).toFixed(3)} km`;
   });

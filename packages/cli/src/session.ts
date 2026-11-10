@@ -35,9 +35,9 @@ export interface CommandOutput {
   results?: SessionResults;
 }
 
-/** `results/<kind>/<stem>-NNN`, the first number not taken. */
-function nextDir(kind: string, stem: string): string {
-  const base = join(repoRoot(), "results", kind);
+/** `results/practice/<stem>-NNN`, the first number not taken. */
+function nextPracticeDir(stem: string): string {
+  const base = join(repoRoot(), "results", "practice");
   mkdirSync(base, { recursive: true });
   for (let i = 1; ; i++) {
     const d = join(base, `${stem}-${String(i).padStart(3, "0")}`);
@@ -72,24 +72,13 @@ export function runDrivers(track: Track, drivers: LoadedDriver[], seed: number):
   return runSession(track, loadCar(), entries, { seed });
 }
 
-/** Load driver files; a module that fails to load still takes part, as an ECU failure. Ids are made unique. */
+/** Load driver files; a module that fails to load still takes part, as an ECU failure. */
 export async function loadEntries(
   paths: string[],
   sandbox: Partial<SandboxOptions>,
 ): Promise<LoadedDriver[]> {
   const drivers: LoadedDriver[] = [];
-  const seen = new Set<string>();
-  for (const p of paths) {
-    const d = await loadDriverOrFailed(p, sandbox);
-    let k = 1;
-    while (seen.has(k > 1 ? `${d.id}-${k}` : d.id)) k++;
-    if (k > 1) {
-      d.id = `${d.id}-${k}`;
-      d.name = `${d.name} #${k}`;
-    }
-    seen.add(d.id);
-    drivers.push(d);
-  }
+  for (const p of paths) drivers.push(await loadDriverOrFailed(p, sandbox));
   return drivers;
 }
 
@@ -166,7 +155,7 @@ export async function practiceWith(
     [{ id: d.id, name: d.name, runtime: d.runtime, driverHash: d.hash }],
     { seed: opts.seed ?? 1, recordTelemetry: true },
   );
-  const dir = opts.out ? resolve(opts.out) : nextDir("practice", d.id);
+  const dir = opts.out ? resolve(opts.out) : nextPracticeDir(d.id);
   const run = out.runs[0]!;
   const usage = { ...d.runtime.usage };
   const files = writeSession(dir, out, { budgetUsage: usage });
@@ -192,16 +181,4 @@ export async function practiceWith(
     "telemetry.csv columns: t, s, speed, throttle, brake, steer, n, surface, ax, ay, headingError, vy (one row per 20 ms step)",
   ].join("\n");
   return { text: `${text}\n`, results: out.results };
-}
-
-/** One flying lap per driver, replayed together. */
-export async function qualify(driverPaths: string[], opts: SessionOpts): Promise<CommandOutput> {
-  const track = loadTrack(opts.track);
-  const seed = opts.seed ?? 1;
-  const out = runDrivers(track, await loadEntries(driverPaths, { ...opts.sandbox, seed }), seed);
-  const files = writeSession(opts.out ? resolve(opts.out) : nextDir("qualify", track.id), out);
-  return {
-    text: `${summarizeSession(out.results, out.runs)}\nfiles: ${files.map(rel).join(", ")}\n`,
-    results: out.results,
-  };
 }

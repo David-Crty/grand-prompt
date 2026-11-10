@@ -12,10 +12,9 @@ export const PROVIDERS: Record<Provider, { cli: string; org: string }> = {
 export const EFFORTS = ["low", "medium", "high", "xhigh", "max"];
 
 export interface BuildOptions {
-  /** The event: drivers go to drivers/<name>/, logs to results/<name>/. */
+  /** The event: drivers go to drivers/<name>/, logs to results/builds/<name>/. */
   name: string;
   practice: string[];
-  eventTrack: string;
   /** Practice runs per model, shared across circuits (default: the workspace default). */
   budget: number | undefined;
   /** Models built in parallel; 0 is all at once. */
@@ -34,7 +33,6 @@ export interface BuildOptions {
 
 export const BUILD_DEFAULTS = {
   practice: ["monaco", "silverstone", "portimao"],
-  eventTrack: "barcelona",
   timeout: 30,
   port: 8787,
 };
@@ -60,7 +58,6 @@ export function buildOptions(
   const o: BuildOptions = {
     name,
     practice: list("practice-tracks") ?? BUILD_DEFAULTS.practice,
-    eventTrack: str("event-track") ?? BUILD_DEFAULTS.eventTrack,
     budget: count("--budget", str("budget"), 1),
     jobs: count("--jobs", str("jobs"), 0) ?? 0,
     timeout: count("--timeout", str("timeout"), 1) ?? BUILD_DEFAULTS.timeout,
@@ -72,8 +69,6 @@ export function buildOptions(
     dryRun: v["dry-run"] === true,
     check: v.check === true,
   };
-  if (o.practice.includes(o.eventTrack))
-    throw new Error(`the event track '${o.eventTrack}' must not be a practice track`);
   return o;
 }
 
@@ -425,7 +420,7 @@ export function outcomeOf(
 
 export interface ManifestInput {
   entry: PlanEntry;
-  opts: Pick<BuildOptions, "practice" | "eventTrack" | "timeout">;
+  opts: Pick<BuildOptions, "practice" | "timeout">;
   promptVersion: string;
   ddkVersion: string;
   simVersion: string;
@@ -458,7 +453,6 @@ export function buildManifest(m: ManifestInput): Record<string, unknown> {
       modelId: m.entry.id,
       cli: m.entry.provider,
       practiceTracks: m.opts.practice,
-      eventTrack: m.opts.eventTrack,
       sandbox: "bubblewrap",
       timeLimitMin: m.opts.timeout,
       effort: m.entry.provider === "gemini" ? null : m.entry.effort,

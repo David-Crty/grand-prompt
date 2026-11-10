@@ -93,7 +93,6 @@ function detail(m: ModelView): string {
 export interface Header {
   name: string;
   practice: string[];
-  eventTrack: string;
   timeout: number;
   jobs: number;
   effort: string;
@@ -154,8 +153,8 @@ export function App({ store, header, onAbort }: { store: Store; header: Header; 
         <Line width={width}>
           <Text bold>build {header.name}</Text>
           <Text dimColor>
-            {gap}practice {header.practice.join(", ")} · event {header.eventTrack} · effort {header.effort} ·{" "}
-            {header.timeout} min each · {header.jobs} at a time
+            {gap}practice {header.practice.join(", ")} · effort {header.effort} · {header.timeout} min each ·{" "}
+            {header.jobs} at a time
           </Text>
         </Line>
         <Line width={width} dimColor>

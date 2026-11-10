@@ -48,7 +48,8 @@ describe("loading", () => {
 describe("tables", () => {
   it("formats lap times, missing tokens and costs", () => {
     const res = {
-      event: { id: "e", name: "E", track: "t", seed: 1 },
+      event: { id: "e", name: "E", seed: 1 },
+      track: "t",
       rows: [
         {
           position: 1,

@@ -1,10 +1,10 @@
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { buildOptions, count } from "./build/lib.js";
-import { leaderboard, reproduceEvent, runEvent } from "./event.js";
+import { raceEvent, reproduceEvent } from "./event.js";
 import { repoRoot } from "./load.js";
 import { serve } from "./service.js";
-import { practice, qualify, validate } from "./session.js";
+import { practice, validate } from "./session.js";
 import { importTracks, listTracks } from "./tracks.js";
 import { createWorkspace } from "./workspace.js";
 
@@ -27,7 +27,6 @@ drivers
   practice <driver>              one flying lap with telemetry.csv, summary.json and a replay
   build <name>                   one driver per model in models.json, each by its own CLI in a sandbox
       --practice-tracks <a,b,c>  practice circuits (default monaco,silverstone,portimao)
-      --event-track <id>         the event circuit, never practised on (default barcelona)
       --budget <n>               practice runs per model, shared across circuits (default 10)
       --jobs <n>                 models built at once (default all)
       --timeout <min>            wall-time limit per model, stated in its prompt (default 30)
@@ -38,20 +37,19 @@ drivers
       --dry-run                  print the command for the first model, run nothing
       --check                    check the sandbox, the practice service and each CLI, run no model
 
-races
-  qualify <driver...>            one flying lap per driver, replayed together
-  event run <event>              the flying lap of drivers/<event>/*/driver.js on the event's circuit
-  event reproduce <event>        re-run an event and check every state hash
-  leaderboard [dir]              standings over every event under dir (default results/)
+races (one flying lap of an event's drivers, replayed together)
+  race <event> [--track <id>]    drivers/<event>/*/driver.js on every circuit, or on one
+                                 -> results/races/<event>-<track>/ (or --out <dir>/<event>-<track>/)
+  reproduce <event>              re-run every race of the event and check every state hash
 
 practice service (what build runs for each model)
   serve [--port n]               the service that runs practice laps outside the workspace (default 8787)
   workspace <dir> --model <slug> --track <a,b,c> [--budget n] [--service-url url]
 
 options
-  --track <id|path>    circuit id (see 'bench tracks') or track file (default proto-ring)
+  --track <id|path>    circuit id (see 'bench tracks') or track file (default proto-ring; race: every circuit)
   --seed <n>           seed (default 1)
-  --out <dir>          output directory (default results/<command>/<name>-NNN)
+  --out <dir>          output directory (default results/practice/<name>-NNN, results/races/)
 `;
 
 const OPTIONS = {
@@ -63,7 +61,6 @@ const OPTIONS = {
   model: { type: "string" },
   "service-url": { type: "string" },
   "practice-tracks": { type: "string" },
-  "event-track": { type: "string" },
   jobs: { type: "string" },
   timeout: { type: "string" },
   only: { type: "string" },
@@ -110,26 +107,16 @@ export async function run(argv: string[], out: (s: string) => void): Promise<num
       const { build } = await import("./build/index.js");
       return build(o);
     }
-    case "qualify":
-      need(1, "<driver...>");
-      out((await qualify(rest, opts)).text);
+    case "race":
+      need(1, "<event>");
+      out((await raceEvent(rest[0]!, { track: values.track, out: values.out })).text);
       return 0;
-    case "event": {
-      need(2, "run|reproduce <event>");
-      if (rest[0] === "run") {
-        out((await runEvent(rest[1]!)).text);
-        return 0;
-      }
-      if (rest[0] === "reproduce") {
-        const r = await reproduceEvent(rest[1]!);
-        out(r.text);
-        return r.ok ? 0 : 3;
-      }
-      throw new Error(`unknown event subcommand '${rest[0]}'`);
+    case "reproduce": {
+      need(1, "<event>");
+      const r = await reproduceEvent(rest[0]!);
+      out(r.text);
+      return r.ok ? 0 : 3;
     }
-    case "leaderboard":
-      out(leaderboard(rest[0] ?? join(repoRoot(), "results")).text);
-      return 0;
     case "serve": {
       const s = await serve({ port: count("--port", values.port, 1) ?? 8787 });
       out(`practice service listening on ${s.url}\n`);

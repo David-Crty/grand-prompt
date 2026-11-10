@@ -43,10 +43,10 @@ jobs:
           node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Events (results are a pure function of the committed drivers, so they are rebuilt, not stored)
+      - name: Races (results are a pure function of the committed drivers, so they are rebuilt, not stored)
         run: |
           for f in drivers/*/event.json; do
-            pnpm bench event run "$(basename "$(dirname "$f")")"
+            pnpm bench race "$(basename "$(dirname "$f")")"
           done
       - run: pnpm --filter @bench/viewer build
       - run: pnpm exec tsx scripts/build-site.ts site

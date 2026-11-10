@@ -1,13 +1,13 @@
-<!-- prompt version: agentic-0.4 -->
+<!-- prompt version: agentic-0.5 -->
 # Task: write the fastest race-car driver program
 
 You are competing in a programming benchmark. In this workspace, write `driver.js`: the control
 program for a simulated open-wheel race car. All competitors drive the same car in a deterministic
 simulator, and the fastest valid lap wins.
 
-**The event is held on a circuit you will not see.** It is none of the practice circuits; your
-driver meets it for the first time in `init`. Write a driver that works on any circuit, not one
-tuned to the practice circuits.
+**The event races on every circuit, including ones you will not see.** Your driver meets those
+for the first time in `init`. Write a driver that works on any circuit, not one tuned to the
+practice circuits.
 
 ## Files
 
@@ -37,6 +37,7 @@ and catches load and init errors, so use it before every practice run.
 
 - Work only inside this workspace. Do not look for the simulator's source code or try to reach
   the practice service other than through `bench.mjs`.
-- The event is one flying lap, exactly like a practice run. Leaving the track deletes the lap and
-  a crash or ECU failure scores worst of all, so robustness matters as much as raw speed.
+- Each race of the event is one flying lap, exactly like a practice run. Leaving the track deletes
+  the lap and a crash or ECU failure scores worst of all, so robustness matters as much as raw
+  speed.
 - When you are done, leave your final program in `driver.js`.
