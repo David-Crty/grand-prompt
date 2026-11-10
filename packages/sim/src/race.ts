@@ -111,6 +111,8 @@ export interface TelemetryLog {
   ax: number[];
   ay: number[];
   surface: Surface[];
+  headingError: number[];
+  vy: number[];
 }
 
 export interface CarRun {
@@ -234,6 +236,8 @@ export class CarSim {
         ax: [],
         ay: [],
         surface: [],
+        headingError: [],
+        vy: [],
       };
     }
     this.recordLaunch(v0);
@@ -373,6 +377,8 @@ export class CarSim {
     l.ax.push(tel.ax);
     l.ay.push(tel.ay);
     l.surface.push(tel.surface);
+    l.headingError.push(tel.headingError);
+    l.vy.push(tel.vy);
   }
 
   /** One control tick: driver step + PHYSICS_SUBSTEPS physics steps. */

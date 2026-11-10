@@ -116,8 +116,9 @@ The public parameters are in `CarSpec` / `car-public.json`. Tire and aerodynamic
 - `bench validate driver.js`: loads the module, runs `init`, and drives 10 s. Reports errors,
   strikes and compute usage.
 - `bench practice driver.js`: one flying lap, exactly as in the event. Lap and sector times,
-  events, `telemetry.csv` (one row per step: t, s, speed, throttle, brake, steer, n, surface, ax,
-  ay), `summary.json` and `log.txt`.
+  events, where and when the car went out if it did, `telemetry.csv` (one row per step: t, s,
+  speed, throttle, brake, steer, n, surface, ax, ay, headingError, vy), `summary.json` and
+  `log.txt`.
 
 ## 8. Hints
 

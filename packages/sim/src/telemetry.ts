@@ -12,6 +12,8 @@ const COLUMNS: (keyof TelemetryLog)[] = [
   "surface",
   "ax",
   "ay",
+  "headingError",
+  "vy",
 ];
 
 export function telemetryCsv(log: TelemetryLog): string {
@@ -55,6 +57,11 @@ export function summarizeSession(res: SessionResults, runs: CarRun[]): string {
       lines.push(
         `   lap: ${fmtTime(l.time)}  [${l.sectors.map((x) => x.toFixed(3)).join(" | ")}]${l.valid ? "" : "  INVALID (track limits), no time"}`,
       );
+    }
+    const out = r.status === "FINISHED" ? undefined : run?.events.findLast((e) => e.type === "status");
+    if (out && run) {
+      const why = out.detail?.match(/\((.*)\)$/)?.[1] ?? r.status;
+      lines.push(`   out at t=${out.t.toFixed(2)} s=${run.frames.s.at(-1)!.toFixed(1)} m: ${why}`);
     }
     const notable = (run?.events ?? []).filter((e) =>
       ["offTrack", "impact", "crash", "strike", "status"].includes(e.type),

@@ -189,7 +189,7 @@ export async function practiceWith(
     "",
     `budget: init ${usage.init} units, step max ${usage.stepMax} units`,
     `files: ${files.map(rel).join(", ")}`,
-    "telemetry.csv columns: t, s, speed, throttle, brake, steer, n, surface, ax, ay (one row per 20 ms step)",
+    "telemetry.csv columns: t, s, speed, throttle, brake, steer, n, surface, ax, ay, headingError, vy (one row per 20 ms step)",
   ].join("\n");
   return { text: `${text}\n`, results: out.results };
 }

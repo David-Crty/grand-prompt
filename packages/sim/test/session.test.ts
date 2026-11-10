@@ -83,6 +83,8 @@ describe("runSession (ghost mode)", () => {
     expect(s).toMatch(/^FLYING LAP on circle \| launch \d+ km\/h/);
     expect(s).toMatch(/P1 Fast \[FINISHED\] lap \d/);
     expect(s).toMatch(/P3 Broken \[DNF: ECU FAILURE\]/);
+    expect(s).toMatch(/\n {3}out at t=\d+\.\d{2} s=-?\d+\.\d m: step returned null/);
+    expect(s.match(/out at/g)).toHaveLength(1);
     expect(s).toMatch(/error: /);
     expect(s).toMatch(/gap \+\d/);
   });
@@ -161,8 +163,8 @@ describe("telemetry output", () => {
     );
     const csv = telemetryCsv(out.runs[0]!.telemetry!);
     const lines = csv.trim().split("\n");
-    expect(lines[0]).toBe("t,s,speed,throttle,brake,steer,n,surface,ax,ay");
-    expect(lines[1]!.split(",")).toHaveLength(10);
+    expect(lines[0]).toBe("t,s,speed,throttle,brake,steer,n,surface,ax,ay,headingError,vy");
+    expect(lines[1]!.split(",")).toHaveLength(12);
     expect(lines[1]).toMatch(/,track,/);
     expect(lines.length).toBe(out.runs[0]!.telemetry!.t.length + 1);
   });
