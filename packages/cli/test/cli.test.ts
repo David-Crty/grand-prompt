@@ -72,7 +72,8 @@ describe("argument handling", () => {
     await expect(cli("build")).rejects.toThrow(/missing <name>/);
     await expect(cli("race")).rejects.toThrow(/missing <event>/);
     await expect(cli("reproduce")).rejects.toThrow(/missing <event>/);
-    await expect(cli("workspace", "/tmp/nope")).rejects.toThrow(/--model/);
+    await expect(cli("workspace", "/tmp/nope")).rejects.toThrow(/--event/);
+    await expect(cli("workspace", "/tmp/nope", "--event", "ev")).rejects.toThrow(/--model/);
     await expect(cli("practice", "missing.js")).rejects.toThrow(/driver not found/);
     await expect(
       cli("practice", join(root, "driver-development-kit/baseline-driver.js"), "--track", "atlantis"),
@@ -227,6 +228,7 @@ describe("agentic workspace and practice service", () => {
     try {
       const ws = join(root, "ws/m1");
       const w = createWorkspace(ws, {
+        event: "ev",
         model: "m1",
         serviceUrl: svc.url,
         tracks: ["proto-ring", "monaco"],
@@ -265,6 +267,8 @@ describe("agentic workspace and practice service", () => {
       expect(p.stdout).toMatch(/practice runs left: 1/);
       expect(existsSync(join(ws, "runs/001/telemetry.csv"))).toBe(true);
       expect(existsSync(join(ws, "runs/001/driver.js"))).toBe(true);
+      expect(existsSync(join(root, "results/agentic/ev/m1/practice-001/telemetry.csv"))).toBe(true);
+      expect(existsSync(join(root, "results/agentic/ev/m1/validate/driver.js"))).toBe(true);
       writeFileSync(join(ws, "broken.js"), "export function step( {");
       const b = await node(["practice", "broken.js"]);
       expect(b.stdout).toMatch(/load failed/);
@@ -284,7 +288,7 @@ describe("agentic workspace and practice service", () => {
       expect((await fetch(`${svc.url}/status?token=nope`)).status).toBe(403);
       expect((await fetch(`${svc.url}/other`)).status).toBe(404);
       expect((await post("/practice", "{not json")).status).toBe(400);
-      const t2 = registerToken("m2", 5, ["proto-ring"]);
+      const t2 = registerToken("ev", "m2", 5, ["proto-ring"]);
       const big = await post("/practice", { token: t2, source: "x".repeat(3 * 1024 * 1024) });
       expect(big.status).toBe(400);
     } finally {
@@ -295,23 +299,38 @@ describe("agentic workspace and practice service", () => {
     const d = join(root, "ws/full");
     mkdirSync(d, { recursive: true });
     writeFileSync(join(d, "x"), "");
-    expect(() => createWorkspace(d, { model: "m", serviceUrl: "", tracks: ["proto-ring"] })).toThrow(
-      /not empty/,
-    );
     expect(() =>
-      createWorkspace(join(root, "ws/x"), { model: "Bad Slug", serviceUrl: "", tracks: ["proto-ring"] }),
+      createWorkspace(d, { event: "ev", model: "m", serviceUrl: "", tracks: ["proto-ring"] }),
+    ).toThrow(/not empty/);
+    expect(() =>
+      createWorkspace(join(root, "ws/x"), {
+        event: "ev",
+        model: "Bad Slug",
+        serviceUrl: "",
+        tracks: ["proto-ring"],
+      }),
     ).toThrow(/bad model slug/);
-    expect(() => createWorkspace(join(root, "ws/y"), { model: "m", serviceUrl: "", tracks: [] })).toThrow(
-      /at least one practice track/,
-    );
     expect(() =>
-      createWorkspace(join(root, "ws/z"), { model: "m", serviceUrl: "", tracks: ["nowhere"] }),
+      createWorkspace(join(root, "ws/e"), {
+        event: "../up",
+        model: "m",
+        serviceUrl: "",
+        tracks: ["proto-ring"],
+      }),
+    ).toThrow(/bad event name/);
+    expect(() =>
+      createWorkspace(join(root, "ws/y"), { event: "ev", model: "m", serviceUrl: "", tracks: [] }),
+    ).toThrow(/at least one practice track/);
+    expect(() =>
+      createWorkspace(join(root, "ws/z"), { event: "ev", model: "m", serviceUrl: "", tracks: ["nowhere"] }),
     ).toThrow(/unknown track 'nowhere'/);
   });
   it("workspace command prints the token", async () => {
     const r = await cli(
       "workspace",
       join(root, "ws/cmd"),
+      "--event",
+      "ev",
       "--model",
       "m3",
       "--track",
@@ -320,7 +339,7 @@ describe("agentic workspace and practice service", () => {
       "3",
     );
     const token = r.out.match(/practice token: (\w+)/)![1]!;
-    expect(readTokens()[token]).toMatchObject({ model: "m3", budget: 3, tracks: ["monaco"] });
+    expect(readTokens()[token]).toMatchObject({ event: "ev", model: "m3", budget: 3, tracks: ["monaco"] });
   });
 });
 

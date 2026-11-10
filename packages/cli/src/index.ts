@@ -44,7 +44,8 @@ races (one flying lap of an event's drivers, replayed together)
 
 practice service (what build runs for each model)
   serve [--port n]               the service that runs practice laps outside the workspace (default 8787)
-  workspace <dir> --model <slug> --track <a,b,c> [--budget n] [--service-url url]
+  workspace <dir> --event <name> --model <slug> --track <a,b,c> [--budget n] [--service-url url]
+                                 practice runs go to results/agentic/<event>/<model>/
 
 options
   --track <id|path>    circuit id (see 'bench tracks') or track file (default proto-ring; race: every circuit)
@@ -58,6 +59,7 @@ const OPTIONS = {
   out: { type: "string" },
   port: { type: "string" },
   budget: { type: "string" },
+  event: { type: "string" },
   model: { type: "string" },
   "service-url": { type: "string" },
   "practice-tracks": { type: "string" },
@@ -124,8 +126,10 @@ export async function run(argv: string[], out: (s: string) => void): Promise<num
     }
     case "workspace": {
       need(1, "<dir>");
+      if (!values.event) throw new Error("workspace: --event <name> is required");
       if (!values.model) throw new Error("workspace: --model <slug> is required");
       const w = createWorkspace(rest[0]!, {
+        event: values.event,
         model: values.model,
         serviceUrl: values["service-url"] ?? "http://127.0.0.1:8787",
         tracks: (values.track ?? "").split(",").filter(Boolean),

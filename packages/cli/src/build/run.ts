@@ -152,6 +152,7 @@ export function makeWorkspace(ctx: Context, e: PlanEntry) {
   mkdirSync(join(ctx.res, e.slug, "build"), { recursive: true });
   ctx.store.update(e.slug, { state: "workspace" });
   createWorkspace(join(ctx.wsRoot, e.slug), {
+    event: ctx.opts.name,
     model: e.slug,
     serviceUrl: ctx.url,
     tracks: ctx.opts.practice,

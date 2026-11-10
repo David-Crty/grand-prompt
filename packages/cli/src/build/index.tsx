@@ -74,7 +74,13 @@ function check(repo: string, opts: BuildOptions, clis: Cli[], wsRoot: string, ur
   let fail = 0;
   for (const cli of clis) {
     const ws = join(wsRoot, `check-${cli}`);
-    createWorkspace(ws, { model: `check-${cli}`, serviceUrl: url, tracks: opts.practice, budget: 1 });
+    createWorkspace(ws, {
+      event: opts.name,
+      model: `check-${cli}`,
+      serviceUrl: url,
+      tracks: opts.practice,
+      budget: 1,
+    });
     const probe = `
       set -e
       [[ -z "$(ls -A "$1" 2>/dev/null)" ]] || { echo "repo visible"; exit 1; }

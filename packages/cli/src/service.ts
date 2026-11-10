@@ -10,6 +10,8 @@ import { practiceWith, validate } from "./session.js";
  * seeing the sim source or the hidden car constants, and it counts the runs against each token's budget.
  */
 export interface TokenRecord {
+  /** The event being built: practice runs go to `results/agentic/<event>/<model>/`. */
+  event: string;
   model: string;
   budget: number;
   used: number;
@@ -33,10 +35,10 @@ function writeTokens(t: Record<string, TokenRecord>): void {
   writeJson(tokenStorePath(), t);
 }
 
-export function registerToken(model: string, budget: number, tracks: string[]): string {
+export function registerToken(event: string, model: string, budget: number, tracks: string[]): string {
   const t = readTokens();
   const token = randomBytes(12).toString("hex");
-  t[token] = { model, budget, used: 0, created: new Date().toISOString(), tracks, runs: [] };
+  t[token] = { event, model, budget, used: 0, created: new Date().toISOString(), tracks, runs: [] };
   writeTokens(t);
   return token;
 }
@@ -103,7 +105,7 @@ export async function serve(opts: { port: number; host?: string }): Promise<{
         403,
         `track '${track}' is not a practice circuit (available: ${rec.tracks.join(", ")})`,
       );
-    const dir = join(repoRoot(), "results", "agentic", rec.model);
+    const dir = join(repoRoot(), "results", "agentic", rec.event, rec.model);
 
     if (url.pathname === "/validate") {
       mkdirSync(join(dir, "validate"), { recursive: true });

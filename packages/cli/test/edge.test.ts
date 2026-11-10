@@ -90,7 +90,7 @@ describe("practice service edge cases", () => {
     process.env.BENCH_ROOT = root;
     for (const dir of ["tracks", "cars", "driver-development-kit"])
       cpSync(join(repo, dir), join(root, dir), { recursive: true });
-    const tok = registerToken("ts-model", 3, ["proto-ring", "monaco"]);
+    const tok = registerToken("ev", "ts-model", 3, ["proto-ring", "monaco"]);
     const svc = await serve({ port: 0 });
     try {
       const post = (path: string, body?: unknown) =>
