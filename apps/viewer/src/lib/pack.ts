@@ -1,7 +1,7 @@
 /**
  * Ghost start. Every car ran its flying lap alone from the same run-up, so the replay overlays cars that never
- * met. Nothing here moves a car: packs only decide which cars are drawn translucent and which labels merge
- * into one, and the start board shows how far each car is past the line.
+ * met. Nothing here moves a car: packs only decide which labels merge into one, and the start board shows
+ * how far each car is past the line.
  */
 import { toThree } from "./coords.js";
 import type { CarSample } from "./frames.js";
@@ -70,19 +70,6 @@ export function findPacks(cars: PackCar[], packDistance: number, sameDistance = 
     packs.push({ ids: members.map((c) => c.id), same });
   }
   return packs.sort((a, b) => b.ids.length - a.ids.length);
-}
-
-/**
- * Cars drawn translucent: every member of a pack but one, which stays solid. That is the followed car when it is
- * in the pack, otherwise the front-most car.
- */
-export function ghostIds(packs: Pack[], focusId: string): Set<string> {
-  const out = new Set<string>();
-  for (const p of packs) {
-    const solid = p.ids.includes(focusId) ? focusId : p.ids[0]!;
-    for (const id of p.ids) if (id !== solid) out.add(id);
-  }
-  return out;
 }
 
 /** A pack big enough to take one label instead of a stack: three or more cars besides the followed one. */

@@ -90,7 +90,6 @@ export const VALUES = {
   "shadow-overlay": "0 24px 64px rgba(0, 0, 0, 0.55)",
   "shadow-sheet": "0 -10px 30px rgba(0, 0, 0, 0.45)",
   "shadow-none": "none",
-  "opacity-ghost": "0.38",
   "opacity-out": "0.5",
   "opacity-trail": "0.8",
   "opacity-scrim": "0.6",

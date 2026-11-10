@@ -13,8 +13,6 @@ export interface CarHandles {
   wheelRadius: number;
   marker: THREE.Object3D;
   trail: THREE.Mesh;
-  /** Draw the car translucent (a ghost overlapping another run) or solid. Never moves it. */
-  setGhost: (on: boolean) => void;
 }
 
 /** Mutable per-frame state shared by the render loop and the HUD (which polls it). */

@@ -17,7 +17,7 @@ import { damp, dampAngle, type Vec3 } from "../lib/coords.js";
 import { sampleCar } from "../lib/frames.js";
 import { type LabelBox, stackLabels } from "../lib/labels.js";
 import type { ViewerModel } from "../lib/model.js";
-import { carPlacement, findPacks, ghostIds, labelPack, PACK_LENGTHS } from "../lib/pack.js";
+import { carPlacement, findPacks, labelPack, PACK_LENGTHS } from "../lib/pack.js";
 import { liveStandings } from "../lib/timing.js";
 import { trailRibbon } from "../lib/trail.js";
 import { TRAIL_POINTS } from "./Cars.js";
@@ -63,7 +63,7 @@ export function Driver({
     });
     L.rows = liveStandings(model.cars, t);
     const mapMode = L.mode === "map";
-    // Overlapping runs are drawn translucent and labelled as one pack; positions are never touched.
+    // Overlapping runs are labelled as one pack; positions are never touched.
     const packs = findPacks(
       model.cars.map((c, k) => {
         const s = L.samples[k]!;
@@ -71,7 +71,6 @@ export function Driver({
       }),
       PACK_LENGTHS * model.replay.header.car.length,
     );
-    const ghosts = ghostIds(packs, L.focusId);
     L.labelPack = mapMode ? null : labelPack(packs, L.focusId);
 
     model.cars.forEach((c, k) => {
@@ -81,7 +80,6 @@ export function Driver({
       const at = carPlacement(s);
       h.group.position.set(...at.position);
       h.group.rotation.y = at.yaw;
-      h.setGhost(ghosts.has(c.car.id));
       for (const p of h.steer) p.rotation.y = s.steer * maxSteer;
       const spin =
         (L.wheelSpin[k] ?? 0) -

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { indexReplay, sampleCar } from "../src/lib/frames.js";
-import { carPlacement, findPacks, ghostIds, labelPack, type PackCar, packGroups } from "../src/lib/pack.js";
+import { carPlacement, findPacks, labelPack, type PackCar, packGroups } from "../src/lib/pack.js";
 import { makeCar, makeReplay, stadiumTrack } from "./fixtures.js";
 
 const car = (id: string, progress: number, o: Partial<PackCar> = {}): PackCar => ({
@@ -39,16 +39,6 @@ describe("packs", () => {
     ]);
   });
 
-  it("keeps the followed car solid, or the front car when the followed car is elsewhere", () => {
-    const g = ghostIds(packs, "ast");
-    expect(g.has("ast")).toBe(false);
-    expect(g.has("fab")).toBe(true);
-    expect(g.size).toBe(6);
-    const away = ghostIds(packs, "far");
-    expect(away.has("fab")).toBe(false);
-    expect(away.size).toBe(6);
-  });
-
   it("labels one pack of three or more besides the followed car, with identical places grouped", () => {
     const lp = labelPack(packs, "ast")!;
     expect(lp.others).toEqual(["fab", "hai", "son", "lun", "ter", "opu"]);
@@ -59,7 +49,7 @@ describe("packs", () => {
 });
 
 describe("what viewers see is what was timed", () => {
-  it("draws every car exactly at its replay sample, ghost or not", () => {
+  it("draws every car exactly at its replay sample, in a pack or not", () => {
     const track = stadiumTrack();
     // Identical launches: every car on the same line at the same time.
     const cars = indexReplay(
@@ -74,7 +64,7 @@ describe("what viewers see is what was timed", () => {
     );
     for (const t of [0, 0.5, 2.5, 10, 30]) {
       const samples = cars.map((c) => sampleCar(c, t));
-      const packs = findPacks(
+      findPacks(
         samples.map((s, k) => ({
           id: cars[k]!.car.id,
           x: s.x,
@@ -84,7 +74,6 @@ describe("what viewers see is what was timed", () => {
         })),
         8.4,
       );
-      ghostIds(packs, "a");
       samples.forEach((s, k) => {
         const p = carPlacement(s);
         expect(p.position).toEqual([s.x, 0, -s.y]);

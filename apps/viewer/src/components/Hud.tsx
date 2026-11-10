@@ -395,8 +395,8 @@ export function Help({ onClose }: { onClose: () => void }) {
         <h2>Ghost cars</h2>
         <p className="hint">
           Each car ran its flying lap alone, from the same run-up onto the line at the same speed. The replay
-          overlays the runs, so the cars sit on top of each other until they spread out after the line. Only
-          the followed car is solid; nothing is moved.
+          overlays the runs, so the cars sit on top of each other until they spread out after the line;
+          nothing is moved.
         </p>
         <p className="hint">Drop a replay.json or replay.json.gz anywhere to load it.</p>
       </div>
