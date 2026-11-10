@@ -37,8 +37,26 @@ function serveResults(): Plugin {
   };
 }
 
+/** Adds the Umami tracker to every page when `UMAMI_WEBSITE_ID` is set, which only the deploy does. */
+function analytics(): Plugin {
+  const id = process.env.UMAMI_WEBSITE_ID;
+  return {
+    name: "analytics",
+    transformIndexHtml: () =>
+      id
+        ? [
+            {
+              tag: "script",
+              attrs: { defer: true, src: "https://stats.crty.dev/script.js", "data-website-id": id },
+              injectTo: "head",
+            },
+          ]
+        : [],
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), serveResults()],
+  plugins: [react(), serveResults(), analytics()],
   build: {
     chunkSizeWarningLimit: 1000,
     rolldownOptions: {

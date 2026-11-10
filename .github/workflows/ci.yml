@@ -49,6 +49,8 @@ jobs:
             pnpm bench race "$(basename "$(dirname "$f")")"
           done
       - run: pnpm --filter @bench/viewer build
+        env:
+          UMAMI_WEBSITE_ID: 98797c00-ac59-4c84-aa4d-5f82d50f62cf
       - run: pnpm exec tsx scripts/build-site.ts site
       - name: Deploy to Cloudflare Pages
         env:
