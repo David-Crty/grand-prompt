@@ -39,5 +39,21 @@ function serveResults(): Plugin {
 
 export default defineConfig({
   plugins: [react(), serveResults()],
-  build: { chunkSizeWarningLimit: 2000 },
+  build: {
+    chunkSizeWarningLimit: 1000,
+    rolldownOptions: {
+      output: {
+        // Libraries change far less often than the app: in their own chunks a deploy leaves them cached.
+        codeSplitting: {
+          groups: [
+            {
+              name: "three",
+              test: /node_modules[\\/](three|three-stdlib|@react-three|maath|troika-|camera-controls)/,
+            },
+            { name: "react", test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+          ],
+        },
+      },
+    },
+  },
 });

@@ -56,7 +56,15 @@ this file is for working on it.
 - `drivers/<event>/`: an event's inputs: `event.json` (circuit, seed) and one folder per model
   with `driver.js` and `manifest.json`. `results/` is generated output only, not committed.
 - `tracks/<id>.json`: circuits; `tracks/sources/`: the raw extracts they are imported from.
-- `scripts/`: `determinism-check.ts` (CI), `gen-tokens.ts`, `import-car.ts`.
+- `scripts/`: `determinism-check.ts` (CI), `gen-tokens.ts`, `import-car.ts`, `build-site.ts` (the
+  static site: viewer build, published result files, `results/index.json`, Pages `_headers`).
+
+## Deployment
+https://llm-racing.crty.dev, on Cloudflare Pages. The `deploy` job in `.github/workflows/ci.yml` runs
+after the gates on every push to `main`: it reruns every event in `drivers/` (results are never
+committed), builds the viewer and the site, then `wrangler pages deploy`. Only the files listed in
+`build-site.ts` leave `results/`. The infrastructure is Terraform in `David-Crty/infra`
+(`terraform/llm-racing`).
 
 ## Commands
 ```bash
