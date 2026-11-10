@@ -64,8 +64,3 @@ export function stepSpeed(current: number, dir: 1 | -1): number {
 export function paramsForReplay(p: ViewerParams, fromUrl: boolean): ViewerParams {
   return fromUrl ? p : { ...p, t: null, cam: null, car: null };
 }
-
-/** The event a replay belongs to, from its URL (`/results/gp-1/qualify/replay.json.gz` is gp-1), for the back link. */
-export function eventOf(url: string | null): string | null {
-  return url?.match(/\/results\/([^/]+)\//)?.[1] ?? null;
-}

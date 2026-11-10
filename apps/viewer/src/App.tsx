@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RaceList } from "./components/RaceList.js";
 import { decodeReplay, fetchEventResults, fetchReplay } from "./lib/load.js";
 import { buildModel } from "./lib/model.js";
-import { eventOf, paramsForReplay, parseParams } from "./lib/params.js";
+import { paramsForReplay, parseParams } from "./lib/params.js";
 import type { EventResults } from "./lib/results.js";
 import { PHONE_QUERY } from "./usePhone.js";
 import { Viewer } from "./Viewer.js";
@@ -89,7 +89,7 @@ export function App() {
           key={gen}
           model={model}
           backHref={window.location.pathname}
-          backLabel={(fromUrl && eventOf(params.replay)) || "All races"}
+          backLabel="All races"
           params={paramsForReplay(params, fromUrl)}
           results={fromUrl ? results : null}
         />
