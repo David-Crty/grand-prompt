@@ -525,6 +525,26 @@
 .gp-star:focus-visible .gp-icon {
   fill: currentColor;
 }
+.gp-btn--s {
+  height: 26px;
+  padding: 0 8px;
+  gap: 6px;
+  font-size: 12px;
+}
+.gp-source {
+  box-shadow: inset 0 0 0 1px var(--line-100);
+  color: var(--text-300);
+}
+.gp-source:hover,
+.gp-source:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--line-control);
+  color: var(--text-100);
+}
+.gp-source__file {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-variation-settings: normal;
+}
 .gp-btn--touch {
   height: var(--size-hit);
   padding: 0 18px;
@@ -1353,12 +1373,25 @@
 .gp-pop__btn[aria-expanded="true"] {
   color: var(--text-100);
 }
+.gp-pop__btn--text {
+  font: inherit;
+  color: inherit;
+  border-radius: var(--radius-1);
+  text-decoration: underline dotted var(--text-300);
+  text-underline-offset: 3px;
+}
+.gp-pop__btn--text:hover,
+.gp-pop__btn--text[aria-expanded="true"] {
+  color: inherit;
+  text-decoration-color: currentColor;
+}
 .gp-pop__body {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: -8px;
-  z-index: 5;
-  width: 320px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: var(--z-tooltip);
+  width: max-content;
+  max-width: min(320px, calc(100vw - 16px));
   padding: 10px 12px;
   font-size: 13px;
   line-height: 18px;

@@ -1,4 +1,5 @@
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { type Entry, entryVar } from "../entries.js";
 import { Icon, type IconName, LogoMark } from "./icons.js";
 
@@ -136,6 +137,23 @@ export function StarLink({ href, className }: { href: string; className?: string
   );
 }
 
+/** A small link to a file's source, opening in a new tab: its icon and the file name in mono. */
+export function SourceLink({ href, file, label }: { href: string; file: string; label: string }) {
+  return (
+    <a
+      className="gp-btn gp-btn--ghost gp-btn--s gp-source"
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={label}
+      title={label}
+    >
+      <Icon name="code" />
+      <span className="gp-source__file">{file}</span>
+    </a>
+  );
+}
+
 export function IconButton({
   icon,
   label,
@@ -212,11 +230,17 @@ export function SegmentedControl<T extends string>({
  * Calls `close` on a pointer down outside `ref` or on Escape while `open`. Escape goes no further, so it does not
  * also close the panel around it.
  */
-function useDismiss(ref: React.RefObject<HTMLElement | null>, open: boolean, close: () => void) {
+function useDismiss(
+  ref: React.RefObject<HTMLElement | null>,
+  open: boolean,
+  close: () => void,
+  also?: React.RefObject<HTMLElement | null>,
+) {
   React.useEffect(() => {
     if (!open) return;
     const onDown = (e: PointerEvent) => {
-      if (!ref.current?.contains(e.target as Node)) close();
+      const t = e.target as Node;
+      if (!ref.current?.contains(t) && !also?.current?.contains(t)) close();
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
@@ -229,32 +253,102 @@ function useDismiss(ref: React.RefObject<HTMLElement | null>, open: boolean, clo
       document.removeEventListener("pointerdown", onDown);
       document.removeEventListener("keydown", onKey, true);
     };
-  }, [ref, open, close]);
+  }, [ref, open, close, also]);
 }
 
-/** A "?" button that opens a short explanation under it; a click outside or Escape closes it. */
-export function Popover({ label, children }: { label: string; children: React.ReactNode }) {
-  const [open, setOpen] = React.useState(false);
+const POP_GAP = 6;
+const POP_MARGIN = 8;
+
+/** Where a popover goes: centred under its trigger, above it when there is no room below, inside the viewport. */
+function popoverPosition(trigger: DOMRect, body: { width: number; height: number }) {
+  const vw = document.documentElement.clientWidth;
+  const vh = document.documentElement.clientHeight;
+  const centred = trigger.left + trigger.width / 2 - body.width / 2;
+  const left = Math.max(POP_MARGIN, Math.min(centred, vw - body.width - POP_MARGIN));
+  const below = trigger.bottom + POP_GAP;
+  const top = below + body.height > vh - POP_MARGIN ? trigger.top - POP_GAP - body.height : below;
+  return { left, top: Math.max(POP_MARGIN, top) };
+}
+
+/**
+ * A short explanation that opens under its trigger, a "?" unless `trigger` is given. A click pins it open until a
+ * click outside or Escape; with `hover` it also shows while the pointer is over the trigger or it has focus. It is
+ * drawn over the page, so a scrolling table does not clip it.
+ */
+export function Popover({
+  label,
+  children,
+  trigger,
+  hover = false,
+}: {
+  label: string;
+  children: React.ReactNode;
+  trigger?: React.ReactNode;
+  hover?: boolean;
+}) {
+  const [pinned, setPinned] = React.useState(false);
+  const [peek, setPeek] = React.useState(false);
+  const open = pinned || peek;
   const ref = React.useRef<HTMLSpanElement>(null);
-  const close = React.useCallback(() => setOpen(false), []);
-  useDismiss(ref, open, close);
+  const bodyRef = React.useRef<HTMLSpanElement>(null);
+  const [pos, setPos] = React.useState<{ left: number; top: number } | null>(null);
+  const id = React.useId();
+  const close = React.useCallback(() => {
+    setPinned(false);
+    setPeek(false);
+  }, []);
+  useDismiss(ref, open, close, bodyRef);
+  React.useLayoutEffect(() => {
+    if (!open) {
+      setPos(null);
+      return;
+    }
+    const place = () => {
+      const t = ref.current;
+      const b = bodyRef.current;
+      if (t && b) setPos(popoverPosition(t.getBoundingClientRect(), b.getBoundingClientRect()));
+    };
+    place();
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    return () => {
+      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("resize", place);
+    };
+  }, [open]);
+  const onMouse = (show: boolean) => (e: React.PointerEvent) => {
+    if (hover && e.pointerType === "mouse") setPeek(show);
+  };
   return (
-    <span className="gp-pop" ref={ref}>
+    <span className="gp-pop" ref={ref} onPointerEnter={onMouse(true)} onPointerLeave={onMouse(false)}>
       <button
         type="button"
-        className="gp-pop__btn"
+        className={cx("gp-pop__btn", trigger != null && "gp-pop__btn--text")}
         aria-label={label}
         aria-expanded={open}
-        title={label}
-        onClick={() => setOpen((v) => !v)}
+        aria-controls={open ? id : undefined}
+        title={hover ? undefined : label}
+        onClick={() => setPinned((v) => !v)}
+        onFocus={hover ? () => setPeek(true) : undefined}
+        onBlur={hover ? () => setPeek(false) : undefined}
       >
-        <Icon name="help" />
+        {trigger ?? <Icon name="help" />}
       </button>
-      {open ? (
-        <span className="gp-pop__body gp-panel gp-panel--solid" role="dialog" aria-label={label}>
-          {children}
-        </span>
-      ) : null}
+      {open
+        ? createPortal(
+            <span
+              ref={bodyRef}
+              id={id}
+              className="gp gp-pop__body gp-panel gp-panel--solid"
+              role="dialog"
+              aria-label={label}
+              style={pos ?? { visibility: "hidden" }}
+            >
+              {children}
+            </span>,
+            document.body,
+          )
+        : null}
     </span>
   );
 }

@@ -32,5 +32,10 @@ export function raceReplayUrl(id: string): string {
 /** The project's source, linked from the site so visitors can star it. */
 export const REPO_URL = "https://github.com/David-Crty/llm-racing";
 
+/** A model's driver program on GitHub, as entered in an event. */
+export function driverSourceUrl(event: string, id: string): string {
+  return `${REPO_URL}/blob/main/drivers/${encodeURIComponent(event)}/${encodeURIComponent(id)}/driver.js`;
+}
+
 /** Who made it. */
 export const AUTHOR_URL = "https://crty.dev";

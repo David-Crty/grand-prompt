@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   ChevronUp,
   CircleHelp,
+  CodeXml,
   Flag,
   Gauge,
   Info,
@@ -54,7 +55,8 @@ export type IconName =
   | "map"
   | "check"
   | "up"
-  | "star";
+  | "star"
+  | "code";
 
 const ICONS: Record<IconName, LucideIcon> = {
   play: Play,
@@ -81,6 +83,7 @@ const ICONS: Record<IconName, LucideIcon> = {
   check: Check,
   up: ChevronUp,
   star: Star,
+  code: CodeXml,
 };
 
 export const CAMERA_ICON: Record<CameraMode, IconName> = {
