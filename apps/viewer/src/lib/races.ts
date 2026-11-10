@@ -1,91 +1,123 @@
-import type { ClassifiedResult, SessionConfig } from "@bench/sim";
+import type { ClassifiedResult } from "@bench/sim";
+import type { DriverEntry } from "./drivers.js";
+import type { Outline } from "./outline.js";
 
 /** The fields of a session's `results.json` a race list needs. */
 export interface RaceSource {
-  simVersion: string;
   trackId: string;
-  session: Pick<SessionConfig, "seed">;
-  classification: Pick<ClassifiedResult, "id" | "name" | "status" | "position" | "lapTime">[];
+  classification: Pick<ClassifiedResult, "id" | "name" | "position" | "lapTime">[];
 }
 
 export interface RaceDriver {
   id: string;
   name: string;
+  /** Lap time, s; null without a valid lap. */
+  time: number | null;
 }
 
 export interface RaceEntry {
-  /** Directory relative to `results/`, e.g. "qualify/monaco-001" or "gp-1/qualify". */
+  /** Its directory under `results/races/`: `<event>-<track>`, e.g. "gp-1-monaco". */
   id: string;
-  /** URL the viewer fetches. */
-  replay: string;
-  /** First path segment: "qualify", "practice", or an event id. */
-  group: string;
-  trackId: string;
   trackName: string;
-  seed: number;
-  simVersion: string;
+  /** The circuit drawn for the list; null when its track file is missing or unreadable. */
+  outline: Outline | null;
   /** Last modification of the result files, ms since epoch. */
   time: number;
-  cars: number;
-  /** Cars with a valid lap time. */
-  timed: number;
-  pole: (RaceDriver & { status: string; time: number | null }) | null;
+  /** Classification order. */
   drivers: RaceDriver[];
 }
 
 export interface RaceIndex {
   races: RaceEntry[];
+  /** Every model that built a driver for an event, from the latest event it entered. */
+  drivers: DriverEntry[];
+}
+
+export interface TrackInfo {
+  name?: string;
+  outline?: Outline | null;
 }
 
 export function summarizeRace(
   id: string,
-  replay: string,
   src: RaceSource,
-  opts: { trackName?: string; time: number },
+  opts: { track?: TrackInfo; time: number },
 ): RaceEntry {
-  const cls = [...src.classification].sort((a, b) => a.position - b.position);
-  const p1 = cls[0];
+  const drivers = [...src.classification]
+    .sort((a, b) => a.position - b.position)
+    .map((c) => ({ id: c.id, name: c.name, time: c.lapTime }));
   return {
     id,
-    replay,
-    group: id.split("/")[0]!,
-    trackId: src.trackId,
-    trackName: opts.trackName ?? src.trackId,
-    seed: src.session.seed,
-    simVersion: src.simVersion,
+    trackName: opts.track?.name ?? src.trackId,
+    outline: opts.track?.outline ?? null,
     time: opts.time,
-    cars: cls.length,
-    timed: cls.filter((c) => c.lapTime != null).length,
-    pole: p1 ? { id: p1.id, name: p1.name, status: p1.status, time: p1.lapTime } : null,
-    drivers: cls.map((c) => ({ id: c.id, name: c.name })),
+    drivers,
   };
 }
 
-/** Newest first, then by id so equal timestamps keep a stable order. */
+/** By circuit, then newest first, then by id so equal timestamps keep a stable order. */
 export function sortRaces(races: RaceEntry[]): RaceEntry[] {
-  return [...races].sort((a, b) => b.time - a.time || a.id.localeCompare(b.id));
+  return [...races].sort(
+    (a, b) => a.trackName.localeCompare(b.trackName) || b.time - a.time || a.id.localeCompare(b.id),
+  );
 }
 
+/** Races whose circuit name holds every term of the query. */
 export function filterRaces(races: RaceEntry[], query: string): RaceEntry[] {
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
   if (!terms.length) return races;
-  return races.filter((r) => {
-    const hay = [r.id, r.trackName, r.trackId, r.group, ...r.drivers.map((d) => d.name)]
-      .join(" ")
-      .toLowerCase();
-    return terms.every((t) => hay.includes(t));
-  });
+  return races.filter((r) => terms.every((t) => r.trackName.toLowerCase().includes(t)));
 }
 
-/** Local "2026-11-09 10:21". */
+/** The timed cars in order, each with its gap to pole. */
+export function timedField(r: Pick<RaceEntry, "drivers">): (RaceDriver & { time: number; gap: number })[] {
+  const timed = r.drivers.filter((d): d is RaceDriver & { time: number } => d.time != null);
+  const pole = timed[0]?.time ?? 0;
+  return timed.map((d) => ({ ...d, gap: d.time - pole }));
+}
+
+/**
+ * Where each timed car sits between pole (0) and the slowest timed car (1), and the gap that spans. A field of
+ * one sits at 0.
+ */
+export function fieldSpread(r: Pick<RaceEntry, "drivers">): {
+  dots: { id: string; at: number; gap: number }[];
+  span: number;
+} {
+  const field = timedField(r);
+  const span = field.length ? field[field.length - 1]!.gap : 0;
+  return { dots: field.map((d) => ({ id: d.id, at: span > 0 ? d.gap / span : 0, gap: d.gap })), span };
+}
+
+/** "3.31 km". */
+export function formatLength(m: number): string {
+  return `${(m / 1000).toFixed(2)} km`;
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** Local "9 Nov 2026". */
 export function formatDate(ms: number): string {
   const d = new Date(ms);
   if (!Number.isFinite(d.getTime())) return "--";
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-/** URL of the viewer page for a replay, keeping other query params out. */
-export function watchHref(replay: string): string {
-  return `?replay=${encodeURIComponent(replay)}`;
+const REVEAL_KEY = "gp.results.shown";
+
+/** Whether the viewer chose to see results on the home pages; hidden by default, and when storage fails. */
+export function readReveal(storage: Pick<Storage, "getItem"> | null | undefined): boolean {
+  try {
+    return storage?.getItem(REVEAL_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function writeReveal(storage: Pick<Storage, "setItem"> | null | undefined, shown: boolean): void {
+  try {
+    storage?.setItem(REVEAL_KEY, shown ? "1" : "0");
+  } catch {
+    // Private windows and blocked storage keep the choice for this page only.
+  }
 }

@@ -1,123 +1,168 @@
-import { type Entry, entryVar, formatLapTime } from "@bench/ui";
-import { useEffect, useMemo, useState } from "react";
+import { type Entry, entryVar, formatGap, formatLapTime } from "@bench/ui";
+import { EntryChip } from "@bench/ui/react";
+import { type CSSProperties, type KeyboardEvent, useMemo, useRef, useState } from "react";
 import { eventEntries } from "../lib/entries.js";
-import { filterRaces, formatDate, type RaceEntry, type RaceIndex, watchHref } from "../lib/races.js";
+import {
+  fieldSpread,
+  filterRaces,
+  formatDate,
+  formatLength,
+  type RaceEntry,
+  timedField,
+} from "../lib/races.js";
+import { routeHref } from "../lib/route.js";
+import { TrackOutline } from "./TrackOutline.js";
 
-const INDEX_URL = "/results/index.json";
-
-function Driver({ name, entry }: { name: string; entry: Entry | undefined }) {
+function Chevron() {
   return (
-    <span className="rl-driver">
-      <span className="swatch" style={{ background: entryVar(entry) }} />
-      {name}
+    <svg width="8" height="12" viewBox="0 0 8 12" aria-hidden="true">
+      <path d="M1.5 1.5 6 6l-4.5 4.5" fill="none" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function Podium({ r, entries }: { r: RaceEntry; entries: Map<string, Entry> }) {
+  const top = timedField(r).slice(0, 3);
+  return (
+    <span className="rl-podium">
+      {top.map((d, i) => {
+        const e = entries.get(d.id);
+        return (
+          <span key={d.id} className="rl-podium__cell">
+            <span className="rl-podium__pos">
+              P{i + 1}
+              {e ? <EntryChip entry={e} /> : null}
+            </span>
+            <span className={i === 0 ? "rl-time is-fastest" : "rl-time"}>
+              {i === 0 ? formatLapTime(d.time) : formatGap(d.gap)}
+            </span>
+          </span>
+        );
+      })}
     </span>
   );
 }
 
-function Row({ r }: { r: RaceEntry }) {
-  const untimed = r.cars - r.timed;
-  const entries = eventEntries(r.drivers);
+function Spread({ r, entries }: { r: RaceEntry; entries: Map<string, Entry> }) {
+  const { dots, span } = fieldSpread(r);
+  const untimed = r.drivers.length - dots.length;
   return (
-    <a className="rl-row" href={watchHref(r.replay)}>
-      <div className="rl-main">
-        <div className="rl-track">{r.trackName}</div>
-        <div className="rl-sub">
-          Flying lap
-          <span className="rl-group">{r.group}</span>
-          <span className="rl-id">{r.id}</span>
-        </div>
-      </div>
-      <div className="rl-cell">
-        <div className="rl-label">Pole</div>
-        {r.pole ? (
-          <>
-            <Driver name={r.pole.name} entry={entries.get(r.pole.id)} />
-            <div className={`rl-time${r.pole.time != null ? " purple" : ""}`}>
-              {r.pole.time != null ? formatLapTime(r.pole.time) : r.pole.status}
-            </div>
-          </>
-        ) : (
-          <div className="rl-time">--</div>
-        )}
-      </div>
-      <div className="rl-cell rl-field">
-        <div className="rl-label">Field</div>
-        <div className="rl-swatches" title={r.drivers.map((d) => d.name).join(", ")}>
-          {r.drivers.map((d) => (
-            <span key={d.id} className="swatch" style={{ background: entryVar(entries.get(d.id)) }} />
-          ))}
-        </div>
-        <div className="rl-time">
-          {r.cars} {r.cars === 1 ? "car" : "cars"}
-          {untimed > 0 ? <span className="rl-dnf"> · {untimed} without a time</span> : null}
-        </div>
-      </div>
-      <div className="rl-cell rl-meta">
-        <div>{formatDate(r.time)}</div>
-        <div className="rl-sub">
-          seed {r.seed} · sim {r.simVersion}
-        </div>
-      </div>
+    <span className="rl-spread">
+      <svg className="rl-spread__strip" aria-hidden="true">
+        <line x1="4%" x2="96%" y1="8" y2="8" />
+        {[...dots].reverse().map((d) => (
+          <circle
+            key={d.id}
+            cx={`${(4 + d.at * 92).toFixed(2)}%`}
+            cy="8"
+            r="4.5"
+            style={{ "--dot": entryVar(entries.get(d.id)) } as CSSProperties}
+          />
+        ))}
+      </svg>
+      <span className="rl-spread__ends">
+        <span>Pole</span>
+        <span>
+          {dots.length ? `${formatGap(span)}s` : "No lap"}
+          {untimed > 0 ? <span className="rl-dnf"> · {untimed} no time</span> : null}
+        </span>
+      </span>
+    </span>
+  );
+}
+
+function Row({
+  r,
+  active,
+  shown,
+  onActivate,
+}: {
+  r: RaceEntry;
+  active: boolean;
+  shown: boolean;
+  onActivate: () => void;
+}) {
+  const entries = useMemo(() => eventEntries(r.drivers), [r.drivers]);
+  return (
+    <a
+      className={active ? "rl-row is-active" : "rl-row"}
+      href={routeHref({ page: "race", id: r.id })}
+      onMouseEnter={onActivate}
+      onFocus={onActivate}
+    >
+      <span className="rl-thumb">
+        {r.outline ? <TrackOutline outline={r.outline} running={active} /> : null}
+      </span>
+      <span className="rl-main">
+        <span className="rl-track">{r.trackName}</span>
+        <span className="rl-sub">
+          {r.outline ? <span>{formatLength(r.outline.length)}</span> : null}
+          <span>
+            {r.drivers.length} {r.drivers.length === 1 ? "car" : "cars"}
+          </span>
+          <span>{formatDate(r.time)}</span>
+        </span>
+      </span>
+      <span className={shown ? "rl-results" : "rl-results is-concealed"} aria-hidden={!shown}>
+        <Podium r={r} entries={entries} />
+        <Spread r={r} entries={entries} />
+      </span>
+      <span className="rl-watch">
+        Watch
+        <Chevron />
+      </span>
     </a>
   );
 }
 
 /** Home page: every replay under `results/`, newest first. */
-export function RaceList({ error, loading }: { error: string | null; loading: string | null }) {
-  const [index, setIndex] = useState<RaceIndex | null>(null);
-  const [failed, setFailed] = useState<string | null>(null);
+export function RaceList({ races, shown }: { races: RaceEntry[]; shown: boolean }) {
   const [query, setQuery] = useState("");
+  const [active, setActive] = useState<string | null>(null);
+  const list = useRef<HTMLDivElement>(null);
+  const visible = useMemo(() => filterRaces(races, query), [races, query]);
+  const activeId = visible.some((r) => r.id === active) ? active : (visible[0]?.id ?? null);
 
-  useEffect(() => {
-    fetch(INDEX_URL)
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${INDEX_URL}`);
-        return res.json() as Promise<RaceIndex>;
-      })
-      .then(setIndex)
-      .catch((e: Error) => setFailed(e.message));
-  }, []);
-
-  const races = useMemo(() => filterRaces(index?.races ?? [], query), [index, query]);
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    const rows = [...(list.current?.querySelectorAll<HTMLAnchorElement>(".rl-row") ?? [])];
+    if (!rows.length) return;
+    e.preventDefault();
+    const at = rows.indexOf(document.activeElement as HTMLAnchorElement);
+    const next = at < 0 ? 0 : (at + (e.key === "ArrowDown" ? 1 : -1) + rows.length) % rows.length;
+    rows[next]!.focus();
+  };
 
   return (
-    <div className="race-list">
-      <header className="rl-head">
-        <div>
-          <div className="brand">GRAND PROMPT</div>
-          <h1>Races</h1>
-        </div>
-        {index && index.races.length > 0 ? (
+    <>
+      <div className="home-head">
+        <h1>Races</h1>
+        {races.length > 0 ? (
           <input
-            className="rl-search"
+            id="race-search"
+            className="home-search"
             type="search"
-            placeholder="Filter by track, driver, session…"
+            placeholder="Filter by circuit"
+            aria-label="Filter races by circuit"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
         ) : null}
-      </header>
-      {loading ? <p className="rl-note">Loading {loading}…</p> : null}
-      {error ? <p className="rl-note error">{error}</p> : null}
-      {failed ? <p className="rl-note error">Could not list races: {failed}</p> : null}
-      {!index && !failed ? <p className="rl-note">Looking for races…</p> : null}
-      {index && index.races.length === 0 ? (
-        <p className="rl-note">
-          No replays under results/ yet. Run <code>pnpm bench event run …</code> to make one.
+      </div>
+      {races.length === 0 ? (
+        <p className="home-note">
+          No races under results/ yet. Run <code>pnpm bench race …</code> to make some.
         </p>
       ) : null}
-      {index && index.races.length > 0 && races.length === 0 ? (
-        <p className="rl-note">No race matches “{query}”.</p>
+      {races.length > 0 && visible.length === 0 ? (
+        <p className="home-note">No circuit matches “{query}”.</p>
       ) : null}
-      <div className="rl-rows">
-        {races.map((r) => (
-          <Row key={r.id} r={r} />
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: arrow keys move focus between the row links inside. */}
+      <div className="rl-rows" ref={list} onKeyDown={onKeyDown}>
+        {visible.map((r) => (
+          <Row key={r.id} r={r} active={r.id === activeId} shown={shown} onActivate={() => setActive(r.id)} />
         ))}
       </div>
-      <p className="rl-note rl-foot">
-        You can also drop a replay.json or replay.json.gz anywhere on this page, or open one with
-        ?replay=&lt;url&gt;.
-      </p>
-    </div>
+    </>
   );
 }

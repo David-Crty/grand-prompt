@@ -1,6 +1,7 @@
 /**
- * Assembles the static site: the built viewer, the published result files under `results/`, the race
- * list the dev server otherwise builds per request, and the Cloudflare Pages headers.
+ * Assembles the static site: the built viewer, the published result files under `results/races/`, the race
+ * list the dev server otherwise builds per request, and the Cloudflare Pages headers. The site has no
+ * 404.html, so Pages answers `/races/<id>` and `/drivers` with index.html and the viewer routes them.
  *
  *   pnpm --filter @bench/viewer build && tsx scripts/build-site.ts [outDir]   (default site/)
  */
@@ -14,7 +15,7 @@ const viewerDist = join(root, "apps/viewer/dist");
 const resultsDir = join(root, "results");
 const out = resolve(process.argv[2] ?? join(root, "site"));
 
-/** What the viewer reads; anything else under results/ (practice tokens, telemetry) stays private. */
+/** What the viewer reads, from results/races/ only; practice, builds and tokens stay private. */
 const PUBLISHED = new Set([
   "replay.json",
   "replay.json.gz",
@@ -60,7 +61,7 @@ if (!existsSync(resultsDir)) {
 
 rmSync(out, { recursive: true, force: true });
 cpSync(viewerDist, out, { recursive: true });
-const files = copyPublished(resultsDir);
+const files = existsSync(join(resultsDir, "races")) ? copyPublished(join(resultsDir, "races")) : 0;
 const index = scanResults(resultsDir, join(root, "tracks"));
 writeFileSync(join(out, "results/index.json"), JSON.stringify(index));
 writeFileSync(join(out, "_headers"), HEADERS);

@@ -1,16 +1,20 @@
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { scanResults } from "../server/results-index.js";
 import {
+  fieldSpread,
   filterRaces,
   formatDate,
+  formatLength,
   type RaceSource,
+  readReveal,
   sortRaces,
   summarizeRace,
-  watchHref,
+  timedField,
+  writeReveal,
 } from "../src/lib/races.js";
 
 type Row = RaceSource["classification"][number];
@@ -18,7 +22,6 @@ type Row = RaceSource["classification"][number];
 function row(over: Partial<Row> & Pick<Row, "id" | "position">): Row {
   return {
     name: over.id,
-    status: "FINISHED",
     lapTime: 80,
     ...over,
   };
@@ -26,67 +29,111 @@ function row(over: Partial<Row> & Pick<Row, "id" | "position">): Row {
 
 function source(over: Partial<RaceSource> = {}): RaceSource {
   return {
-    simVersion: "0.1.0",
     trackId: "monaco",
-    session: { seed: 7 },
     classification: [
       row({ id: "b", position: 2, lapTime: 80.5 }),
       row({ id: "a", position: 1, lapTime: 80 }),
-      row({ id: "c", position: 3, status: "DNF: CRASHED", lapTime: null }),
+      row({ id: "c", position: 3, lapTime: null }),
     ],
     ...over,
   };
 }
 
 describe("summarizeRace", () => {
-  it("picks pole and counts the cars with a time", () => {
-    const r = summarizeRace("qualify/monaco-001", "/results/qualify/monaco-001/replay.json.gz", source(), {
+  it("keeps the field in classification order", () => {
+    const outline = { width: 160, height: 100, path: "M0 0Z", length: 3300 };
+    const r = summarizeRace("monaco-001", source(), { track: { name: "Monaco", outline }, time: 1000 });
+    expect(r).toEqual({
+      id: "monaco-001",
       trackName: "Monaco",
+      outline,
       time: 1000,
+      drivers: [
+        { id: "a", name: "a", time: 80 },
+        { id: "b", name: "b", time: 80.5 },
+        { id: "c", name: "c", time: null },
+      ],
     });
-    expect(r).toMatchObject({
-      group: "qualify",
-      trackName: "Monaco",
-      seed: 7,
-      cars: 3,
-      timed: 2,
-      time: 1000,
-      pole: { id: "a", time: 80, status: "FINISHED" },
-    });
-    expect(r.drivers.map((d) => d.id)).toEqual(["a", "b", "c"]);
   });
 
-  it("falls back to the track id and copes with an empty field", () => {
-    const r = summarizeRace("demo", "/x", source(), { time: 0 });
+  it("falls back to the track id", () => {
+    const r = summarizeRace("demo", source(), { time: 0 });
     expect(r.trackName).toBe("monaco");
-    expect(r.group).toBe("demo");
-    expect(summarizeRace("r", "/x", source({ classification: [] }), { time: 0 }).pole).toBeNull();
+    expect(r.outline).toBeNull();
   });
 });
 
 describe("race list helpers", () => {
-  const mk = (id: string, time: number, trackName = "Monaco") =>
-    summarizeRace(id, `/results/${id}/replay.json.gz`, source(), { trackName, time });
+  const mk = (id: string, time: number, name = "Monaco") =>
+    summarizeRace(id, source(), { track: { name }, time });
 
-  it("sorts newest first, ties by id", () => {
-    const sorted = sortRaces([mk("b", 1), mk("a", 1), mk("c", 5)]);
-    expect(sorted.map((r) => r.id)).toEqual(["c", "a", "b"]);
+  it("sorts by circuit, then newest first, ties by id", () => {
+    const sorted = sortRaces([mk("b", 1), mk("a", 1), mk("c", 5), mk("d", 9, "Barcelona")]);
+    expect(sorted.map((r) => r.id)).toEqual(["d", "c", "a", "b"]);
   });
 
-  it("filters on every term across track, session, group and drivers", () => {
-    const races = [mk("race/monaco-001", 1), mk("race/silverstone-001", 1, "Silverstone")];
+  it("filters on the circuit name only, every term", () => {
+    const races = [mk("race/monaco-001", 1), mk("race/silverstone-001", 1, "Silverstone Circuit")];
     expect(filterRaces(races, "")).toBe(races);
-    expect(filterRaces(races, "silver").map((r) => r.id)).toEqual(["race/silverstone-001"]);
-    expect(filterRaces(races, "SILVERSTONE race a")).toHaveLength(1);
-    expect(filterRaces(races, "monaco nobody")).toHaveLength(0);
+    expect(filterRaces(races, " silver ").map((r) => r.id)).toEqual(["race/silverstone-001"]);
+    expect(filterRaces(races, "SILVERSTONE circ")).toHaveLength(1);
+    expect(filterRaces(races, "race")).toHaveLength(0);
+    expect(filterRaces(races, "o")).toHaveLength(2);
+    expect(filterRaces(races, "monaco silverstone")).toHaveLength(0);
   });
 
-  it("formats dates and links", () => {
-    expect(formatDate(new Date(2026, 10, 9, 8, 5).getTime())).toBe("2026-11-09 08:05");
+  it("formats dates and lengths", () => {
+    expect(formatDate(new Date(2026, 10, 9, 8, 5).getTime())).toBe("9 Nov 2026");
     expect(formatDate(Number.NaN)).toBe("--");
-    expect(watchHref("/results/race/a b/replay.json.gz")).toBe(
-      "?replay=%2Fresults%2Frace%2Fa%20b%2Freplay.json.gz",
-    );
+    expect(formatLength(3307)).toBe("3.31 km");
+  });
+
+  it("places the timed field between pole and the slowest timed car", () => {
+    const r = mk("race/a", 1);
+    expect(timedField(r).map((d) => [d.id, d.gap])).toEqual([
+      ["a", 0],
+      ["b", 0.5],
+    ]);
+    expect(fieldSpread(r)).toEqual({
+      dots: [
+        { id: "a", at: 0, gap: 0 },
+        { id: "b", at: 1, gap: 0.5 },
+      ],
+      span: 0.5,
+    });
+    const one = summarizeRace("r", source({ classification: [row({ id: "a", position: 1 })] }), {
+      time: 0,
+    });
+    expect(fieldSpread(one)).toEqual({ dots: [{ id: "a", at: 0, gap: 0 }], span: 0 });
+    const none = summarizeRace("r", source({ classification: [] }), { time: 0 });
+    expect(fieldSpread(none)).toEqual({ dots: [], span: 0 });
+  });
+});
+
+describe("hidden results", () => {
+  it("keeps results hidden unless the viewer chose to see them", () => {
+    const store = new Map<string, string>();
+    const storage = {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+    };
+    expect(readReveal(storage)).toBe(false);
+    writeReveal(storage, true);
+    expect(readReveal(storage)).toBe(true);
+    writeReveal(storage, false);
+    expect(readReveal(storage)).toBe(false);
+    expect(readReveal(null)).toBe(false);
+    const broken = {
+      getItem: () => {
+        throw new Error("denied");
+      },
+      setItem: () => {
+        throw new Error("denied");
+      },
+    };
+    expect(readReveal(broken)).toBe(false);
+    expect(() => writeReveal(broken, true)).not.toThrow();
+    expect(() => writeReveal(undefined, true)).not.toThrow();
   });
 });
 
@@ -101,73 +148,114 @@ describe("scanResults", () => {
     tracks = join(root, "tracks");
     mkdirSync(results);
     mkdirSync(tracks);
-    writeFileSync(join(tracks, "monaco.json"), JSON.stringify({ id: "monaco", name: "Monaco" }));
+    const square = [
+      [0, 0],
+      [100, 0],
+      [100, 100],
+      [0, 100],
+    ];
+    writeFileSync(
+      join(tracks, "monaco.json"),
+      JSON.stringify({ id: "monaco", name: "Monaco", points: square }),
+    );
     writeFileSync(join(tracks, "broken.json"), "{");
   });
 
   afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-  const dir = (rel: string) => {
-    const d = join(results, rel);
+  const dir = (id: string) => {
+    const d = join(results, "races", id);
     mkdirSync(d, { recursive: true });
     return d;
   };
   const touch = (path: string, sec: number) => utimesSync(path, sec, sec);
+  const race = (id: string, src: object | string = source()) => {
+    const d = dir(id);
+    writeFileSync(join(d, "replay.json.gz"), gzipSync("{}"));
+    writeFileSync(join(d, "results.json"), typeof src === "string" ? src : JSON.stringify(src));
+    return d;
+  };
 
-  it("lists replays next to their results.json, and skips bad entries", () => {
-    const a = dir("qualify/monaco-001");
-    writeFileSync(join(a, "replay.json.gz"), gzipSync("{}"));
-    writeFileSync(join(a, "results.json"), JSON.stringify(source()));
+  it("lists every race under results/races/, and skips bad entries", () => {
+    const a = race("monaco-001");
     touch(join(a, "replay.json.gz"), 100);
     touch(join(a, "results.json"), 200);
-
-    const ev = dir("my event/qualify");
-    writeFileSync(join(ev, "replay.json"), "{}");
-    writeFileSync(join(ev, "results.json"), JSON.stringify(source({ trackId: "ring" })));
-    touch(join(ev, "replay.json"), 50);
+    const ev = race("my event", source({ trackId: "ring" }));
+    touch(join(ev, "replay.json.gz"), 50);
     touch(join(ev, "results.json"), 50);
 
-    const notResult = dir("qualify/not-a-result");
-    writeFileSync(join(notResult, "replay.json.gz"), gzipSync("{}"));
-    writeFileSync(join(notResult, "results.json"), JSON.stringify({ not: "a result" }));
-    const broken = dir("qualify/broken");
-    writeFileSync(join(broken, "replay.json.gz"), gzipSync("{}"));
-    writeFileSync(join(broken, "results.json"), "{");
-    const replayOnly = dir("qualify/replay-only");
-    writeFileSync(join(replayOnly, "replay.json"), "{}");
-    dir("practice/empty");
-    dir(".hidden/qualify");
-    writeFileSync(join(results, ".hidden/qualify/replay.json"), "{}");
-    writeFileSync(join(results, ".hidden/qualify/results.json"), JSON.stringify(source()));
-    writeFileSync(join(results, "replay.json"), "{}");
-    writeFileSync(join(results, "results.json"), JSON.stringify(source()));
-    symlinkSync(join(root, "missing"), join(results, "dangling"));
-    dir("a/b/c/d/e/f");
-    writeFileSync(join(results, "a/b/c/d/e/f/replay.json"), "{}");
-    writeFileSync(join(results, "a/b/c/d/e/f/results.json"), JSON.stringify(source()));
+    race("not-a-result", { not: "a result" });
+    race("broken", "{");
+    writeFileSync(join(dir("replay-less"), "results.json"), JSON.stringify(source()));
+    race(".hidden");
+    writeFileSync(join(results, "races", "stray.json"), "{}");
+    const practice = join(results, "practice", "baseline-001");
+    mkdirSync(practice, { recursive: true });
+    writeFileSync(join(practice, "replay.json.gz"), gzipSync("{}"));
+    writeFileSync(join(practice, "results.json"), JSON.stringify(source()));
 
     const { races } = scanResults(results, tracks);
-    expect(races.map((r) => r.id)).toEqual(["qualify/monaco-001", "my event/qualify"]);
+    expect(races.map((r) => r.id)).toEqual(["monaco-001", "my event"]);
     const [m, e] = races;
     expect(m!.trackName).toBe("Monaco");
+    expect(m!.outline?.length).toBe(400);
     expect(m!.time).toBe(200_000);
-    expect(m!.replay).toBe("/results/qualify/monaco-001/replay.json.gz");
     expect(e!.trackName).toBe("ring");
-    expect(e!.replay).toBe("/results/my%20event/qualify/replay.json");
-    expect(e!.group).toBe("my event");
+    expect(e!.outline).toBeNull();
   });
 
   it("uses no track name for unreadable track files", () => {
-    const a = dir("race/x");
-    writeFileSync(join(a, "results.json"), JSON.stringify(source({ trackId: "broken" })));
-    writeFileSync(join(a, "replay.json.gz"), gzipSync("{}"));
-    const b = dir("race/y");
-    writeFileSync(join(b, "results.json"), JSON.stringify(source({ trackId: "broken" })));
-    writeFileSync(join(b, "replay.json.gz"), gzipSync("{}"));
+    race("x", source({ trackId: "broken" }));
+    race("y", source({ trackId: "broken" }));
     expect(scanResults(results, tracks).races.map((r) => r.trackName)).toEqual(["broken", "broken"]);
   });
 
+  it("lists the models that raced, with their results in their newest event", () => {
+    const table = (id: string, ev: string, track: string, sec: number, rows: object[]) => {
+      const f = join(dir(id), "event-results.json");
+      writeFileSync(f, JSON.stringify({ event: { id: ev }, track, rows }));
+      touch(f, sec);
+    };
+    const manifest = {
+      provider: "openai",
+      usage: { inputTokens: 10, outputTokens: 2, wallTimeS: 60, practiceRuns: 3 },
+      settings: { cli: "codex", effort: "low" },
+    };
+    table("old-monaco", "old", "monaco", 100, [
+      { slug: "m1", name: "Model One", position: 2, lapTime: 90 },
+      { slug: "m2", name: "Another", position: 1, lapTime: 89, manifest },
+    ]);
+    table("new-monaco", "new", "monaco", 200, [
+      { slug: "m1", name: "Model One", position: 1, lapTime: null },
+    ]);
+    table("new-ring", "new", "ring", 150, [{ slug: "m1", name: "Model One", position: 1, lapTime: 61 }]);
+    writeFileSync(join(dir("bad"), "event-results.json"), "{");
+    writeFileSync(join(dir("other"), "event-results.json"), JSON.stringify({ event: { id: "x" }, rows: [] }));
+
+    const { drivers } = scanResults(results, tracks);
+    expect(drivers.map((d) => [d.id, d.event])).toEqual([
+      ["m2", "old"],
+      ["m1", "new"],
+    ]);
+    expect(drivers[0]).toEqual({
+      id: "m2",
+      name: "Another",
+      provider: "openai",
+      effort: "low",
+      event: "old",
+      usage: manifest.usage,
+      results: [{ track: "monaco", trackName: "Monaco", position: 1, lapTime: 89 }],
+      points: 10,
+    });
+    expect(drivers[1]!.points).toBe(8 + 0 + 10);
+    expect(drivers[1]).toMatchObject({ provider: null, effort: null, usage: null });
+    expect(drivers[1]!.results).toEqual([
+      { track: "monaco", trackName: "Monaco", position: 1, lapTime: null },
+      { track: "ring", trackName: "ring", position: 1, lapTime: 61 },
+    ]);
+  });
+
   it("returns nothing for a missing directory", () => {
-    expect(scanResults(join(root, "nope"), tracks).races).toEqual([]);
+    expect(scanResults(join(root, "nope"), tracks)).toEqual({ races: [], drivers: [] });
   });
 });

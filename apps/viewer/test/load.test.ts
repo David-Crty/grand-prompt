@@ -55,27 +55,35 @@ describe("load", () => {
     expect((await fetchReplay("/x", okFetch)).cars).toHaveLength(1);
     const notFound = (async () => new Response("no", { status: 404 })) as unknown as typeof fetch;
     await expect(fetchReplay("/missing", notFound)).rejects.toThrow(/HTTP 404/);
+    const page = (async () =>
+      new Response("<!doctype html>", {
+        headers: { "content-type": "text/html" },
+      })) as unknown as typeof fetch;
+    await expect(fetchReplay("/results/races/x/replay.json.gz", page)).rejects.toThrow(/No replay at/);
   });
 });
 
 describe("event results", () => {
   it("finds the results next to a published replay", async () => {
-    expect(eventResultsUrl("/results/gp-1/qualify/replay.json.gz")).toBe("/results/gp-1/event-results.json");
-    expect(eventResultsUrl("https://x.dev/results/gp-1/qualify/replay.json?v=2")).toBe(
-      "https://x.dev/results/gp-1/event-results.json",
+    expect(eventResultsUrl("/results/races/gp-1/replay.json.gz")).toBe(
+      "/results/races/gp-1/event-results.json",
     );
-    expect(eventResultsUrl("/my/replay.json")).toBeNull();
+    expect(eventResultsUrl("https://x.dev/results/races/gp-1/replay.json?v=2")).toBe(
+      "https://x.dev/results/races/gp-1/event-results.json",
+    );
+    expect(eventResultsUrl("/my/replay.json")).toBe("/my/event-results.json");
+    expect(eventResultsUrl("/my/lap.json")).toBeNull();
     const rows = { event: { id: "gp-1", name: "gp-1" }, rows: [{ slug: "a" }] };
     const ok = (async () => Response.json(rows)) as unknown as typeof fetch;
-    expect((await fetchEventResults("/results/gp-1/qualify/replay.json.gz", ok))?.rows).toHaveLength(1);
+    expect((await fetchEventResults("/results/races/gp-1/replay.json.gz", ok))?.rows).toHaveLength(1);
     const missing = (async () => new Response("no", { status: 404 })) as unknown as typeof fetch;
-    expect(await fetchEventResults("/results/gp-1/qualify/replay.json.gz", missing)).toBeNull();
+    expect(await fetchEventResults("/results/races/gp-1/replay.json.gz", missing)).toBeNull();
     const bad = (async () => Response.json({ nope: 1 })) as unknown as typeof fetch;
-    expect(await fetchEventResults("/results/gp-1/qualify/replay.json.gz", bad)).toBeNull();
+    expect(await fetchEventResults("/results/races/gp-1/replay.json.gz", bad)).toBeNull();
     const broken = (async () => {
       throw new Error("offline");
     }) as unknown as typeof fetch;
-    expect(await fetchEventResults("/results/gp-1/qualify/replay.json.gz", broken)).toBeNull();
+    expect(await fetchEventResults("/results/races/gp-1/replay.json.gz", broken)).toBeNull();
     expect(await fetchEventResults("/x.json", ok)).toBeNull();
   });
 });

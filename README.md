@@ -1,8 +1,9 @@
 # Grand Prompt
 
-A motorsport benchmark for LLMs. Each model writes a driving program once; then every program
-drives the same open-wheel car over one flying lap of a circuit it has never seen, in a
-deterministic simulator, and the laps are replayed together in 3D.
+A motorsport benchmark for LLMs. Each model writes a driving program once, practising on a few
+circuits; then every program drives the same open-wheel car over one flying lap of every circuit,
+the ones it never saw included, in a deterministic simulator, and the laps are replayed together
+in 3D.
 
 ## Setup
 
@@ -49,22 +50,24 @@ shared across the circuits, timed by a local service outside the sandbox. If it 
 newest driver that completed a clean practice lap is submitted.
 
 Output: `drivers/gp-2/<model>/driver.js` and `manifest.json` (tokens, cost, wall time, practice
-laps used), and `drivers/gp-2/event.json`, the event on Barcelona, which no model saw. Build logs
-go to `results/gp-2/<model>/build/`. See `pnpm bench --help` for `--timeout`, `--budget`,
+laps used), and `drivers/gp-2/event.json` (its name and seed). Build logs
+go to `results/builds/gp-2/<model>/build/`. See `pnpm bench --help` for `--timeout`, `--budget`,
 `--effort`, `--jobs` and the circuits.
 
 To work on a driver by hand: `pnpm bench validate <driver.js>` and
 `pnpm bench practice <driver.js> --track monaco` (telemetry, summary and a replay in
 `results/practice/`).
 
-## 3. Run the event
+## 3. Race
 
 ```shell
-pnpm bench event run gp-2          # results/gp-2/event-results.json and qualify/replay.json.gz
-pnpm bench event reproduce gp-2    # re-run it and check every hash
-pnpm bench leaderboard             # standings over every event in results/
-pnpm bench qualify drivers/gp-2/*/driver.js --track monaco    # the same drivers on any circuit
+pnpm bench race gp-2                   # every circuit -> results/races/gp-2-<track>/
+pnpm bench race gp-2 --track monaco    # one circuit
+pnpm bench reproduce gp-2              # re-run every race and check every hash
 ```
+
+Each race folder holds `replay.json.gz`, `results.json`, `summary.txt` and `event-results.json`
+(the table with each model's build manifest).
 
 A session is the same everywhere, practice included: a 3 s run-up placed by the sim, every car
 crossing the line together at the same speed, then one timed lap. Leaving the track deletes the
@@ -76,12 +79,14 @@ lap. Results are bit-for-bit reproducible from the drivers, the circuit and the 
 make dev      # http://localhost:5173/
 ```
 
-The viewer lists every replay under `results/`; `?replay=<url>` opens one, and a `replay.json.gz`
-dropped on the page plays too. Press `?` for the keyboard shortcuts. Below 600 px wide it
+The home page lists every race in `results/races/`, `/races/<id>` plays one (`/races/gp-2-monaco`)
+and `/drivers` lists the models that built the drivers, with their standings: 10-8-6-5-4-3-2-1
+points in every race for a valid lap. Results stay hidden until you show them. A `replay.json.gz`
+dropped on the page, a practice run's for instance, plays too. Press `?` for the keyboard shortcuts. Below 600 px wide it
 switches to a phone layout.
 
 ## Make
 
 `make` lists the shortcuts: `make dev`, `make gates` (lint, types, tests with coverage,
-determinism, viewer build), `make build NAME=gp-2 ARGS="--only codex"`, `make event NAME=gp-2`,
-`make qualify NAME=gp-2 TRACK=monaco`.
+determinism, viewer build), `make build NAME=gp-2 ARGS="--only codex"`, `make race NAME=gp-2`
+(add `TRACK=monaco` for one circuit).

@@ -1,15 +1,17 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative, sep } from "node:path";
+import { join } from "node:path";
+import { isEventResults, type StoredRace, summarizeDrivers } from "../src/lib/drivers.js";
+import { trackOutline } from "../src/lib/outline.js";
 import {
   type RaceEntry,
   type RaceIndex,
   type RaceSource,
   sortRaces,
   summarizeRace,
+  type TrackInfo,
 } from "../src/lib/races.js";
 
-const REPLAY_FILES = ["replay.json.gz", "replay.json"];
-const MAX_DEPTH = 4;
+const READ = (dir: string, f: string) => JSON.parse(readFileSync(join(dir, f), "utf8")) as unknown;
 
 function isSource(v: unknown): v is RaceSource {
   const r = v as Partial<RaceSource> | null;
@@ -17,61 +19,72 @@ function isSource(v: unknown): v is RaceSource {
     typeof r === "object" &&
     r !== null &&
     typeof r.trackId === "string" &&
-    typeof r.session === "object" &&
     Array.isArray(r.classification) &&
     r.classification.every((c) => "lapTime" in c)
   );
 }
 
-function trackNames(tracksDir: string): (id: string) => string | undefined {
-  const cache = new Map<string, string | undefined>();
+function trackInfo(tracksDir: string): (id: string) => TrackInfo {
+  const cache = new Map<string, TrackInfo>();
   return (id) => {
-    if (!cache.has(id)) {
-      let name: string | undefined;
+    let info = cache.get(id);
+    if (!info) {
+      info = {};
       try {
-        const t = JSON.parse(readFileSync(join(tracksDir, `${id}.json`), "utf8")) as { name?: unknown };
-        if (typeof t.name === "string") name = t.name;
+        const t = JSON.parse(readFileSync(join(tracksDir, `${id}.json`), "utf8")) as {
+          name?: unknown;
+          points?: unknown;
+        };
+        if (typeof t.name === "string") info.name = t.name;
+        info.outline = trackOutline(t.points);
       } catch {
-        name = undefined;
+        // The race keeps its track id as its name and goes without an outline.
       }
-      cache.set(id, name);
+      cache.set(id, info);
     }
-    return cache.get(id);
+    return info;
   };
 }
 
-/** Every directory under `resultsDir` holding a replay and its `results.json`, summarised for the race list. */
-export function scanResults(resultsDir: string, tracksDir: string, urlBase = "/results"): RaceIndex {
+const mtime = (path: string) => statSync(path).mtimeMs;
+
+/**
+ * Every race in `resultsDir/races/<id>/` (its `replay.json.gz` and `results.json`), summarised for the race list,
+ * and the models that raced them (`event-results.json`), for the drivers page.
+ */
+export function scanResults(resultsDir: string, tracksDir: string): RaceIndex {
   const races: RaceEntry[] = [];
-  const nameOf = trackNames(tracksDir);
-  const visit = (dir: string, depth: number) => {
-    let names: string[];
+  const stored: StoredRace[] = [];
+  const infoOf = trackInfo(tracksDir);
+  const base = join(resultsDir, "races");
+  let ids: string[];
+  try {
+    ids = readdirSync(base, { withFileTypes: true })
+      .filter((d) => d.isDirectory() && !d.name.startsWith("."))
+      .map((d) => d.name);
+  } catch {
+    ids = [];
+  }
+  for (const id of ids) {
+    const dir = join(base, id);
     try {
-      names = readdirSync(dir);
-    } catch {
-      return;
-    }
-    const replayFile = REPLAY_FILES.find((f) => names.includes(f));
-    if (replayFile && names.includes("results.json") && dir !== resultsDir) {
-      try {
-        const src = JSON.parse(readFileSync(join(dir, "results.json"), "utf8"));
-        if (isSource(src)) {
-          const id = relative(resultsDir, dir).split(sep).join("/");
-          const time = Math.max(...[replayFile, "results.json"].map((f) => statSync(join(dir, f)).mtimeMs));
-          const url = `${urlBase}/${id.split("/").map(encodeURIComponent).join("/")}/${replayFile}`;
-          races.push(summarizeRace(id, url, src, { trackName: nameOf(src.trackId), time }));
-        }
-      } catch {
-        // An unreadable or half-written result is left out of the list rather than failing it.
+      const src = READ(dir, "results.json");
+      if (isSource(src)) {
+        const time = Math.max(mtime(join(dir, "replay.json.gz")), mtime(join(dir, "results.json")));
+        races.push(summarizeRace(id, src, { track: infoOf(src.trackId), time }));
       }
+    } catch {
+      // A race without its replay, or unreadable or half-written, is left out of the list rather than failing it.
     }
-    if (depth >= MAX_DEPTH) return;
-    for (const n of names) {
-      if (n.startsWith(".") || n === "node_modules") continue;
-      const p = join(dir, n);
-      if (statSync(p, { throwIfNoEntry: false })?.isDirectory()) visit(p, depth + 1);
+    try {
+      const ev = READ(dir, "event-results.json");
+      if (isEventResults(ev)) {
+        const time = mtime(join(dir, "event-results.json"));
+        stored.push({ src: ev, trackName: infoOf(ev.track).name ?? ev.track, time });
+      }
+    } catch {
+      // A race without its table is still listed; its models are not.
     }
-  };
-  visit(resultsDir, 0);
-  return { races: sortRaces(races) };
+  }
+  return { races: sortRaces(races), drivers: summarizeDrivers(stored) };
 }

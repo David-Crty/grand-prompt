@@ -27,11 +27,11 @@ describe("event entries", () => {
 });
 
 describe("deep links", () => {
-  const p = parseParams("?replay=/r.json&t=48&cam=map&car=x");
-  it("apply to the replay named in the URL", () => {
+  const p = parseParams("?t=48&cam=map&car=x");
+  it("apply to the race named in the URL", () => {
     expect(paramsForReplay(p, true)).toMatchObject({ t: 48, cam: "map", car: "x" });
   });
   it("reset for a dropped replay", () => {
-    expect(paramsForReplay(p, false)).toMatchObject({ t: null, cam: null, car: null, replay: "/r.json" });
+    expect(paramsForReplay(p, false)).toMatchObject({ t: null, cam: null, car: null, speed: null });
   });
 });

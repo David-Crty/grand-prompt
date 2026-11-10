@@ -35,11 +35,8 @@ describe("color", () => {
 
 describe("params", () => {
   it("parses viewer URL params", () => {
-    const p = parseParams(
-      "?replay=/r.json.gz&t=42.5&cam=map&car=a&speed=4&play=0&hud=0&trails=false&analysis=1&fps",
-    );
+    const p = parseParams("?t=42.5&cam=map&car=a&speed=4&play=0&hud=0&trails=false&analysis=1&fps");
     expect(p).toEqual({
-      replay: "/r.json.gz",
       t: 42.5,
       cam: "map",
       car: "a",

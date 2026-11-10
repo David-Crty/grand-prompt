@@ -49,12 +49,15 @@ export async function decodeReplay(input: ArrayBuffer | Uint8Array): Promise<Rep
 export async function fetchReplay(url: string, fetchFn: typeof fetch = fetch): Promise<Replay> {
   const res = await fetchFn(url);
   if (!res.ok) throw new ReplayLoadError(`HTTP ${res.status} fetching ${url}`);
+  // The static host answers a missing file with the app's own page.
+  if (res.headers.get("content-type")?.includes("text/html"))
+    throw new ReplayLoadError(`No replay at ${url}`);
   return decodeReplay(await res.arrayBuffer());
 }
 
-/** `/results/gp-1/qualify/replay.json.gz` has its event's results at `/results/gp-1/event-results.json`. */
+/** An event's results sit next to its replay: `/results/races/gp-1/replay.json.gz` -> `…/gp-1/event-results.json`. */
 export function eventResultsUrl(replayUrl: string): string | null {
-  const m = replayUrl.match(/^(.*\/results\/[^/]+)\/[^/]+\/replay\.json(\.gz)?(\?.*)?$/);
+  const m = replayUrl.match(/^(.*)\/replay\.json(\.gz)?(\?.*)?$/);
   return m ? `${m[1]}/event-results.json` : null;
 }
 

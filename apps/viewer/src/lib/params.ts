@@ -5,7 +5,6 @@ export { CAMERA_MODES, type CameraMode };
 export const SPEEDS = [0.25, 0.5, 1, 2, 4, 8, 16, 32] as const;
 
 export interface ViewerParams {
-  replay: string | null;
   t: number | null;
   cam: CameraMode | null;
   car: string | null;
@@ -40,7 +39,6 @@ export function parseParams(search: string): ViewerParams {
   const zoom = num("zoom");
   const tilt = num("tilt");
   return {
-    replay: q.get("replay"),
     t: num("t"),
     cam,
     car: q.get("car"),

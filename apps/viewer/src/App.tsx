@@ -1,16 +1,21 @@
 import type { Replay } from "@bench/sim";
 import { Icon } from "@bench/ui/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { RaceList } from "./components/RaceList.js";
+import { Home } from "./components/Home.js";
 import { decodeReplay, fetchEventResults, fetchReplay } from "./lib/load.js";
 import { buildModel } from "./lib/model.js";
 import { paramsForReplay, parseParams } from "./lib/params.js";
 import type { EventResults } from "./lib/results.js";
+import { parseRoute, raceReplayUrl } from "./lib/route.js";
 import { PHONE_QUERY } from "./usePhone.js";
 import { Viewer } from "./Viewer.js";
 
 export function App() {
   const params = useMemo(() => parseParams(window.location.search), []);
+  const replayUrl = useMemo(() => {
+    const route = parseRoute(window.location.pathname);
+    return route.page === "race" ? raceReplayUrl(route.id) : null;
+  }, []);
   const [replay, setReplay] = useState<Replay | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
@@ -38,8 +43,8 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (params.replay) loadUrl(params.replay);
-  }, [params, loadUrl]);
+    if (replayUrl) loadUrl(replayUrl);
+  }, [replayUrl, loadUrl]);
 
   useEffect(() => {
     const over = (e: DragEvent) => {
@@ -88,27 +93,23 @@ export function App() {
         <Viewer
           key={gen}
           model={model}
-          backHref={window.location.pathname}
+          backHref="/"
           backLabel="All races"
           params={paramsForReplay(params, fromUrl)}
           results={fromUrl ? results : null}
         />
       ) : null}
-      {!model && !params.replay && !drag ? <RaceList error={error} loading={loading} /> : null}
-      {(!model && (params.replay || drag)) || (model && (drag || error || loading)) ? (
+      {!model && !replayUrl && !drag ? <Home error={error} loading={loading} /> : null}
+      {(!model && (replayUrl || drag)) || (model && (drag || error || loading)) ? (
         <div className={`dropzone${drag ? " drag" : ""}${model ? " over" : ""}`}>
           <div className="drop-card panel">
             <div className="brand">GRAND PROMPT</div>
             <h1>Replay viewer</h1>
-            {loading ? (
-              <p>Loading {loading}…</p>
-            ) : (
-              <p>Drop a replay.json or replay.json.gz here, or open with ?replay=&lt;url&gt;.</p>
-            )}
+            {loading ? <p>Loading {loading}…</p> : <p>Drop a replay.json or replay.json.gz here.</p>}
             {error ? <p className="error">{error}</p> : null}
-            {params.replay ? (
+            {replayUrl ? (
               <p>
-                <a className="drop-card__back" href={window.location.pathname}>
+                <a className="drop-card__back" href="/">
                   <Icon name="back" />
                   All races
                 </a>
