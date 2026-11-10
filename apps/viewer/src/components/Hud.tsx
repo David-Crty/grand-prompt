@@ -25,6 +25,7 @@ import type { ViewerModel } from "../lib/model.js";
 import { PACK_CHIPS, packChips } from "../lib/pack.js";
 import { SPEEDS } from "../lib/params.js";
 import type { StandingRow } from "../lib/timing.js";
+import { StarNote } from "./StarNote.js";
 
 export interface HudSnapshot {
   t: number;
@@ -387,7 +388,7 @@ export function Help({ onClose }: { onClose: () => void }) {
           overlays the runs, so the cars sit on top of each other until they spread out after the line;
           nothing is moved.
         </p>
-        <p className="hint">Drop a replay.json or replay.json.gz anywhere to load it.</p>
+        <StarNote ask="Enjoyed the race?" />
       </div>
     </div>
   );

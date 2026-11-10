@@ -118,6 +118,24 @@ export function Button({
   );
 }
 
+/** A quiet link to the project's repository, asking for a star; narrow layouts can hide `.gp-star__more`. */
+export function StarLink({ href, className }: { href: string; className?: string }) {
+  return (
+    <a
+      className={cx("gp-btn gp-btn--ghost gp-star", className)}
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      title="Star the project on GitHub"
+    >
+      <Icon name="star" />
+      <span>
+        Star<span className="gp-star__more"> on GitHub</span>
+      </span>
+    </a>
+  );
+}
+
 export function IconButton({
   icon,
   label,

@@ -1,9 +1,10 @@
-import { Button, Wordmark } from "@bench/ui/react";
+import { Button, StarLink, Wordmark } from "@bench/ui/react";
 import { type MouseEvent, useEffect, useState } from "react";
 import { type RaceIndex, readReveal, writeReveal } from "../lib/races.js";
-import { parseRoute, routeHref } from "../lib/route.js";
+import { parseRoute, REPO_URL, routeHref } from "../lib/route.js";
 import { DriverList } from "./DriverList.js";
 import { RaceList } from "./RaceList.js";
+import { StarNote } from "./StarNote.js";
 
 const INDEX_URL = "/results/index.json";
 
@@ -72,6 +73,7 @@ export function Home() {
           {link("races", "Races")}
           {link("drivers", "Drivers")}
         </nav>
+        <StarLink className="home-star" href={REPO_URL} />
         <Button className="home-reveal" aria-pressed={shown} onClick={toggle}>
           {shown ? "Hide results" : "Show results"}
         </Button>
@@ -87,6 +89,9 @@ export function Home() {
           )
         ) : null}
       </main>
+      <footer className="home-foot">
+        <StarNote />
+      </footer>
     </div>
   );
 }

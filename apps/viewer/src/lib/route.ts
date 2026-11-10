@@ -28,3 +28,9 @@ export function routeHref(r: Route): string {
 export function raceReplayUrl(id: string): string {
   return `/results/races/${encodeURIComponent(id)}/replay.json.gz`;
 }
+
+/** The project's source, linked from the site so visitors can star it. */
+export const REPO_URL = "https://github.com/David-Crty/llm-racing";
+
+/** Who made it. */
+export const AUTHOR_URL = "https://crty.dev";

@@ -18,6 +18,7 @@ import {
   RotateCcw,
   SkipBack,
   Spline,
+  Star,
   Timer,
   TriangleAlert,
   Tv,
@@ -52,7 +53,8 @@ export type IconName =
   | "onboard"
   | "map"
   | "check"
-  | "up";
+  | "up"
+  | "star";
 
 const ICONS: Record<IconName, LucideIcon> = {
   play: Play,
@@ -78,6 +80,7 @@ const ICONS: Record<IconName, LucideIcon> = {
   map: MapIcon,
   check: Check,
   up: ChevronUp,
+  star: Star,
 };
 
 export const CAMERA_ICON: Record<CameraMode, IconName> = {

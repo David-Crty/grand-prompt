@@ -528,6 +528,10 @@
   color: var(--text-100);
   background: var(--surface-300);
 }
+.gp-star:hover .gp-icon,
+.gp-star:focus-visible .gp-icon {
+  fill: currentColor;
+}
 .gp-btn--touch {
   height: var(--size-hit);
   padding: 0 18px;

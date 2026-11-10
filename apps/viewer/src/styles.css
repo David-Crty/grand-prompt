@@ -201,6 +201,45 @@ button {
   border-top: 1px solid var(--line);
 }
 
+.star-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: var(--space-4) 0 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line-100);
+  color: var(--text-300);
+  font-size: 13px;
+}
+
+.star-note a:not(.gp-btn) {
+  color: var(--text-100);
+}
+
+.home-foot {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 16px var(--space-6);
+}
+
+.home-foot .star-note {
+  margin: 0;
+}
+
+.star-note__ask {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: none;
+}
+
+.star-note .gp-star {
+  color: var(--text-100);
+}
+
 .help .key {
   font-weight: 800;
   white-space: nowrap;
@@ -258,6 +297,8 @@ button {
   position: fixed;
   inset: 0;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   background: var(--surface-100);
 }
 
@@ -311,7 +352,7 @@ button {
   outline-offset: 2px;
 }
 
-.home-reveal {
+.home-star {
   margin-left: auto;
 }
 
@@ -321,6 +362,9 @@ button {
 }
 
 .home-page {
+  flex: 1 0 auto;
+  box-sizing: border-box;
+  width: 100%;
   max-width: 1180px;
   margin: 0 auto;
   padding: var(--space-8) 16px var(--space-12);
@@ -632,8 +676,12 @@ button {
   .rl-track {
     font-size: 18px;
   }
-  .home-reveal {
+  .home-reveal,
+  .home-star {
     padding: 0 10px;
+  }
+  .gp-star__more {
+    display: none;
   }
   .home-bar {
     gap: var(--space-2);

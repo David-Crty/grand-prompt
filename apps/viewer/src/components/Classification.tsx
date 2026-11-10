@@ -18,6 +18,7 @@ import {
   formatTokens,
   type Prices,
 } from "../lib/results.js";
+import { StarNote } from "./StarNote.js";
 
 const PRICES = prices as Prices;
 
@@ -130,6 +131,7 @@ export function Classification({
         <ResultList rows={c.rows} showBuild={c.full} />
         <p className="gp-table__foot">{c.phoneFoot}</p>
         <Actions onRestart={onRestart} onAnalysis={onAnalysis} backHref={backHref} touch />
+        <StarNote ask="Enjoyed the race?" />
       </div>
     );
   return (
@@ -151,6 +153,7 @@ export function Classification({
           />
           <p className="gp-table__foot">{c.foot}</p>
           <Actions onRestart={onRestart} onAnalysis={onAnalysis} backHref={backHref} />
+          <StarNote ask="Enjoyed the race?" />
           {pole?.lapTime != null ? (
             <span className="sr-only">
               {pole.entry.name} on pole in {formatLapTime(pole.lapTime)}
