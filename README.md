@@ -7,6 +7,7 @@
 </p>
 
 <p align="center">
+  <strong><a href="https://llm-racing.crty.dev/">Watch the full race on llm-racing.crty.dev</a></strong> ·
   <a href="#how-it-works">How it works</a> ·
   <a href="#run-it-yourself">Run it yourself</a>
 </p>
@@ -31,34 +32,31 @@ The model never touches the controls during the race.
 
 ## How it works
 
-1. **Build.** Each model runs in its own coding CLI (`claude`, `codex`, Antigravity's `agy`), unattended, in a
-   [bubblewrap](https://github.com/containers/bubblewrap) sandbox that sees only its workspace. It
-   can practise on Monaco, Silverstone and Portimão through a local timing service; it gets back a
-   lap time, a telemetry CSV and a text summary. When the time is up, its newest driver that
-   completed a clean lap is submitted.
-2. **Race.** Every driver runs in a QuickJS sandbox with the same compute budget, on Monaco,
-   Silverstone, Portimão, Barcelona and a handmade test circuit. Each car runs alone (ghost mode):
-   a flying start, one timed lap, and any moment off track deletes the lap. Hitting a barrier fast
-   is a crash.
+1. **Build.** Every model gets the same prompt (a
+   [launch prompt](driver-development-kit/PROMPT_LAUNCH.md) and the
+   [task](driver-development-kit/PROMPT_AGENTIC.md) it points to) and the same
+   [driver development kit](driver-development-kit/): the driver API and the public car parameters.
+   The tyre, aero and brake constants stay hidden, so it learns the car from practice laps on
+   Monaco, Silverstone and Portimão; each one gives back a lap time, a telemetry CSV and a text
+   summary. It works unattended in its own coding CLI (`claude`, `codex`, Antigravity's `agy`), in
+   a [bubblewrap](https://github.com/containers/bubblewrap) sandbox that sees only its workspace.
+   Its entry is the `driver.js` it leaves behind or, if time runs out mid-edit, its newest driver
+   that completed a clean practice lap.
+
+2. **Race.** Every driver then races on all five circuits, including two it never practised on:
+   Barcelona and a handmade test circuit. Each is handed the circuit's geometry and runs alone on
+   track (ghost mode), in a QuickJS sandbox with the same compute budget: a flying start, then one
+   timed lap. Any moment off track deletes the lap, hitting a barrier fast is a crash, and sector
+   checkpoints rule out cutting the track or driving backwards.
+
 3. **Watch.** The viewer plays the recorded laps together, with a timing tower, telemetry and a
    head-to-head analysis. It runs no physics: what you see is exactly what was timed.
 
-### The rules that keep it fair
-
-- **Deterministic.** Fixed timestep, seeded randomness, no wall clock. A result is a pure function
-  of the sim version, circuit, car, driver code and seed, and `bench reproduce` re-runs every race
-  and checks it bit for bit.
-- **Same information for everyone.** Drivers see the track geometry and the public car parameters
-  in [`ddk/`](ddk/) (the "driver development kit"). The tyre, aero and brake constants stay hidden;
-  they have to be learned from practice.
-- **Same session, same budget.** Same prompt, time limit, practice laps and per-step compute for
-  every model.
-- **No exploits.** Sector checkpoints stop cutting and driving backwards, track limits are
-  enforced, and full lock at speed spins the car as it should.
-
-The simulator is a bicycle model with Pacejka tyres, load transfer and aero, written in TypeScript
-with no rendering dependency. Real circuits come from OpenStreetMap and the TUMFTM racetrack
-database (see [tracks/sources](tracks/sources/README.md)).
+Races are deterministic (fixed timestep, seeded randomness, no wall clock): run one again and you
+get the same lap, bit for bit, which `bench reproduce` checks for every race. The simulator is a
+bicycle model with Pacejka tyres, load transfer and aero, written in TypeScript; the real circuits
+come from OpenStreetMap and the TUMFTM racetrack database (see
+[tracks/sources](tracks/sources/README.md)).
 
 ## Status
 
@@ -78,24 +76,25 @@ make dev                                      # the viewer on http://localhost:5
 Building drivers also needs bubblewrap (`bwrap`) and the coding CLIs of the models you list,
 installed and logged in.
 
-### 1. Tracks
+### 1. Build drivers
 
 ```shell
-pnpm bench tracks            # the circuits: monaco, silverstone, portimao, barcelona, proto-ring
-pnpm bench tracks import     # rebuild them from the raw extracts in tracks/sources/
+pnpm bench build gp-2 --check          # sandbox, practice service and CLIs, no model run
+pnpm bench build gp-2                  # every model in models.json, in parallel, with a live view
+pnpm bench build gp-2 --only codex     # a provider, a CLI or a model id
 ```
 
-Monaco and Portimão come from OpenStreetMap (ODbL), Silverstone and Barcelona from the TUMFTM
-racetrack database (LGPL); see [tracks/sources/README.md](tracks/sources/README.md). To add a
-circuit, put its extract in `tracks/sources/` and an entry in `TRACK_SOURCES`
-(`packages/cli/src/tracks.ts`), then import. `proto-ring` is a handmade test circuit.
+Each model gets 30 minutes and 10 practice laps, shared between Monaco, Silverstone and Portimão
+(`--timeout`, `--budget` and `--practice-tracks` change them; `pnpm bench --help` lists every
+option). A model whose CLI is not installed is skipped.
 
-### 2. Build drivers
+Each driver lands in `drivers/gp-2/<model>/driver.js`, with a `manifest.json` recording the
+tokens, cost, wall time and practice laps it used. `drivers/gp-2/event.json` holds the event's
+name and seed, and the build logs go to `results/builds/gp-2/<model>/build/`.
 
-The models are listed in [models.json](models.json), the roster: everything that identifies a
-model, for the build and for the viewer alike. Each provider names the CLI that builds its models
-and its car body paint; each model has its name, a three-letter code and an entry colour of its own
-(the chip, trail and livery stripe), the same in every event:
+The models come from [models.json](models.json), the roster. A provider names the CLI that builds
+its models and the paint of their car bodies; a model has a name, a three-letter code and an entry
+colour of its own (its chip, trail and livery stripe), the same in every event:
 
 ```json
 {
@@ -107,31 +106,17 @@ and its car body paint; each model has its name, a three-letter code and an entr
 }
 ```
 
-Colours are names from the design tokens (`packages/ui/tokens.json`): `color` is the `label` of an
-`entry-*` token, unique in the roster, and `body` (on a provider, or on a model to override it) a
-`body-*` token without its prefix. A model may set its own `effort`. A car that is not on the
-roster still races, with a code from its name and a colour no roster model owns.
+- `color` (each model its own): `blush` `cobalt` `lime` `magenta` `sky` `ochre` `mint` `jade` `periwinkle` `rose` `butter` `fuchsia`
+- `body` (per provider, or per model to override it): `clay` `cobalt` `graphite` `pearl` `saffron` `silver`
+- `effort` (for every model or per model; `--effort` overrides both): `low` `medium` `high` `xhigh` `max`
 
-```shell
-pnpm bench build gp-2 --check          # sandbox, practice service and CLIs, no model run
-pnpm bench build gp-2                  # every model in parallel, with a live view
-pnpm bench build gp-2 --only codex     # a provider, a CLI or a model id
-```
+To work on a driver by hand: `pnpm bench validate <driver.js>` loads it and drives 10 s, and
+`pnpm bench practice <driver.js> --track monaco` drives a flying lap, with the telemetry, the
+summary and a replay in `results/practice/`. To race it, put it in an event as
+`drivers/gp-2/<name>/driver.js`: a driver off the roster gets a code from its name and a colour no
+roster model owns.
 
-The workspace each model sees holds the driver spec, the practice circuits, the baseline driver
-and a practice client. Its 30 minutes are stated in its prompt, and its 10 practice laps are shared
-across the circuits.
-
-Output: `drivers/gp-2/<model>/driver.js` and `manifest.json` (tokens, cost, wall time, practice
-laps used), and `drivers/gp-2/event.json` (its name and seed). Build logs go to
-`results/builds/gp-2/<model>/build/`. See `pnpm bench --help` for `--timeout`, `--budget`,
-`--effort`, `--jobs` and the circuits.
-
-To work on a driver by hand: `pnpm bench validate <driver.js>` and
-`pnpm bench practice <driver.js> --track monaco` (telemetry, summary and a replay in
-`results/practice/`).
-
-### 3. Race
+### 2. Race
 
 ```shell
 pnpm bench race gp-2                   # every circuit -> results/races/gp-2-<track>/
@@ -145,7 +130,7 @@ Each race folder holds `replay.json.gz`, `results.json`, `summary.txt` and `even
 A session is the same everywhere, practice included: a 3 s run-up placed by the sim, every car
 crossing the line together at the same speed, then one timed lap.
 
-### 4. Watch
+### 3. Watch
 
 ```shell
 make dev      # http://localhost:5173/
@@ -161,6 +146,14 @@ keyboard shortcuts. Below 600 px wide it switches to a phone layout.
 `make` lists the shortcuts: `make dev`, `make gates` (lint, types, tests with coverage,
 determinism, viewer build), `make build NAME=gp-2 ARGS="--only codex"`, `make race NAME=gp-2`
 (add `TRACK=monaco` for one circuit).
+
+## Add a circuit
+
+Put its raw extract in `tracks/sources/` and an entry in `TRACK_SOURCES`
+(`packages/cli/src/tracks.ts`), then run `pnpm bench tracks import` (`pnpm bench tracks` lists the
+circuits). Every event races on every circuit, so the next `pnpm bench race` includes it. The
+current circuits, their sources and licences are listed in
+[tracks/sources/README.md](tracks/sources/README.md).
 
 ## License
 
