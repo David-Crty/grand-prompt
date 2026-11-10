@@ -83,3 +83,42 @@ export function buildMinimap(
     project,
   };
 }
+
+function pointAt(L: TrackLayout, s: number): { x: number; y: number; nx: number; ny: number } {
+  const u = (((s % L.length) + L.length) % L.length) / L.spacing;
+  const i = Math.floor(u) % L.n;
+  const j = (i + 1) % L.n;
+  const a = u - Math.floor(u);
+  const lerp = (v: Float64Array) => v[i]! + (v[j]! - v[i]!) * a;
+  return { x: lerp(L.cx), y: lerp(L.cy), nx: L.nx[i]!, ny: L.ny[i]! };
+}
+
+/** The centreline from distance `from` to `to` as an open SVG path in map pixels, about every `step` m. */
+export function stretchPath(L: TrackLayout, map: Minimap, from: number, to: number, step = 8): string {
+  const n = Math.max(1, Math.ceil((to - from) / step));
+  const parts: string[] = [];
+  for (let k = 0; k <= n; k++) {
+    const p = pointAt(L, from + ((to - from) * k) / n);
+    const [x, y] = map.project(p.x, p.y);
+    parts.push(`${k ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`);
+  }
+  return parts.join("");
+}
+
+/**
+ * Where to write a corner's number on the map: `offset` px from the centreline at its apex, on the outside of the
+ * turn (the right of a left-hander).
+ */
+export function cornerLabelAt(
+  L: TrackLayout,
+  map: Minimap,
+  corner: { sApex: number; dir: "L" | "R" },
+  offset = 14,
+): { x: number; y: number } {
+  const p = pointAt(L, corner.sApex);
+  const side = corner.dir === "L" ? -1 : 1;
+  const [x0, y0] = map.project(p.x, p.y);
+  const [x1, y1] = map.project(p.x + p.nx * side, p.y + p.ny * side);
+  const d = Math.hypot(x1 - x0, y1 - y0) || 1;
+  return { x: x0 + ((x1 - x0) / d) * offset, y: y0 + ((y1 - y0) / d) * offset };
+}

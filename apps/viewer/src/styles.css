@@ -514,23 +514,17 @@ button {
   height: 100%;
   border-radius: var(--radius-3);
   box-shadow: var(--shadow-overlay);
-  padding: 16px 20px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 380px;
-  gap: 20px;
-  overflow: auto;
-}
-
-.analysis__main,
-.analysis__side {
+  background: var(--surface-100);
+  padding: 16px 20px 20px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  min-width: 0;
+  gap: 12px;
+  overflow: auto;
 }
 
 .analysis__head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
 }
@@ -544,63 +538,110 @@ button {
   font-size: 13px;
 }
 
-.analysis__picker {
+.analysis__pair-pick {
   display: flex;
-  gap: 6px;
   flex-wrap: wrap;
-}
-
-.analysis__pick {
-  height: 28px;
-  padding: 0 8px;
-}
-
-.analysis__pick[aria-pressed="true"] {
-  box-shadow: inset 0 0 0 1.5px var(--text-100);
-}
-
-.analysis__pick[aria-pressed="false"] .gp-chip {
-  opacity: 0.45;
-}
-
-.analysis__lanes-label {
-  display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
-.analysis__sectors {
-  padding: 4px 6px;
-  overflow: hidden;
+.analysis__vs {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-300);
 }
 
-.analysis__words {
-  padding: 12px 14px;
-  font-size: 13px;
-  line-height: 19px;
+.analysis__gap {
+  font-size: 22px;
+  line-height: 26px;
+  font-weight: 700;
+  font-variation-settings: "wdth" 75;
+  font-variant-numeric: tabular-nums;
 }
 
-.analysis__words p {
+.analysis__sum {
   margin: 0;
+  font-size: 14px;
+  line-height: 21px;
+  color: var(--text-200);
+  max-width: 120ch;
 }
 
-.analysis__words p + p {
-  margin-top: 8px;
+.analysis__sum b {
+  color: var(--text-100);
+  font-weight: 600;
+}
+
+.analysis__pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 400px;
+  gap: 24px;
+}
+
+.analysis__charts,
+.analysis__side,
+.analysis__grid,
+.analysis__map {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.analysis__zoom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  min-height: 32px;
+}
+
+.analysis__zoomtext {
+  font-size: 13px;
+  color: var(--text-200);
+}
+
+.analysis__zoomtext b {
+  color: var(--text-100);
+}
+
+.analysis__field {
+  border-top: 1px solid var(--line-200);
+  padding-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.analysis__fieldbody {
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.analysis__map .gp-cmap {
+  max-width: 100%;
+  height: auto;
+}
+
+.analysis .is-behind,
+.analysis-sheet .is-behind {
+  color: var(--delta-behind);
+}
+
+.analysis .is-ahead,
+.analysis-sheet .is-ahead {
+  color: var(--delta-ahead);
 }
 
 @media (max-width: 1100px) {
-  .analysis {
+  .analysis__pair,
+  .analysis__fieldbody {
     grid-template-columns: minmax(0, 1fr);
   }
-}
-
-.analysis__sectors .gp-table td,
-.analysis__sectors .gp-table th {
-  padding: 0 4px;
-}
-
-.analysis__sectors td .gp-sector {
-  min-width: 52px;
 }
 
 /* Labels can be tapped or clicked to follow the car. */

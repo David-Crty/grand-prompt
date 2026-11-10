@@ -66,14 +66,16 @@ export function useClassification(model: ViewerModel, results: EventResults | nu
 
 function Actions({
   onRestart,
+  onAnalysis,
   backHref,
   touch = false,
 }: {
   onRestart?: () => void;
+  onAnalysis?: () => void;
   backHref?: string;
   touch?: boolean;
 }) {
-  if (!onRestart && !backHref) return null;
+  if (!onRestart && !onAnalysis && !backHref) return null;
   return (
     <div className={touch ? "classif__actions classif__actions--touch" : "classif__actions"}>
       {backHref ? (
@@ -81,6 +83,11 @@ function Actions({
           <Icon name="back" />
           All races
         </a>
+      ) : null}
+      {onAnalysis ? (
+        <Button size={touch ? "touch" : "m"} icon="chart" onClick={onAnalysis}>
+          Analysis
+        </Button>
       ) : null}
       {onRestart ? (
         <Button variant="primary" size={touch ? "touch" : "m"} icon="restart" onClick={onRestart}>
@@ -97,6 +104,7 @@ export function Classification({
   layout = "card",
   onClose,
   onRestart,
+  onAnalysis,
   backHref,
 }: {
   model: ViewerModel;
@@ -105,6 +113,8 @@ export function Classification({
   onClose: () => void;
   /** Play the race again from the start; no button without it. */
   onRestart?: () => void;
+  /** Open the lap analysis in place of the classification; no button without it. */
+  onAnalysis?: () => void;
   backHref?: string;
 }) {
   const c = useClassification(model, results);
@@ -119,7 +129,7 @@ export function Classification({
         </div>
         <ResultList rows={c.rows} showBuild={c.full} />
         <p className="gp-table__foot">{c.phoneFoot}</p>
-        <Actions onRestart={onRestart} backHref={backHref} touch />
+        <Actions onRestart={onRestart} onAnalysis={onAnalysis} backHref={backHref} touch />
       </div>
     );
   return (
@@ -140,7 +150,7 @@ export function Classification({
             buildHelp={<BuildFactsHelp {...c.help} />}
           />
           <p className="gp-table__foot">{c.foot}</p>
-          <Actions onRestart={onRestart} backHref={backHref} />
+          <Actions onRestart={onRestart} onAnalysis={onAnalysis} backHref={backHref} />
           {pole?.lapTime != null ? (
             <span className="sr-only">
               {pole.entry.name} on pole in {formatLapTime(pole.lapTime)}

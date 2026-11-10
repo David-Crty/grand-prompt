@@ -43,3 +43,69 @@ export function spreadLabels(ys: number[], gap: number): number[] {
 export function niceTop(max: number, step: number): number {
   return Math.max(step, Math.ceil(max / step) * step);
 }
+
+/** Linear interpolation of ys over ascending xs at x, held flat past either end. */
+export function valueAt(xs: number[], ys: number[], x: number): number {
+  const n = xs.length;
+  if (n === 0) return 0;
+  if (x <= xs[0]!) return ys[0]!;
+  if (x >= xs[n - 1]!) return ys[n - 1]!;
+  let lo = 0;
+  let hi = n - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (xs[mid]! <= x) lo = mid;
+    else hi = mid;
+  }
+  const a = (x - xs[lo]!) / (xs[hi]! - xs[lo]! || 1);
+  return ys[lo]! + a * (ys[hi]! - ys[lo]!);
+}
+
+/** A round tick step (1, 2 or 5 times a power of ten) giving about `count` ticks over `span`. */
+export function niceStep(span: number, count = 3): number {
+  const raw = Math.max(1e-9, span / count);
+  const e = 10 ** Math.floor(Math.log10(raw));
+  const f = raw / e;
+  return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * e;
+}
+
+/** Multiples of `step` within [lo, hi]. */
+export function ticksIn(lo: number, hi: number, step: number): number[] {
+  const out: number[] = [];
+  for (let i = Math.ceil(lo / step - 1e-9); i * step <= hi + 1e-9; i++)
+    out.push(i * step === 0 ? 0 : i * step);
+  return out;
+}
+
+/** The y range of the values whose x lies in [x0, x1], padded by `pad` and widened to multiples of `step`. */
+export function fitRange(
+  xs: number[][],
+  ys: number[][],
+  x0: number,
+  x1: number,
+  step: number,
+  pad = 0,
+): [number, number] {
+  let lo = Number.POSITIVE_INFINITY;
+  let hi = Number.NEGATIVE_INFINITY;
+  xs.forEach((row, j) => {
+    row.forEach((x, i) => {
+      if (x < x0 || x > x1) return;
+      lo = Math.min(lo, ys[j]![i]!);
+      hi = Math.max(hi, ys[j]![i]!);
+    });
+  });
+  if (lo > hi) return [0, step];
+  return [Math.floor((lo - pad) / step) * step, Math.max(Math.ceil((hi + pad) / step) * step, lo + step)];
+}
+
+/** Each value's share of the largest magnitude, for bars drawn to one scale. */
+export function shares(values: number[]): number[] {
+  const max = Math.max(0, ...values.map(Math.abs));
+  return values.map((v) => (max > 0 ? Math.abs(v) / max : 0));
+}
+
+/** How strongly to tint a cell for a loss: a percentage from 8 (nothing lost) to 70 (`full` or more). */
+export function lossTint(loss: number, full: number): number {
+  return Math.round(8 + Math.min(1, Math.max(0, loss) / full) * 62);
+}

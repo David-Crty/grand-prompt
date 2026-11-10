@@ -328,6 +328,11 @@ export function Viewer({
   }, []);
 
   const onSeek = useCallback((t: number) => live.current.clock.seek(t), []);
+  const watch = useCallback((t: number) => {
+    const c = live.current.clock;
+    c.seek(t);
+    c.playing = true;
+  }, []);
   const cursorS = useMemo(() => snap?.focus?.s ?? null, [snap]);
   const onFlag = useCallback(
     (f: TransportFlag) => {
@@ -478,6 +483,7 @@ export function Viewer({
             c.speed = cycleSpeed(SPEEDS, c.speed);
           }}
           onSeek={onSeek}
+          onWatch={watch}
           onMarker={clickMarker}
           onWhy={onWhy}
           onReplay={replayIncident}
@@ -534,6 +540,11 @@ export function Viewer({
             focusId={snap.focusId}
             cursorS={cursorS}
             onClose={() => setAnalysis(false)}
+            onFocus={focusCar}
+            onWatch={(t) => {
+              watch(t);
+              setAnalysis(false);
+            }}
           />
         </div>
       ) : null}
@@ -543,6 +554,10 @@ export function Viewer({
           results={results}
           onClose={() => setClassif(false)}
           onRestart={restart}
+          onAnalysis={() => {
+            setClassif(false);
+            setAnalysis(true);
+          }}
           backHref={backHref}
         />
       ) : null}

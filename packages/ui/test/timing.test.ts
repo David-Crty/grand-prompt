@@ -1,19 +1,25 @@
 import { describe, expect, it } from "vitest";
 import {
   entryVar,
+  fitRange,
   gapLabel,
   lapOrDash,
   linear,
+  lossTint,
   mergeMarkers,
+  niceStep,
   niceTop,
   PROVIDER_LABEL,
   pathOf,
+  shares,
   spreadLabels,
   statusCell,
   stepMarker,
   type TimelineMarker,
   type TimingRow,
+  ticksIn,
   towerFinal,
+  valueAt,
 } from "../src/index.js";
 
 const row = (o: Partial<TimingRow>): TimingRow => ({
@@ -116,5 +122,48 @@ describe("chart helpers", () => {
     expect(spreadLabels([10, 12, 50, 11], 14)).toEqual([10, 38, 52, 24]);
     expect(niceTop(312, 50)).toBe(350);
     expect(niceTop(0, 50)).toBe(50);
+  });
+});
+
+describe("zoomable chart helpers", () => {
+  it("interpolates, steps and fits ranges", () => {
+    expect(valueAt([0, 10, 20], [0, 1, 3], 15)).toBe(2);
+    expect(valueAt([0, 10, 20], [0, 1, 3], -5)).toBe(0);
+    expect(valueAt([0, 10, 20], [0, 1, 3], 25)).toBe(3);
+    expect(valueAt([], [], 1)).toBe(0);
+    expect(niceStep(1.2)).toBeCloseTo(0.5);
+    expect(niceStep(0.3)).toBeCloseTo(0.1);
+    expect(niceStep(6)).toBe(2);
+    expect(niceStep(28)).toBe(10);
+    expect(niceStep(0)).toBeGreaterThan(0);
+    expect(ticksIn(-0.25, 1.1, 0.5)).toEqual([0, 0.5, 1]);
+    expect(ticksIn(-1, 1, 1)).toEqual([-1, 0, 1]);
+    expect(
+      fitRange(
+        [
+          [0, 10, 20],
+          [0, 10, 20],
+        ],
+        [
+          [150, 90, 200],
+          [160, 100, 400],
+        ],
+        5,
+        20,
+        20,
+        10,
+      ),
+    ).toEqual([80, 420]);
+    expect(fitRange([[0]], [[5]], 10, 20, 20)).toEqual([0, 20]);
+    expect(fitRange([[15]], [[40]], 10, 20, 20)).toEqual([40, 60]);
+  });
+
+  it("sizes bars and tints by loss", () => {
+    expect(shares([0.5, -1, 0.25])).toEqual([0.5, 1, 0.25]);
+    expect(shares([0, 0])).toEqual([0, 0]);
+    expect(lossTint(0, 1.2)).toBe(8);
+    expect(lossTint(0.6, 1.2)).toBe(39);
+    expect(lossTint(5, 1.2)).toBe(70);
+    expect(lossTint(-1, 1.2)).toBe(8);
   });
 });

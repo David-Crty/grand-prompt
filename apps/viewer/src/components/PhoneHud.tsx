@@ -54,6 +54,7 @@ export function PhoneHud({
   onToggle,
   onSpeed,
   onSeek,
+  onWatch,
   onMarker,
   onWhy,
   onReplay,
@@ -76,6 +77,8 @@ export function PhoneHud({
   onToggle: () => void;
   onSpeed: () => void;
   onSeek: (t: number) => void;
+  /** Play the replay from this time (the analysis' Watch). */
+  onWatch: (t: number) => void;
   onMarker: (m: TimelineMarker) => void;
   onWhy: (carId: string) => void;
   onReplay: (inc: Incident) => void;
@@ -228,6 +231,7 @@ export function PhoneHud({
             layout="sheet"
             onClose={() => onSheet(null)}
             onRestart={onRestart}
+            onAnalysis={() => onSheet("analysis")}
             backHref={backHref}
           />
         </Sheet>
@@ -240,6 +244,11 @@ export function PhoneHud({
             cursorS={snap.focus?.s ?? null}
             layout="sheet"
             onClose={() => onSheet(null)}
+            onFocus={onFocus}
+            onWatch={(t) => {
+              onWatch(t);
+              onSheet(null);
+            }}
           />
         </Sheet>
       ) : null}

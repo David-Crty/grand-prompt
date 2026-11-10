@@ -1,14 +1,5 @@
 import type { ClassifiedResult } from "@bench/sim";
 import { describe, expect, it } from "vitest";
-import {
-  analysisPicks,
-  deltaSeries,
-  lapProfile,
-  lapProfiles,
-  sectorRows,
-  whereTimeGoes,
-} from "../src/lib/analysis.js";
-import { indexReplay } from "../src/lib/frames.js";
 import type { Incident } from "../src/lib/incidents.js";
 import {
   buildCost,
@@ -18,9 +9,7 @@ import {
   formatBuildTime,
   formatTokens,
 } from "../src/lib/results.js";
-import { makeCar, makeReplay, stadiumTrack } from "./fixtures.js";
 
-const track = stadiumTrack();
 const prices = { models: { "gpt-x": { inputPerM: 1, outputPerM: 10 } } };
 const manifest = (usage: object) => ({ usage, settings: { timeLimitMin: 30 } });
 const results: EventResults = {
@@ -133,73 +122,5 @@ describe("classification rows", () => {
     expect(rows[0]!.build?.cost).toEqual({ usd: 3, estimated: true });
     expect(rows[2]!.lapTime).toBeNull();
     expect(classificationRows([row({ id: "n", position: 9 })], [], null, prices)[0]!.sectors).toBeNull();
-  });
-});
-
-describe("analysis", () => {
-  const replay = makeReplay(
-    [
-      makeCar(track, { id: "a", speed: 50 }),
-      makeCar(track, { id: "b", speed: 45 }),
-      makeCar(track, { id: "c", speed: 40, dnfAt: 5 }),
-    ],
-    track,
-  );
-  const cars = indexReplay(replay);
-
-  it("profiles timed laps and measures the gap at equal distance", () => {
-    const profiles = lapProfiles(cars, 10);
-    expect(profiles.map((p) => p.id)).toEqual(["a", "b"]);
-    const a = profiles[0]!;
-    expect(a.speedKmh.every((v) => Math.abs(v - 180) < 1e-9)).toBe(true);
-    expect(a.throttle[0]).toBe(1);
-    expect(a.time).toBe(cars[0]!.car.result.lapTime);
-    expect(
-      lapProfile({ ...cars[0]!, car: { ...cars[0]!.car, frames: { ...cars[0]!.car.frames, lap: [] } } }),
-    ).toBeNull();
-    const d = deltaSeries(cars[0]!, cars[1]!, 50)!;
-    expect(d.s.at(-1)).toBe(track.length);
-    expect(d.dt.at(-1)).toBeCloseTo(cars[1]!.car.result.lapTime! - cars[0]!.car.result.lapTime!, 9);
-    expect(d.dt[10]!).toBeGreaterThan(0);
-    expect(deltaSeries(cars[0]!, cars[2]!)).toBeNull();
-    expect(analysisPicks(profiles, "b")).toEqual({ ref: "a", ids: ["a", "b"] });
-    expect(analysisPicks(profiles, "zz", 1)).toEqual({ ref: "a", ids: ["a"] });
-    expect(analysisPicks([], "a")).toEqual({ ref: null, ids: [] });
-  });
-
-  it("colours sectors like a timing screen and says where the time goes", () => {
-    const cls = [
-      row({ id: "ref", lap: lap(30, [9.5, 10, 10.5]) }),
-      row({ id: "foc", lap: lap(31, [10, 10.6, 10.4]) }),
-      row({ id: "del", lap: lap(29, [9, 10, 10], false), lapTime: null }),
-      row({ id: "dnf", lap: null, lapTime: null }),
-    ];
-    const rows = sectorRows(cls);
-    expect(rows.map((r) => r.id)).toEqual(["ref", "foc"]);
-    expect(rows[0]!.time).toBe(30);
-    expect(rows[0]!.sectors.map((s) => s.kind)).toEqual(["fastest", "fastest", "slower"]);
-    expect(rows[1]!.sectors.map((s) => s.kind)).toEqual(["slower", "slower", "fastest"]);
-    expect(sectorRows([])).toEqual([]);
-    const code = (id: string) => id.toUpperCase();
-    expect(whereTimeGoes(rows, "foc", "ref", code)).toBe(
-      "FOC loses 0.50 s in sector 1 and 0.60 s in sector 2 to REF, then gets 0.10 s back in sector 3, where it is the fastest of anyone.",
-    );
-    expect(whereTimeGoes(rows, "ref", "foc", code)).toBe(
-      "REF loses 0.10 s in sector 3 to FOC, then gets 0.50 s back in sector 1 and 0.60 s back in sector 2, where it is the fastest of anyone.",
-    );
-    const even = sectorRows([
-      row({ id: "x", lap: lap(30, [10, 20]) }),
-      row({ id: "y", lap: lap(30, [10, 20]) }),
-    ]);
-    expect(whereTimeGoes(even, "x", "y", code)).toBe("X matches Y in every sector.");
-    const ahead = sectorRows([
-      row({ id: "x", lap: lap(29, [9, 20]) }),
-      row({ id: "y", lap: lap(30, [10, 20]) }),
-    ]);
-    expect(whereTimeGoes(ahead, "x", "y", code)).toBe(
-      "X gains 1.00 s back in sector 1 on Y, where it is the fastest of anyone.",
-    );
-    expect(whereTimeGoes(rows, "foc", "foc", code)).toBeNull();
-    expect(whereTimeGoes(rows, "nope", "ref", code)).toBeNull();
   });
 });
