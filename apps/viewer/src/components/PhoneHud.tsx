@@ -8,6 +8,8 @@ import {
 } from "@bench/ui";
 import {
   Button,
+  CAMERA_ICON,
+  Dropdown,
   FocusRow,
   IconButton,
   RaceToast,
@@ -163,12 +165,14 @@ export function PhoneHud({
             {snap.speed}×
           </Button>
           <span className="gp-flex" />
-          <SegmentedControl<CameraMode>
+          <Dropdown<CameraMode>
             size="touch"
+            placement="up"
             label="Camera"
+            icon="camera"
             value={mode}
             onChange={onMode}
-            options={CAMERA_MODES.map((c) => ({ value: c, label: CAMERA_LABEL[c] }))}
+            options={CAMERA_MODES.map((c) => ({ value: c, label: CAMERA_LABEL[c], icon: CAMERA_ICON[c] }))}
           />
         </div>
       </div>

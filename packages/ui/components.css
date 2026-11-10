@@ -558,6 +558,108 @@
   width: var(--size-hit);
   height: var(--size-hit);
 }
+
+/* ---------- dropdown ---------- */
+.gp-dd {
+  position: relative;
+  display: inline-flex;
+}
+.gp-dd__btn {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 10px 0 12px;
+  border-radius: var(--radius-2);
+  box-shadow: inset 0 0 0 1px var(--line-control);
+  color: var(--text-100);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-variation-settings: "wdth" 85;
+  white-space: nowrap;
+}
+.gp-dd__btn:hover,
+.gp-dd__btn[aria-expanded="true"] {
+  background: var(--surface-300);
+}
+.gp-dd__value {
+  min-width: 4.5em;
+}
+.gp-dd__caret {
+  display: inline-flex;
+  color: var(--text-300);
+  transform: rotate(180deg);
+}
+.gp-dd--up .gp-dd__caret {
+  transform: none;
+}
+.gp-dd__btn[aria-expanded="true"] .gp-dd__caret {
+  transform: none;
+}
+.gp-dd--up .gp-dd__btn[aria-expanded="true"] .gp-dd__caret {
+  transform: rotate(180deg);
+}
+.gp-dd__list {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 5;
+  min-width: 100%;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  box-shadow: var(--shadow-overlay);
+}
+.gp-dd--up .gp-dd__list {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+.gp-dd__item {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 3px;
+  color: var(--text-200);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-variation-settings: "wdth" 85;
+  white-space: nowrap;
+}
+.gp-dd__item:hover,
+.gp-dd__item:focus-visible {
+  background: var(--surface-300);
+  color: var(--text-100);
+}
+.gp-dd__item[aria-checked="true"] {
+  color: var(--text-100);
+}
+.gp-dd__label {
+  flex: 1;
+}
+.gp-dd--touch .gp-dd__btn {
+  height: var(--size-hit);
+  padding: 0 12px 0 14px;
+  font-size: 14px;
+}
+.gp-dd--touch .gp-dd__item {
+  height: var(--size-hit);
+  padding: 0 14px;
+  font-size: 14px;
+  min-width: 168px;
+}
 .gp-iconbtn--primary {
   background: var(--fill-chalk);
   color: var(--on-chalk);

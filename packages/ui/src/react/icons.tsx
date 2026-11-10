@@ -1,11 +1,16 @@
 import {
+  Car,
   ChartLine,
+  Check,
   ChevronLeft,
+  ChevronUp,
   CircleHelp,
   Flag,
+  Gauge,
   Info,
   ListOrdered,
   type LucideIcon,
+  Map as MapIcon,
   Minus,
   Pause,
   Play,
@@ -15,9 +20,12 @@ import {
   Spline,
   Timer,
   TriangleAlert,
+  Tv,
+  Video,
   X,
 } from "lucide-react";
 import type * as React from "react";
+import type { CameraMode } from "../cameras.js";
 import type { MarkerKind } from "../timeline.js";
 
 /** The UI's stroke icons, from lucide, by the name the components use; decorative: the control carries the label. */
@@ -37,7 +45,14 @@ export type IconName =
   | "help"
   | "minus"
   | "plus"
-  | "restart";
+  | "restart"
+  | "camera"
+  | "tv"
+  | "chase"
+  | "onboard"
+  | "map"
+  | "check"
+  | "up";
 
 const ICONS: Record<IconName, LucideIcon> = {
   play: Play,
@@ -56,6 +71,20 @@ const ICONS: Record<IconName, LucideIcon> = {
   minus: Minus,
   plus: Plus,
   restart: SkipBack,
+  camera: Video,
+  tv: Tv,
+  chase: Car,
+  onboard: Gauge,
+  map: MapIcon,
+  check: Check,
+  up: ChevronUp,
+};
+
+export const CAMERA_ICON: Record<CameraMode, IconName> = {
+  tv: "tv",
+  chase: "chase",
+  onboard: "onboard",
+  map: "map",
 };
 
 /** Drawn filled, as transport controls usually are. */
