@@ -18,20 +18,16 @@ export interface PackCar {
 export interface Pack {
   /** In running order, front first. */
   ids: string[];
-  /** Groups of two or more cars at the same place (within `sameDistance`), in running order. */
-  same: string[][];
 }
 
 /** Two cars overlap when closer than this many car lengths. */
 export const PACK_LENGTHS = 1.5;
-/** Cars this close (m) are at the same place: an identical run so far. */
-export const SAME_DISTANCE = 0.05;
 
 /**
  * Cars chained by distance under `packDistance` form a pack (two or more). Cars that have stopped (retired or
  * finished) are left out: they are not overlapping anyone's run any more.
  */
-export function findPacks(cars: PackCar[], packDistance: number, sameDistance = SAME_DISTANCE): Pack[] {
+export function findPacks(cars: PackCar[], packDistance: number): Pack[] {
   const live = cars.filter((c) => !c.ended).sort((a, b) => b.progress - a.progress);
   const group = live.map((_, k) => k);
   const root = (k: number): number => {
@@ -49,26 +45,8 @@ export function findPacks(cars: PackCar[], packDistance: number, sameDistance = 
     byRoot.set(r, [...(byRoot.get(r) ?? []), c]);
   });
   const packs: Pack[] = [];
-  for (const members of byRoot.values()) {
-    if (members.length < 2) continue;
-    const same: string[][] = [];
-    let run: PackCar[] = [members[0]!];
-    const flush = () => {
-      if (run.length > 1) same.push(run.map((c) => c.id));
-    };
-    for (let k = 1; k < members.length; k++) {
-      const c = members[k]!;
-      const p = run[run.length - 1]!;
-      if (Math.abs(p.progress - c.progress) < sameDistance && Math.hypot(p.x - c.x, p.y - c.y) < sameDistance)
-        run.push(c);
-      else {
-        flush();
-        run = [c];
-      }
-    }
-    flush();
-    packs.push({ ids: members.map((c) => c.id), same });
-  }
+  for (const members of byRoot.values())
+    if (members.length > 1) packs.push({ ids: members.map((c) => c.id) });
   return packs.sort((a, b) => b.ids.length - a.ids.length);
 }
 
@@ -91,32 +69,18 @@ export function carPlacement(s: Pick<CarSample, "x" | "y" | "yaw">): {
   return { position: toThree(s.x, s.y), yaw: s.yaw };
 }
 
-/** The pack label's chips: the listed cars in running order, identical positions grouped together. */
 /** Most cars a pack label lists before the rest become "+N": desktop, phone. */
 export const PACK_CHIPS = { desktop: 6, phone: 4 } as const;
 
-/** The first `max` cars of `groups`, in order, split groups kept as far as they go, and how many are left out. */
-export function clipGroups(groups: string[][], max: number): { groups: string[][]; hidden: number } {
-  const out: string[][] = [];
-  let left = max;
-  for (const g of groups) {
-    if (left <= 0) break;
-    out.push(g.slice(0, left));
-    left -= g.length;
-  }
-  const shown = out.reduce((n, g) => n + g.length, 0);
-  return { groups: out, hidden: groups.reduce((n, g) => n + g.length, 0) - shown };
-}
-
-export function packGroups(pack: Pack, ids: string[]): string[][] {
-  const want = new Set(ids);
-  const out: string[][] = [];
-  const done = new Set<string>();
-  for (const id of pack.ids) {
-    if (!want.has(id) || done.has(id)) continue;
-    const g = (pack.same.find((s) => s.includes(id)) ?? [id]).filter((x) => want.has(x));
-    for (const x of g) done.add(x);
-    out.push(g);
-  }
-  return out;
+/**
+ * The pack label's cars: sorted by code, so a chip keeps its place while the gaps inside the pack change, the
+ * first `max` of them, and how many are left out.
+ */
+export function packChips(
+  ids: readonly string[],
+  codeOf: (id: string) => string,
+  max: number,
+): { ids: string[]; hidden: number } {
+  const sorted = [...ids].sort((a, b) => codeOf(a).localeCompare(codeOf(b)) || a.localeCompare(b));
+  return { ids: sorted.slice(0, max), hidden: Math.max(0, sorted.length - max) };
 }

@@ -22,7 +22,7 @@ import { type Incident, impactText, incidentTitle, replayCountdown } from "../li
 import { type RaceMessage, TOAST_KIND } from "../lib/messages.js";
 import { buildMinimap } from "../lib/minimap.js";
 import type { ViewerModel } from "../lib/model.js";
-import { clipGroups, PACK_CHIPS, type Pack, packGroups } from "../lib/pack.js";
+import { PACK_CHIPS, type Pack, packChips } from "../lib/pack.js";
 import { SPEEDS } from "../lib/params.js";
 import type { StandingRow } from "../lib/timing.js";
 
@@ -311,15 +311,16 @@ export function Labels({
   onFocus: (id: string) => void;
 }) {
   const rows = new Map(snap.rows.map((r) => [r.id, r]));
-  const clip = clipGroups(
-    snap.pack ? packGroups(snap.pack, snap.pack.others) : [],
+  const chips = packChips(
+    snap.pack?.others ?? [],
+    (id) => model.entries.get(id)?.code ?? id,
     phone ? PACK_CHIPS.phone : PACK_CHIPS.desktop,
   );
-  const groups = clip.groups.map((g) => entriesOf(g, model.entries));
+  const listed = entriesOf(chips.ids, model.entries);
   return (
     <div className="labels">
       <div className="label-anchor" ref={registerPack} style={{ display: "none" }}>
-        {groups.length ? <PackLabel groups={groups} hidden={clip.hidden} /> : null}
+        {listed.length ? <PackLabel entries={listed} hidden={chips.hidden} /> : null}
       </div>
       {model.cars.map((c, k) => {
         const row = rows.get(c.car.id);

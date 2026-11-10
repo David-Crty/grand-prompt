@@ -1099,22 +1099,12 @@
   width: max-content;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   padding: 4px 6px;
   background: var(--hud-panel-solid);
   border: 1px solid var(--line-200);
   border-radius: var(--radius-2);
   box-shadow: var(--shadow-hud);
-}
-.gp-pack__group {
-  display: inline-flex;
-  align-items: center;
-  gap: 1px;
-}
-.gp-pack__eq {
-  font-size: 12px;
-  font-weight: 800;
-  color: var(--text-300);
 }
 .gp-pack__more {
   font-size: 12px;
@@ -1595,11 +1585,6 @@ fieldset.gp-seg {
   min-width: 64px;
   text-align: right;
   font-size: 15px;
-}
-.gp-pack__item {
-  display: inline-flex;
-  align-items: center;
-  gap: 1px;
 }
 .gp-incident__where {
   font-weight: 700;

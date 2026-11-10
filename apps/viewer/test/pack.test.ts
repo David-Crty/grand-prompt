@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { indexReplay, sampleCar } from "../src/lib/frames.js";
-import { carPlacement, clipGroups, findPacks, labelPack, type PackCar, packGroups } from "../src/lib/pack.js";
+import { carPlacement, findPacks, labelPack, type PackCar, packChips } from "../src/lib/pack.js";
 import { makeCar, makeReplay, stadiumTrack } from "./fixtures.js";
 
 const car = (id: string, progress: number, o: Partial<PackCar> = {}): PackCar => ({
@@ -30,7 +30,6 @@ describe("packs", () => {
   it("chains cars closer than the pack distance, in running order, leaving stopped cars out", () => {
     expect(packs).toHaveLength(1);
     expect(packs[0]!.ids).toEqual(["fab", "ast", "hai", "son", "lun", "ter", "opu"]);
-    expect(packs[0]!.same).toEqual([["son", "lun", "ter"]]);
     expect(findPacks([car("a", 0), car("b", 100)], 8.4)).toEqual([]);
     const two = findPacks([car("a", 0), car("b", 1), car("c", 50), car("d", 51), car("e", 52)], 8.4);
     expect(two.map((p) => p.ids)).toEqual([
@@ -39,19 +38,22 @@ describe("packs", () => {
     ]);
   });
 
-  it("labels one pack of three or more besides the followed car, with identical places grouped", () => {
+  it("labels one pack of three or more besides the followed car", () => {
     const lp = labelPack(packs, "ast")!;
     expect(lp.others).toEqual(["fab", "hai", "son", "lun", "ter", "opu"]);
-    expect(packGroups(lp, lp.others)).toEqual([["fab"], ["hai"], ["son", "lun", "ter"], ["opu"]]);
-    expect(packGroups(lp, ["lun", "opu"])).toEqual([["lun"], ["opu"]]);
   });
 
-  it("lists at most a number of cars, cutting through a group of identical places, and counts the rest", () => {
-    const groups = [["fab"], ["hai"], ["son", "lun", "ter"], ["opu"]];
-    expect(clipGroups(groups, 4)).toEqual({ groups: [["fab"], ["hai"], ["son", "lun"]], hidden: 2 });
-    expect(clipGroups(groups, 6)).toEqual({ groups, hidden: 0 });
-    expect(clipGroups(groups, 9)).toEqual({ groups, hidden: 0 });
-    expect(clipGroups([], 4)).toEqual({ groups: [], hidden: 0 });
+  it("lists the pack's cars by code, whatever the running order, up to a maximum, and counts the rest", () => {
+    const code = (id: string) => id.toUpperCase();
+    const others = ["fab", "hai", "son", "lun", "ter", "opu"];
+    expect(packChips(others, code, 4)).toEqual({ ids: ["fab", "hai", "lun", "opu"], hidden: 2 });
+    expect(packChips([...others].reverse(), code, 4)).toEqual(packChips(others, code, 4));
+    expect(packChips(others, code, 9)).toEqual({
+      ids: ["fab", "hai", "lun", "opu", "son", "ter"],
+      hidden: 0,
+    });
+    expect(packChips(["b", "a"], () => "X", 9).ids).toEqual(["a", "b"]);
+    expect(packChips([], code, 4)).toEqual({ ids: [], hidden: 0 });
     expect(labelPack(findPacks([car("a", 0), car("b", 1), car("c", 2)], 8.4), "a")).toBeNull();
   });
 });
