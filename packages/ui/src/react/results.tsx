@@ -1,4 +1,4 @@
-import { CircleDollarSign, Cpu, Timer } from "lucide-react";
+import { CircleDollarSign, Cpu, Hourglass } from "lucide-react";
 import type * as React from "react";
 import type { Entry } from "../entries.js";
 import { formatGap, formatLapTime } from "../format.js";
@@ -49,7 +49,7 @@ function NoTime({ row }: { row: ClassRow }) {
 const FACTS = [
   { key: "cost", label: "Cost", Icon: CircleDollarSign },
   { key: "tokens", label: "Tokens", Icon: Cpu },
-  { key: "buildTime", label: "Build time", Icon: Timer },
+  { key: "buildTime", label: "Build time", Icon: Hourglass },
 ] as const;
 
 /**

@@ -1,4 +1,5 @@
 import type { Replay } from "@bench/sim";
+import { Icon } from "@bench/ui/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RaceList } from "./components/RaceList.js";
 import { decodeReplay, fetchEventResults, fetchReplay } from "./lib/load.js";
@@ -107,7 +108,10 @@ export function App() {
             {error ? <p className="error">{error}</p> : null}
             {params.replay ? (
               <p>
-                <a href={window.location.pathname}>← All races</a>
+                <a className="drop-card__back" href={window.location.pathname}>
+                  <Icon name="back" />
+                  All races
+                </a>
               </p>
             ) : null}
           </div>

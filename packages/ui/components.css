@@ -50,13 +50,17 @@
   flex: none;
   stroke: currentColor;
   fill: none;
-  stroke-width: 1.6;
+  stroke-width: 2.4;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 .gp-icon--l {
   width: 20px;
   height: 20px;
+  stroke-width: 1.92;
+}
+.gp-icon--solid {
+  fill: currentColor;
 }
 
 /* ---------- brand ---------- */
@@ -165,7 +169,7 @@
 .gp-badge .gp-icon {
   width: 12px;
   height: 12px;
-  stroke-width: 2;
+  stroke-width: 3;
 }
 .gp-badge--dnf {
   background: var(--status-dnf);
@@ -774,7 +778,7 @@
 .gp-toast__kind .gp-icon {
   width: 14px;
   height: 14px;
-  stroke-width: 2;
+  stroke-width: 3;
 }
 .gp-toast--dnf .gp-toast__kind {
   background: var(--status-dnf);
@@ -1069,7 +1073,7 @@
 .gp-pin__head .gp-icon {
   width: 14px;
   height: 14px;
-  stroke-width: 2.4;
+  stroke-width: 3.6;
 }
 .gp-pin__stem {
   width: 2px;

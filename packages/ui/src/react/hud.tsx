@@ -365,7 +365,7 @@ export function TransportBar({
           disabled={!canSlower}
           onClick={() => onSpeed(-1)}
         >
-          −
+          <Icon name="minus" />
         </button>
         <button type="button" aria-pressed="true" title="Playback speed">
           {speed}×
@@ -377,7 +377,7 @@ export function TransportBar({
           disabled={!canFaster}
           onClick={() => onSpeed(1)}
         >
-          +
+          <Icon name="plus" />
         </button>
       </fieldset>
       <SegmentedControl<CameraMode>
