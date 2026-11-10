@@ -17,6 +17,8 @@ export interface ViewerParams {
   fps: boolean;
   /** TV zoom factor, or null for the default. */
   zoom: number | null;
+  /** TV camera tilt (degrees off the vertical), or null for the default. */
+  tilt: number | null;
 }
 
 function flag(v: string | null): boolean | null {
@@ -36,6 +38,7 @@ export function parseParams(search: string): ViewerParams {
   const cam = CAMERA_MODES.find((m) => m === camRaw) ?? null;
   const speed = num("speed");
   const zoom = num("zoom");
+  const tilt = num("tilt");
   return {
     replay: q.get("replay"),
     t: num("t"),
@@ -48,6 +51,7 @@ export function parseParams(search: string): ViewerParams {
     analysis: flag(q.get("analysis")) ?? false,
     fps: flag(q.get("fps")) ?? false,
     zoom: zoom !== null && zoom > 0 ? zoom : null,
+    tilt,
   };
 }
 

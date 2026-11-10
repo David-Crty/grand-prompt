@@ -1,18 +1,21 @@
 import { type CameraMode, formatClock, type GapMode, type TimelineMarker } from "@bench/ui";
 import {
   CarLabel,
+  ControlPanel,
   FocusCard,
   IncidentCard,
   IncidentPin,
   MiniMap,
   PackLabel,
   RaceToast,
+  RangeControl,
   TimingTower,
   ToastStack,
   TransportBar,
   type TransportFlag,
 } from "@bench/ui/react";
 import { useMemo } from "react";
+import { sliderToZoom, TV_TILT, TV_TILT_MAX, TV_TILT_MIN, zoomToSlider } from "../lib/camera.js";
 import type { CarSample } from "../lib/frames.js";
 import { entriesOf, focusLap, ghostLine, mapCars, mapPins } from "../lib/hud.js";
 import { type Incident, impactText, incidentTitle, replayCountdown } from "../lib/incidents.js";
@@ -195,6 +198,48 @@ export function Focus({ model, snap }: { model: ViewerModel; snap: HudSnapshot }
         fastest={snap.fastestId === row.id}
         lap={focusLap(car, row, snap.t)}
       />
+    </div>
+  );
+}
+
+/** The TV camera's zoom and tilt, bottom right; the wheel and Z / X move the same zoom. */
+export function TvRig({
+  zoom,
+  tilt,
+  onZoom,
+  onTilt,
+}: {
+  zoom: number;
+  tilt: number;
+  onZoom: (z: number) => void;
+  onTilt: (deg: number) => void;
+}) {
+  return (
+    <div className="hud-rig">
+      <ControlPanel label="TV camera">
+        <RangeControl
+          label="Zoom"
+          value={zoomToSlider(zoom)}
+          min={0}
+          max={1}
+          step={0.01}
+          mark={zoomToSlider(1)}
+          display={`${zoom.toFixed(1)}×`}
+          title="Zoom (wheel, Z / X); double-click to reset"
+          onChange={(f) => onZoom(sliderToZoom(f))}
+        />
+        <RangeControl
+          label="Tilt"
+          value={tilt}
+          min={TV_TILT_MIN}
+          max={TV_TILT_MAX}
+          step={1}
+          mark={TV_TILT}
+          display={`${Math.round(tilt)}°`}
+          title="Tilt off the vertical; double-click to reset"
+          onChange={onTilt}
+        />
+      </ControlPanel>
     </div>
   );
 }

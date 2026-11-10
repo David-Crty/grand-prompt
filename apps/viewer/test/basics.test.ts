@@ -50,8 +50,10 @@ describe("params", () => {
       analysis: true,
       fps: true,
       zoom: null,
+      tilt: null,
     });
     expect(parseParams("?zoom=1.5").zoom).toBe(1.5);
+    expect(parseParams("?tilt=0").tilt).toBe(0);
     expect(parseParams("?zoom=-2").zoom).toBeNull();
   });
   it("defaults and rejects bad values", () => {

@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   chasePose,
+  clampTilt,
   clampZoom,
   fitFov,
   mapPose,
   onboardPose,
+  sliderToZoom,
   stepZoom,
   TV_JOIN,
   TV_JOIN_HOLD,
@@ -15,10 +17,13 @@ import {
   TV_PAD,
   TV_STRETCH,
   TV_TILT,
+  TV_TILT_MAX,
+  TV_TILT_MIN,
   TV_ZOOM_MAX,
   TV_ZOOM_MIN,
   tvFrame,
   tvPose,
+  zoomToSlider,
 } from "../src/lib/camera.js";
 import { indexCar } from "../src/lib/frames.js";
 import { buildMinimap } from "../src/lib/minimap.js";
@@ -213,6 +218,17 @@ describe("camera", () => {
     expect(portrait).toBeGreaterThan(60);
     expect(portrait).toBeLessThanOrEqual(80);
     expect(fitFov(70, 0.3)).toBe(80);
+  });
+  it("maps the TV zoom onto a slider by ratio, and clamps the tilt", () => {
+    expect(zoomToSlider(TV_ZOOM_MIN)).toBe(0);
+    expect(zoomToSlider(TV_ZOOM_MAX)).toBeCloseTo(1);
+    expect(sliderToZoom(zoomToSlider(1.7))).toBeCloseTo(1.7);
+    expect(sliderToZoom(0.5) / TV_ZOOM_MIN).toBeCloseTo(TV_ZOOM_MAX / sliderToZoom(0.5));
+    expect(sliderToZoom(-1)).toBe(TV_ZOOM_MIN);
+    expect(sliderToZoom(2)).toBeCloseTo(TV_ZOOM_MAX);
+    expect(clampTilt(-5)).toBe(TV_TILT_MIN);
+    expect(clampTilt(90)).toBe(TV_TILT_MAX);
+    expect(clampTilt(20)).toBe(20);
   });
   it("clamps and steps the TV zoom", () => {
     expect(clampZoom(1)).toBe(1);

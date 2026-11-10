@@ -88,6 +88,15 @@ export function clampZoom(z: number): number {
   return Math.min(TV_ZOOM_MAX, Math.max(TV_ZOOM_MIN, z));
 }
 
+/** Where `z` sits on a 0..1 slider; the scale is logarithmic so each step zooms by the same ratio. */
+export function zoomToSlider(z: number): number {
+  return Math.log(clampZoom(z) / TV_ZOOM_MIN) / Math.log(TV_ZOOM_MAX / TV_ZOOM_MIN);
+}
+
+export function sliderToZoom(f: number): number {
+  return clampZoom(TV_ZOOM_MIN * (TV_ZOOM_MAX / TV_ZOOM_MIN) ** Math.min(1, Math.max(0, f)));
+}
+
 /** One zoom step from `z`: in (dir 1) or out (dir -1), by a constant ratio, clamped. */
 export function stepZoom(z: number, dir: 1 | -1, ratio = 1.15): number {
   return clampZoom(dir > 0 ? z * ratio : z / ratio);
@@ -211,6 +220,13 @@ export function tvFrame(
 
 /** How far (degrees) the TV camera leans off the vertical, looking across the track from its right. */
 export const TV_TILT = 32;
+/** Range of the live tilt; past the max the far edge of the frame nears the horizon. */
+export const TV_TILT_MIN = 0;
+export const TV_TILT_MAX = 60;
+
+export function clampTilt(deg: number): number {
+  return Math.min(TV_TILT_MAX, Math.max(TV_TILT_MIN, deg));
+}
 
 /**
  * Over (x, y), rotated so `heading` points right, far enough that `span` metres fill the width of

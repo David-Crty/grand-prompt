@@ -67,11 +67,13 @@ button {
   flex: none;
 }
 
-/* HUD layout (desktop): tower top-left, session and messages top-right, followed car bottom-left, transport. */
+/* HUD layout (desktop): tower top-left, session and messages top-right, followed car bottom-left,
+   TV camera controls bottom-right, transport. */
 .hud-tower,
 .hud-banner,
 .hud-topright,
 .hud-focus,
+.hud-rig,
 .hud-transport {
   position: absolute;
   z-index: 2;
@@ -122,6 +124,11 @@ button {
 
 .hud-focus {
   left: 24px;
+  bottom: 96px;
+}
+
+.hud-rig {
+  right: 24px;
   bottom: 96px;
 }
 

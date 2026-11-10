@@ -117,6 +117,64 @@ export function FocusCard({
   );
 }
 
+/**
+ * A labelled slider drawn like the steer gauge: a track, a chalk tick for the value and a faint mark
+ * at `mark`, the default, which a double-click returns to.
+ */
+export function RangeControl({
+  label,
+  value,
+  min,
+  max,
+  step,
+  mark,
+  display,
+  title,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  mark: number;
+  /** The value as read aloud and shown at the end of the row. */
+  display: string;
+  title?: string;
+  onChange: (v: number) => void;
+}) {
+  const pct = (v: number) => `${((Math.min(max, Math.max(min, v)) - min) / (max - min)) * 100}%`;
+  return (
+    <label className="gp-range" title={title}>
+      <span className="gp-label">{label}</span>
+      <span className="gp-range__track" style={{ "--mark": pct(mark) } as React.CSSProperties}>
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          aria-valuetext={display}
+          style={{ "--fill": pct(value) } as React.CSSProperties}
+          onChange={(e) => onChange(Number(e.currentTarget.value))}
+          onDoubleClick={() => onChange(mark)}
+        />
+      </span>
+      <span className="gp-range__v">{display}</span>
+    </label>
+  );
+}
+
+/** A small panel of `RangeControl`s under a caption. */
+export function ControlPanel({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <section className="gp-ctlpanel gp-panel" aria-label={label}>
+      <span className="gp-label">{label}</span>
+      {children}
+    </section>
+  );
+}
+
 /** The phone's followed-car row: position, chip, name, speed, pedals and gap on one line. */
 export function FocusRow({
   row,

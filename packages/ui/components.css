@@ -697,6 +697,76 @@
   letter-spacing: 0.06em;
   color: var(--text-300);
 }
+/* ---------- control panel & range ---------- */
+.gp-ctlpanel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 248px;
+  padding: 8px 12px 10px;
+}
+.gp-range {
+  display: grid;
+  grid-template-columns: 40px 1fr 40px;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+.gp-range__track {
+  position: relative;
+  display: flex;
+  height: 20px;
+  align-items: center;
+}
+.gp-range__track::before {
+  content: "";
+  position: absolute;
+  left: var(--mark);
+  top: 4px;
+  bottom: 4px;
+  width: 1px;
+  background: var(--line-control);
+  pointer-events: none;
+}
+.gp-range input {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  margin: 0;
+  border-radius: var(--radius-2);
+  background: linear-gradient(to right, var(--text-300) var(--fill), var(--surface-300) var(--fill));
+  cursor: pointer;
+}
+.gp-range input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 4px;
+  height: 14px;
+  border: 0;
+  border-radius: 1px;
+  background: var(--fill-chalk);
+}
+.gp-range input::-moz-range-thumb {
+  width: 4px;
+  height: 14px;
+  border: 0;
+  border-radius: 1px;
+  background: var(--fill-chalk);
+}
+.gp-range input:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 4px;
+}
+.gp-range__v {
+  font-variation-settings: "wdth" 75;
+  font-weight: 600;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--text-100);
+}
+
 .gp-steer {
   display: flex;
   flex-direction: column;

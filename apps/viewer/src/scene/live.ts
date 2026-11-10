@@ -25,6 +25,8 @@ export interface LiveState {
   trails: boolean;
   /** TV zoom factor: both framing spans are divided by it. */
   tvZoom: number;
+  /** TV camera tilt, degrees off the vertical. */
+  tvTilt: number;
   rows: StandingRow[];
   samples: CarSample[];
   cars: (CarHandles | null)[];

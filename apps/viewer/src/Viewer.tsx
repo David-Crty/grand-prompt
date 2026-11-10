@@ -14,9 +14,10 @@ import {
   TopRight,
   Tower,
   Transport,
+  TvRig,
 } from "./components/Hud.js";
 import { INCIDENT_SHEET_PX, PhoneHud, type PhoneSheet } from "./components/PhoneHud.js";
-import { clampZoom, stepZoom } from "./lib/camera.js";
+import { clampTilt, clampZoom, stepZoom, TV_TILT } from "./lib/camera.js";
 import { cycleSpeed, pinchFactor, swipeDir } from "./lib/gestures.js";
 import { crossedLine, fastestId, finishers, focusAfter, justOut } from "./lib/hud.js";
 import type { Incident } from "./lib/incidents.js";
@@ -62,6 +63,7 @@ export function Viewer({
       focusId: initialFocus,
       trails: params.trails,
       tvZoom: clampZoom(params.zoom ?? 1),
+      tvTilt: clampTilt(params.tilt ?? TV_TILT),
       rows: [],
       samples: [],
       cars: [],
@@ -87,8 +89,14 @@ export function Viewer({
   }
   const [mode, setModeState] = useState<CameraMode>(live.current.mode);
   const [trails, setTrails] = useState(params.trails);
+  const [rig, setRig] = useState({ zoom: live.current.tvZoom, tilt: live.current.tvTilt });
   const setZoom = useCallback((z: number) => {
     live.current.tvZoom = clampZoom(z);
+    setRig((r) => ({ ...r, zoom: live.current.tvZoom }));
+  }, []);
+  const setTilt = useCallback((deg: number) => {
+    live.current.tvTilt = clampTilt(deg);
+    setRig((r) => ({ ...r, tilt: live.current.tvTilt }));
   }, []);
   const [hud, setHud] = useState(params.hud);
   const [analysis, setAnalysis] = useState(params.analysis);
@@ -193,6 +201,12 @@ export function Viewer({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement && e.target.type !== "range") return;
+      if (
+        e.target instanceof HTMLElement &&
+        e.target.closest(".gp-range") &&
+        /^(Arrow|Home|End|Page)/.test(e.key)
+      )
+        return;
       const L = live.current;
       const c = L.clock;
       let handled = true;
@@ -491,6 +505,7 @@ export function Viewer({
           ) : null}
           <TopRight model={model} snap={snap} onWhy={onWhy} incident={incident} />
           <Focus model={model} snap={snap} />
+          {mode === "tv" ? <TvRig zoom={rig.zoom} tilt={rig.tilt} onZoom={setZoom} onTilt={setTilt} /> : null}
           <Transport
             model={model}
             snap={snap}

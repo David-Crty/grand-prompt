@@ -162,6 +162,8 @@ export function Driver({
         size.width,
         size.height,
         insets,
+        undefined,
+        L.tvTilt,
       );
     } else {
       const a = L.samples[focusIdx]!;
