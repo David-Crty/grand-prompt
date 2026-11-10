@@ -1,0 +1,33 @@
+{
+  "model": "Claude Sonnet 5.5",
+  "provider": "anthropic",
+  "mode": "agentic",
+  "promptVersion": "agentic-0.5",
+  "driverDevelopmentKitVersion": "0.4.0",
+  "simVersion": "0.2.0",
+  "usage": {
+    "inputTokens": 1231050,
+    "cachedInputTokens": 1179460,
+    "cacheWriteTokens": 51534,
+    "outputTokens": 15830,
+    "costUsd": 0.48249400000000003,
+    "wallTimeS": 165,
+    "practiceRuns": 10
+  },
+  "settings": {
+    "modelId": "claude-sonnet-5-5",
+    "cli": "claude",
+    "practiceTracks": [
+      "monaco",
+      "silverstone",
+      "portimao"
+    ],
+    "sandbox": "bubblewrap",
+    "timeLimitMin": 30,
+    "effort": "high",
+    "outcome": "ok",
+    "driverSource": "driver.js",
+    "turns": 28,
+    "cliError": null
+  }
+}

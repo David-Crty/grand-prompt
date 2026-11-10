@@ -1,0 +1,31 @@
+{
+  "model": "Gemini 3.8 Flash",
+  "provider": "google",
+  "mode": "agentic",
+  "promptVersion": "agentic-0.5",
+  "driverDevelopmentKitVersion": "0.4.0",
+  "simVersion": "0.2.0",
+  "usage": {
+    "inputTokens": 6803162,
+    "cachedInputTokens": 6445474,
+    "outputTokens": 64234,
+    "wallTimeS": 745,
+    "practiceRuns": 10
+  },
+  "settings": {
+    "modelId": "gemini-3.8-flash",
+    "cli": "agy",
+    "practiceTracks": [
+      "monaco",
+      "silverstone",
+      "portimao"
+    ],
+    "sandbox": "bubblewrap",
+    "timeLimitMin": 30,
+    "effort": "high",
+    "outcome": "ok",
+    "driverSource": "driver.js",
+    "turns": 1,
+    "cliError": null
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "model": "GPT-6 Astra",
+  "provider": "openai",
+  "mode": "agentic",
+  "promptVersion": "agentic-0.5",
+  "driverDevelopmentKitVersion": "0.4.0",
+  "simVersion": "0.2.0",
+  "usage": {
+    "inputTokens": 2746804,
+    "cachedInputTokens": 2681344,
+    "cacheWriteTokens": 0,
+    "outputTokens": 23892,
+    "wallTimeS": 927,
+    "practiceRuns": 10
+  },
+  "settings": {
+    "modelId": "gpt-6-astra",
+    "cli": "codex",
+    "practiceTracks": [
+      "monaco",
+      "silverstone",
+      "portimao"
+    ],
+    "sandbox": "bubblewrap",
+    "timeLimitMin": 30,
+    "effort": "high",
+    "outcome": "ok",
+    "driverSource": "driver.js",
+    "turns": 1,
+    "cliError": null
+  }
+}
