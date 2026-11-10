@@ -3,7 +3,7 @@
   "providers": {
     "anthropic": { "label": "Anthropic", "cli": "claude", "body": "clay" },
     "openai": { "label": "OpenAI", "cli": "codex", "body": "silver" },
-    "google": { "label": "Google", "cli": "gemini", "body": "cobalt" }
+    "google": { "label": "Google", "cli": "agy", "body": "cobalt" }
   },
   "models": [
     {
@@ -68,6 +68,20 @@
       "code": "LUN",
       "provider": "openai",
       "color": "ochre"
+    },
+    {
+      "id": "gemini-4-argon",
+      "name": "Gemini 4 Argon",
+      "code": "ARG",
+      "provider": "google",
+      "color": "rose"
+    },
+    {
+      "id": "gemini-3.8-flash",
+      "name": "Gemini 3.8 Flash",
+      "code": "FLA",
+      "provider": "google",
+      "color": "butter"
     }
   ]
 }

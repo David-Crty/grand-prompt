@@ -3,9 +3,9 @@ import { join } from "node:path";
 import { parseRoster } from "@bench/ui";
 
 /** The coding CLIs a build can drive; `models.json` names one per provider. */
-export type Cli = "claude" | "codex" | "gemini";
+export type Cli = "claude" | "codex" | "agy";
 
-export const CLIS: Cli[] = ["claude", "codex", "gemini"];
+export const CLIS: Cli[] = ["claude", "codex", "agy"];
 
 export const EFFORTS = ["low", "medium", "high", "xhigh", "max"];
 
@@ -148,8 +148,8 @@ export function sandboxArgs(ws: string, repo: string, home: string): string[] {
     ".claude/commands",
     ".codex/sessions",
     ".codex/memories",
-    ".gemini/tmp",
-    ".gemini/history",
+    ".gemini/antigravity-cli",
+    ".gemini/config",
   ])
     if (isDir(join(home, d))) a.push("--tmpfs", join(home, d));
   for (const f of [".claude/CLAUDE.md", ".codex/AGENTS.md", ".gemini/GEMINI.md"])
@@ -158,10 +158,13 @@ export function sandboxArgs(ws: string, repo: string, home: string): string[] {
   return a;
 }
 
+/** agy's tools on the web and MCP, which Claude's builds go without too. */
+export const AGY_DENY = ["read_url(*)", "execute_url(*)", "mcp(*)"];
+
 /**
  * The command a provider's CLI runs inside the sandbox. Each runs with its own permission
  * prompts off: nobody is there to answer them, and the bubblewrap sandbox is the boundary.
- * Claude and Codex stream JSON events, one per line, which feed the live view.
+ * Each streams JSON events, one per line, which feed the live view.
  */
 export function cliCmd(cli: Cli, model: string, effort: string, prompt: string): string[] {
   switch (cli) {
@@ -209,20 +212,45 @@ export function cliCmd(cli: Cli, model: string, effort: string, prompt: string):
         model,
         prompt,
       ];
-    case "gemini":
-      return ["gemini", "-p", prompt, "-m", model, "--output-format", "json", "--yolo"];
+    case "agy":
+      return [
+        "agy",
+        "-p",
+        prompt,
+        "--model",
+        model,
+        "--effort",
+        effort,
+        "--output-format",
+        "stream-json",
+        "--dangerously-skip-permissions",
+        "--disable-slash-commands",
+        "--settings",
+        JSON.stringify({ permissions: { deny: AGY_DENY } }),
+      ];
   }
 }
 
 export interface Usage {
+  /** Every input token, cache reads and writes included. */
   inputTokens: number | null;
+  cachedInputTokens: number | null;
+  cacheWriteTokens: number | null;
   outputTokens: number | null;
   costUsd: number | null;
   turns: number | null;
   error: string | null;
 }
 
-const NO_USAGE: Usage = { inputTokens: null, outputTokens: null, costUsd: null, turns: null, error: null };
+const NO_USAGE: Usage = {
+  inputTokens: null,
+  cachedInputTokens: null,
+  cacheWriteTokens: null,
+  outputTokens: null,
+  costUsd: null,
+  turns: null,
+  error: null,
+};
 
 function jsonLines(text: string): Record<string, unknown>[] {
   const out: Record<string, unknown>[] = [];
@@ -252,6 +280,8 @@ export function parseUsage(cli: Cli, text: string): Usage {
     return {
       inputTokens:
         (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0),
+      cachedInputTokens: u.cache_read_input_tokens ?? null,
+      cacheWriteTokens: u.cache_creation_input_tokens ?? null,
       outputTokens: u.output_tokens ?? null,
       costUsd: r.total_cost_usd ?? null,
       turns: r.num_turns ?? null,
@@ -263,21 +293,28 @@ export function parseUsage(cli: Cli, text: string): Usage {
     const turns = events.filter((e) => e.type === "turn.completed").map((e) => e.usage ?? {});
     return {
       inputTokens: sum(turns.map((u) => u.input_tokens ?? 0)),
+      cachedInputTokens: sum(turns.map((u) => u.cached_input_tokens ?? 0)),
+      cacheWriteTokens: sum(turns.map((u) => u.cache_write_input_tokens ?? 0)),
+      // Includes reasoning_output_tokens, which is a breakdown of it.
       outputTokens: sum(turns.map((u) => u.output_tokens ?? 0)),
       costUsd: null,
       turns: turns.length,
       error: null,
     };
   }
-  const g = events[events.length - 1];
-  if (!g) return NO_USAGE;
-  const models = Object.values(g.stats?.models ?? {}) as Json[];
+  // agy: input_tokens leaves out cache reads, and output_tokens already counts thinking_tokens.
+  const r = [...events].reverse().find((e) => e.event === "result")?.result;
+  if (!r) return NO_USAGE;
+  const u = r.usage ?? {};
+  const cached = u.cache_read_tokens ?? 0;
   return {
-    inputTokens: sum(models.map((m) => m.tokens?.prompt ?? 0)),
-    outputTokens: sum(models.map((m) => m.tokens?.candidates ?? 0)),
+    inputTokens: u.input_tokens == null ? null : u.input_tokens + cached,
+    cachedInputTokens: u.cache_read_tokens ?? null,
+    cacheWriteTokens: null,
+    outputTokens: u.output_tokens ?? null,
     costUsd: null,
-    turns: null,
-    error: g.error?.message ?? null,
+    turns: r.num_turns ?? null,
+    error: r.status === "SUCCESS" ? null : String(r.error ?? r.response ?? r.status ?? "error"),
   };
 }
 
@@ -343,8 +380,16 @@ export function parseActivity(cli: Cli, line: string): Activity[] {
       const files = (item.changes ?? []).map((c: Json) => shortPath(String(c.path ?? "")));
       return [{ text: `edit ${files.join(", ")}`.trim(), tool: true }];
     }
+    return [];
   }
-  return [];
+  const s = e.step_update;
+  if (e.event !== "step_update" || s?.step_type !== "tool" || s.state !== "ACTIVE") return [];
+  const params = s.tool_info?.parameters ?? {};
+  if (typeof params.CommandLine === "string")
+    return [{ text: `$ ${firstLine(params.CommandLine)}`, tool: true }];
+  const path = Object.values(params).find((v) => typeof v === "string" && v.startsWith("/"));
+  const name = String(s.tool_name ?? "tool");
+  return [{ text: typeof path === "string" ? `${name} ${shortPath(path)}` : name, tool: true }];
 }
 
 export interface RunInfo {
@@ -420,6 +465,8 @@ export function buildManifest(m: ManifestInput): Record<string, unknown> {
   const usage = Object.fromEntries(
     Object.entries({
       inputTokens: m.usage.inputTokens,
+      cachedInputTokens: m.usage.cachedInputTokens,
+      cacheWriteTokens: m.usage.cacheWriteTokens,
       outputTokens: m.usage.outputTokens,
       costUsd: m.usage.costUsd,
       wallTimeS: m.wallTimeS,
@@ -440,7 +487,7 @@ export function buildManifest(m: ManifestInput): Record<string, unknown> {
       practiceTracks: m.opts.practice,
       sandbox: "bubblewrap",
       timeLimitMin: m.opts.timeout,
-      effort: m.entry.cli === "gemini" ? null : m.entry.effort,
+      effort: m.entry.effort,
       outcome: m.outcome,
       driverSource: m.source,
       turns: m.usage.turns,

@@ -7,6 +7,8 @@
   "simVersion": "0.2.0",
   "usage": {
     "inputTokens": 1738740,
+    "cachedInputTokens": 1669848,
+    "cacheWriteTokens": 68828,
     "outputTokens": 21525,
     "costUsd": 1.3153496000000002,
     "wallTimeS": 386,

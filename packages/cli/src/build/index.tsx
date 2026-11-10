@@ -1,6 +1,6 @@
 /**
  * `bench build <name>`: one driver per model in models.json, each written by the model's own coding CLI
- * (claude, codex, gemini) running unattended in a bubblewrap sandbox that only sees its workspace.
+ * (claude, codex, agy) running unattended in a bubblewrap sandbox that only sees its workspace.
  *
  * Output: drivers/<name>/<slug>/{driver.js,manifest.json} and drivers/<name>/event.json, so that
  * `bench race <name>` times them on every circuit, the ones none of them practised on included. Logs go to

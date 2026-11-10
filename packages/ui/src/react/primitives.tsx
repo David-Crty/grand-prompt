@@ -45,7 +45,7 @@ export function EntryName({ entry, meta = false }: { entry: Entry; meta?: boolea
   );
 }
 
-export type BadgeKind = "dnf" | "warn" | "fin" | "ghost" | "trial" | "est" | "outline";
+export type BadgeKind = "dnf" | "warn" | "fin" | "ghost" | "trial" | "outline";
 
 export function StatusBadge({
   kind,

@@ -11,6 +11,8 @@ export function racePoints(position: number | null, lapTime: number | null): num
 
 export interface DriverUsage {
   inputTokens?: number;
+  cachedInputTokens?: number;
+  cacheWriteTokens?: number;
   outputTokens?: number;
   costUsd?: number;
   wallTimeS?: number;

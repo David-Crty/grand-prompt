@@ -31,7 +31,7 @@ The model never touches the controls during the race.
 
 ## How it works
 
-1. **Build.** Each model runs in its own coding CLI (`claude`, `codex`, `gemini`), unattended, in a
+1. **Build.** Each model runs in its own coding CLI (`claude`, `codex`, Antigravity's `agy`), unattended, in a
    [bubblewrap](https://github.com/containers/bubblewrap) sandbox that sees only its workspace. It
    can practise on Monaco, Silverstone and Portimão through a local timing service; it gets back a
    lap time, a telemetry CSV and a text summary. When the time is up, its newest driver that
@@ -63,7 +63,7 @@ database (see [tracks/sources](tracks/sources/README.md)).
 ## Status
 
 The current results come from `gp-1`: nine Claude and GPT models, each built once at medium
-effort. Gemini models are next, as soon as the Gemini CLI is set up. Further out:
+effort. Gemini models are next, built through the Antigravity CLI. Further out:
 wheel-to-wheel racing, with a shared track, collisions and a new driver API.
 
 ## Run it yourself

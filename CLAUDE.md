@@ -23,9 +23,9 @@ this file is for working on it.
   phone) with the race list and the drivers' standings.
 - `gp-1`: 9 Claude and GPT models, built for the flying-lap session at medium effort
   (`agentic-0.5`); `pnpm determinism` uses its drivers.
-- Not done: Gemini ids in `models.json` (the Gemini CLI is not
-  installed here); the video export (Remotion); wheel-to-wheel racing (shared world, collisions,
-  a new API season).
+- Not done: a Gemini build (`models.json` lists Gemini 4 Argon and 3.8 Flash, built through
+  Antigravity's `agy`; no event has them yet); the video export (Remotion); wheel-to-wheel
+  racing (shared world, collisions, a new API season).
 - Known: runoff clipping (`clipRunoffByProximity` in `track.ts`) only looks
   `maxRunoff + 2·maxWidth + 5` m around a sample, so sections slightly farther apart can keep
   overlapping runoff. Fixing it changes results (golden hashes, `SIM_VERSION`).
@@ -110,6 +110,10 @@ pnpm lint && pnpm typecheck && pnpm coverage && pnpm determinism && pnpm --filte
   registration: never create workspaces concurrently.
 - Builds run the model CLIs with their own permission prompts off inside bubblewrap; Claude Code's
   auto mode blocks launching them, so the owner runs builds. Tests never start a model.
+- `agy` signs in once interactively and keeps its token in the desktop keyring, so a build can
+  hide all of `~/.gemini/antigravity-cli` and `~/.gemini/config` (conversations, memories, the
+  owner's skills) behind a tmpfs and still authenticate. Its web and MCP tools are denied by
+  `--settings` rules (`AGY_DENY`); `search_web` has no documented rule.
 - UI: values come from tokens, never a hex in a component; a car is identified by its entry
   (`resolveEntries`), never by a colour in the replay; logic goes in tested pure modules, not in
   components. The visual reference is the owner's design canvas on claude.ai.

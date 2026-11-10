@@ -56,22 +56,25 @@ describe("sandbox and CLI command lines", () => {
     expect(a).toContain(`--ro-bind /dev/null ${home}/.claude/CLAUDE.md`);
     expect(a).toMatch(/--bind \/ws\/m \/tmp\/ws --chdir \/tmp\/ws$/);
     expect(a).not.toContain(".gemini");
+    for (const d of [".gemini/antigravity-cli", ".gemini/config"])
+      mkdirSync(join(home, d), { recursive: true });
+    const g = sandboxArgs("/ws/m", "/repo", home).join(" ");
+    expect(g).toContain(`--bind ${home}/.gemini ${home}/.gemini`);
+    expect(g).toContain(`--tmpfs ${home}/.gemini/antigravity-cli`);
+    expect(g).toContain(`--tmpfs ${home}/.gemini/config`);
   });
   it("runs each provider's CLI unattended with the model and effort", () => {
     const claude = cliCmd("claude", "claude-x", "high", "P");
     expect(claude.slice(0, 7)).toEqual(["claude", "-p", "P", "--model", "claude-x", "--effort", "high"]);
     expect(claude).toContain("stream-json");
     expect(cliCmd("codex", "gpt-x", "low", "P")).toContain('model_reasoning_effort="low"');
-    expect(cliCmd("gemini", "g", "medium", "P")).toEqual([
-      "gemini",
-      "-p",
-      "P",
-      "-m",
-      "g",
-      "--output-format",
-      "json",
-      "--yolo",
-    ]);
+    const agy = cliCmd("agy", "gemini-x", "medium", "P");
+    expect(agy.slice(0, 7)).toEqual(["agy", "-p", "P", "--model", "gemini-x", "--effort", "medium"]);
+    expect(agy).toContain("--dangerously-skip-permissions");
+    const settings = JSON.parse(agy[agy.indexOf("--settings") + 1]!);
+    expect(settings.permissions.deny).toEqual(
+      expect.arrayContaining(["read_url(*)", "execute_url(*)", "mcp(*)"]),
+    );
   });
 });
 
@@ -143,13 +146,20 @@ describe("parseUsage", () => {
   it("reads Claude's stream and plain json", () => {
     const result = {
       type: "result",
-      usage: { input_tokens: 1, cache_read_input_tokens: 10, output_tokens: 5 },
+      usage: {
+        input_tokens: 1,
+        cache_read_input_tokens: 10,
+        cache_creation_input_tokens: 2,
+        output_tokens: 5,
+      },
       total_cost_usd: 0.5,
       num_turns: 3,
     };
     const stream = `${JSON.stringify({ type: "system" })}\n${JSON.stringify(result)}\n`;
     expect(parseUsage("claude", stream)).toEqual({
-      inputTokens: 11,
+      inputTokens: 13,
+      cachedInputTokens: 10,
+      cacheWriteTokens: 2,
       outputTokens: 5,
       costUsd: 0.5,
       turns: 3,
@@ -161,15 +171,53 @@ describe("parseUsage", () => {
   });
   it("sums Codex turns", () => {
     const lines = [
-      { type: "turn.completed", usage: { input_tokens: 4, output_tokens: 2 } },
+      {
+        type: "turn.completed",
+        usage: {
+          input_tokens: 10,
+          cached_input_tokens: 7,
+          cache_write_input_tokens: 1,
+          output_tokens: 4,
+          reasoning_output_tokens: 3,
+        },
+      },
       { type: "turn.completed", usage: {} },
     ];
     const u = parseUsage("codex", lines.map((l) => JSON.stringify(l)).join("\n"));
-    expect(u).toMatchObject({ inputTokens: 4, outputTokens: 2, turns: 2 });
+    expect(u).toMatchObject({
+      inputTokens: 10,
+      cachedInputTokens: 7,
+      cacheWriteTokens: 1,
+      outputTokens: 4,
+      costUsd: null,
+      turns: 2,
+    });
   });
-  it("reads Gemini stats", () => {
-    const g = { stats: { models: { a: { tokens: { prompt: 3, candidates: 1 } } } } };
-    expect(parseUsage("gemini", JSON.stringify(g))).toMatchObject({ inputTokens: 3, outputTokens: 1 });
+  it("reads agy's result, adding cache reads to the input", () => {
+    const usage = {
+      input_tokens: 15,
+      output_tokens: 7,
+      thinking_tokens: 3,
+      cache_read_tokens: 20,
+      total_tokens: 22,
+    };
+    const step = { event: "step_update", step_update: { step_type: "agent_response", usage } };
+    const result = { event: "result", result: { status: "SUCCESS", num_turns: 1, usage } };
+    expect(parseUsage("agy", [step, result].map((l) => JSON.stringify(l)).join("\n"))).toEqual({
+      inputTokens: 35,
+      cachedInputTokens: 20,
+      cacheWriteTokens: null,
+      outputTokens: 7,
+      costUsd: null,
+      turns: 1,
+      error: null,
+    });
+    const failed = { event: "result", result: { status: "ERROR", error: "auth required", usage: {} } };
+    expect(parseUsage("agy", JSON.stringify(failed))).toMatchObject({
+      inputTokens: null,
+      error: "auth required",
+    });
+    expect(parseUsage("agy", JSON.stringify(step)).inputTokens).toBeNull();
   });
 });
 
@@ -208,6 +256,27 @@ describe("parseActivity", () => {
     };
     expect(parseActivity("codex", JSON.stringify(edit))).toEqual([{ text: "edit driver.js", tool: true }]);
     expect(unwrapShell("bash -lc 'echo '\\''hi'\\'''")).toBe("echo 'hi'");
+  });
+  it("describes agy tool calls as they start", () => {
+    const tool = (state: string, tool_name: string, parameters: object) =>
+      JSON.stringify({
+        event: "step_update",
+        step_update: { step_type: "tool", state, tool_name, tool_info: { parameters } },
+      });
+    expect(
+      parseActivity("agy", tool("ACTIVE", "run_command", { CommandLine: "node bench.mjs status" })),
+    ).toEqual([{ text: "$ node bench.mjs status", tool: true }]);
+    expect(
+      parseActivity(
+        "agy",
+        tool("ACTIVE", "write_to_file", { TargetFile: "/tmp/ws/driver.js", Overwrite: true }),
+      ),
+    ).toEqual([{ text: "write_to_file driver.js", tool: true }]);
+    expect(parseActivity("agy", tool("ACTIVE", "list_dir", { Recursive: true }))).toEqual([
+      { text: "list_dir", tool: true },
+    ]);
+    expect(parseActivity("agy", tool("DONE", "run_command", { CommandLine: "ls" }))).toEqual([]);
+    expect(parseActivity("agy", JSON.stringify({ event: "result", result: {} }))).toEqual([]);
   });
 });
 
@@ -261,9 +330,17 @@ describe("outcome and manifest", () => {
       source: "driver.js",
       runs: null,
       wallTimeS: 12,
-      usage: { inputTokens: 5, outputTokens: null, costUsd: null, turns: 1, error: null },
+      usage: {
+        inputTokens: 5,
+        cachedInputTokens: 3,
+        cacheWriteTokens: null,
+        outputTokens: null,
+        costUsd: null,
+        turns: 1,
+        error: null,
+      },
     });
-    expect(m.usage).toEqual({ inputTokens: 5, wallTimeS: 12 });
+    expect(m.usage).toEqual({ inputTokens: 5, cachedInputTokens: 3, wallTimeS: 12 });
     expect(m).toMatchObject({
       provider: "openai",
       settings: { cli: "codex", effort: "medium", cliError: null, turns: 1 },

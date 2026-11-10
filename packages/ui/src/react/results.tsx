@@ -31,7 +31,7 @@ export function Cost({ cost }: { cost: { usd: number; estimated: boolean } | nul
   if (!cost) return dash;
   return cost.estimated ? (
     <span className="gp-est" title="Estimated from tokens × list price">
-      {money(cost.usd)} <StatusBadge kind="est">est</StatusBadge>
+      {money(cost.usd)}
     </span>
   ) : (
     money(cost.usd)

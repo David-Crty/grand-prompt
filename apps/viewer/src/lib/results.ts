@@ -14,6 +14,8 @@ export interface EventResults {
     manifest?: {
       usage?: {
         inputTokens?: number;
+        cachedInputTokens?: number;
+        cacheWriteTokens?: number;
         outputTokens?: number;
         costUsd?: number;
         wallTimeS?: number;
@@ -25,7 +27,27 @@ export interface EventResults {
 
 /** List prices per million tokens, from the committed `prices.json`; dated, because they change. */
 export interface Prices {
-  models: Record<string, { inputPerM: number; outputPerM: number; date?: string; source?: string }>;
+  models: Record<string, Price>;
+}
+
+export interface Price {
+  inputPerM: number;
+  /** Absent: cache reads are charged as plain input. */
+  cachedInputPerM?: number;
+  /** Absent: cache writes are charged as plain input. */
+  cacheWritePerM?: number;
+  outputPerM: number;
+  date?: string;
+  source?: string;
+}
+
+export interface TokenUsage {
+  /** Every input token, cache reads and writes included. */
+  inputTokens?: number;
+  cachedInputTokens?: number;
+  cacheWriteTokens?: number;
+  outputTokens?: number;
+  costUsd?: number;
 }
 
 export interface Cost {
@@ -41,20 +63,25 @@ export interface BuildFacts {
   wallTimeS: number | null;
 }
 
-/** Cost as the CLI reported it, or tokens × list price, marked as an estimate (not cache-adjusted: an upper bound). */
-export function buildCost(
-  id: string,
-  usage: { inputTokens?: number; outputTokens?: number; costUsd?: number } | undefined,
-  prices: Prices,
-): Cost | null {
+/**
+ * Cost as the CLI reported it, or else tokens × list price, marked as an estimate: cache reads, cache
+ * writes, the rest of the input and the output each at their own rate. A manifest without cache counts
+ * is charged at the plain input rate throughout, an upper bound.
+ */
+export function buildCost(id: string, usage: TokenUsage | undefined, prices: Prices): Cost | null {
   if (!usage) return null;
   if (usage.costUsd != null) return { usd: usage.costUsd, estimated: false };
   const p = prices.models[id];
   if (!p || usage.inputTokens == null || usage.outputTokens == null) return null;
-  return {
-    usd: (usage.inputTokens / 1e6) * p.inputPerM + (usage.outputTokens / 1e6) * p.outputPerM,
-    estimated: true,
-  };
+  const cached = usage.cachedInputTokens ?? 0;
+  const written = usage.cacheWriteTokens ?? 0;
+  const plain = Math.max(0, usage.inputTokens - cached - written);
+  const usd =
+    plain * p.inputPerM +
+    cached * (p.cachedInputPerM ?? p.inputPerM) +
+    written * (p.cacheWritePerM ?? p.inputPerM) +
+    usage.outputTokens * p.outputPerM;
+  return { usd: usd / 1e6, estimated: true };
 }
 
 export function buildFacts(id: string, results: EventResults | null, prices: Prices): BuildFacts | null {

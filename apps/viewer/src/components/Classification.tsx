@@ -46,7 +46,7 @@ export function useClassification(model: ViewerModel, results: EventResults | nu
     const limit = results?.rows.find((r) => r.manifest?.settings?.timeLimitMin)?.manifest?.settings
       ?.timeLimitMin;
     const help = {
-      cost: "as the model's CLI reported it, or estimated from tokens × list price (marked est, an upper bound). Blank when no price is known for the model.",
+      cost: "as the model's CLI reported it, or estimated from its tokens at the provider's list prices, cache reads and writes at their own rates (marked ≈). Blank when no price is known for the model.",
       tokens: "input and output tokens the model used.",
       buildTime: `wall time of the session${limit ? `, out of a ${limit} min limit` : ""}.`,
     };

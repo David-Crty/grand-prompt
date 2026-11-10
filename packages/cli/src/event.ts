@@ -21,6 +21,8 @@ export interface Manifest {
   simVersion?: string;
   usage?: {
     inputTokens?: number;
+    cachedInputTokens?: number;
+    cacheWriteTokens?: number;
     outputTokens?: number;
     costUsd?: number;
     wallTimeS?: number;

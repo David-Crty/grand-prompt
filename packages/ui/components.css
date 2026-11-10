@@ -195,13 +195,6 @@
   box-shadow: inset 0 0 0 1px var(--status-warn);
   color: var(--status-warn);
 }
-.gp-badge--est {
-  box-shadow: inset 0 0 0 1px var(--line-control);
-  color: var(--text-300);
-  height: 15px;
-  font-size: 10px;
-  padding: 0 3px;
-}
 .gp-chequer {
   display: inline-block;
   width: 16px;

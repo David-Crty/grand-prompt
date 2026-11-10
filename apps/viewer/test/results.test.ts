@@ -10,7 +10,12 @@ import {
   formatTokens,
 } from "../src/lib/results.js";
 
-const prices = { models: { "gpt-x": { inputPerM: 1, outputPerM: 10 } } };
+const prices = {
+  models: {
+    "gpt-x": { inputPerM: 1, cachedInputPerM: 0.1, cacheWritePerM: 1.25, outputPerM: 10 },
+    "gpt-y": { inputPerM: 1, outputPerM: 10 },
+  },
+};
 const manifest = (usage: object) => ({ usage, settings: { timeLimitMin: 30 } });
 const results: EventResults = {
   event: { id: "gp-1", name: "gp-1" },
@@ -49,6 +54,9 @@ describe("build facts and cost", () => {
       usd: 3,
       estimated: true,
     });
+    const cached = { inputTokens: 2e6, cachedInputTokens: 1.5e6, cacheWriteTokens: 1e5, outputTokens: 1e5 };
+    expect(buildCost("gpt-x", cached, prices)!.usd).toBeCloseTo(0.4 * 1 + 1.5 * 0.1 + 0.1 * 1.25 + 0.1 * 10);
+    expect(buildCost("gpt-y", cached, prices)!.usd).toBeCloseTo(3);
     expect(buildCost("gpt-z", { inputTokens: 1, outputTokens: 1 }, prices)).toBeNull();
     expect(buildCost("gpt-x", { inputTokens: 1 }, prices)).toBeNull();
     expect(buildCost("gpt-x", undefined, prices)).toBeNull();
