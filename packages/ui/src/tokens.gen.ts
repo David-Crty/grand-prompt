@@ -26,6 +26,7 @@ export const COLORS = {
   "status-warn-tint": "#ffb5471f",
   "delta-ahead": "#5aa9ff",
   "delta-behind": "#ff9f43",
+  "telemetry-speed": "#3f8fe8",
   "telemetry-throttle": "#3dd6a3",
   "telemetry-brake": "#ff6b5e",
   "telemetry-steer": "#f2f0eb",

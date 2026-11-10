@@ -58,19 +58,6 @@ export function entriesOf(ids: string[], entries: Map<string, Entry>): Entry[] {
   return ids.flatMap((id) => entries.get(id) ?? []);
 }
 
-/** The focus card's lap clock: the running time from the line, then the lap time once it is timed. */
-export function focusLap(
-  c: CarIndex,
-  row: StandingRow,
-  t: number,
-): { current: number | null; time: number | null } {
-  const running = !row.finished && !row.out && t >= c.startTime;
-  return {
-    current: running ? t - c.startTime : null,
-    time: row.finished && !row.deleted ? c.car.result.lapTime : null,
-  };
-}
-
 /** P1 once its lap is timed: every car crosses the line together, so the first timed lap is the fastest. */
 export function fastestId(rows: StandingRow[]): string | null {
   const p1 = rows[0];

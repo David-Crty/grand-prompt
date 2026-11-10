@@ -17,7 +17,7 @@ import {
 import { useMemo } from "react";
 import { sliderToZoom, TV_TILT, TV_TILT_MAX, TV_TILT_MIN, zoomToSlider } from "../lib/camera.js";
 import type { CarSample } from "../lib/frames.js";
-import { entriesOf, focusLap, ghostLine, mapCars, mapPins } from "../lib/hud.js";
+import { entriesOf, ghostLine, mapCars, mapPins } from "../lib/hud.js";
 import { type Incident, impactText, incidentTitle, replayCountdown } from "../lib/incidents.js";
 import { type RaceMessage, TOAST_KIND } from "../lib/messages.js";
 import { buildMinimap } from "../lib/minimap.js";
@@ -187,17 +187,10 @@ export function IncidentMode(props: {
 export function Focus({ model, snap }: { model: ViewerModel; snap: HudSnapshot }) {
   const row = snap.rows.find((r) => r.id === snap.focusId);
   const entry = model.entries.get(snap.focusId);
-  const car = model.cars.find((c) => c.car.id === snap.focusId);
-  if (!row || !entry || !car) return null;
+  if (!row || !entry) return null;
   return (
     <div className="hud-focus">
-      <FocusCard
-        row={row}
-        entry={entry}
-        sample={snap.focus}
-        fastest={snap.fastestId === row.id}
-        lap={focusLap(car, row, snap.t)}
-      />
+      <FocusCard row={row} entry={entry} sample={snap.focus} />
     </div>
   );
 }

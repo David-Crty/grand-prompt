@@ -591,34 +591,94 @@
 }
 
 /* ---------- telemetry & focus card ---------- */
+/* The dial sits over the left end of the strip, as a broadcast caption does. */
 .gp-focus {
-  width: 320px;
-  overflow: hidden;
+  display: flex;
+  align-items: center;
 }
-.gp-focus__band {
-  --entry: var(--entry-none);
+.gp-focus__dial {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  border-radius: var(--radius-round);
+}
+.gp-dial {
+  display: block;
+}
+.gp-dial__track {
+  fill: var(--surface-400);
+}
+.gp-dial__arc--speed .gp-dial__fill {
+  fill: var(--telemetry-speed);
+}
+.gp-dial__arc--thr .gp-dial__fill {
+  fill: var(--telemetry-throttle);
+}
+.gp-dial__arc--brk .gp-dial__fill {
+  fill: var(--telemetry-brake);
+}
+.gp-dial__label {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  font-variation-settings: "wdth" 110;
+  fill: var(--text-100);
+}
+.gp-dial__label--on {
+  fill: var(--on-chalk);
+}
+.gp-dial__wheel {
+  fill: none;
+  stroke: var(--text-200);
+  stroke-width: 3.5;
+}
+.gp-dial__hub {
+  fill: var(--hud-panel-solid);
+  stroke-width: 2.5;
+}
+.gp-dial__notch {
+  fill: var(--telemetry-steer);
+  stroke: none;
+}
+.gp-dial__speed {
+  font-size: 50px;
+  font-weight: 700;
+  font-variation-settings: "wdth" 75;
+  font-variant-numeric: tabular-nums;
+  fill: var(--text-100);
+}
+.gp-dial__unit {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  fill: var(--text-300);
+}
+.gp-focus__strip {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 248px;
+  min-width: 0;
+  margin-left: -28px;
+  padding: 10px 12px 10px 40px;
+  border-left: 0;
+  border-radius: 0 var(--radius-2) var(--radius-2) 0;
+}
+.gp-focus__row {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--line-100);
+  min-width: 0;
 }
-.gp-focus__band .gp-entry__name {
+.gp-focus__strip .gp-entry__name {
   font-size: 15px;
 }
-.gp-focus__body {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 14px;
-  padding: 10px 12px;
-  align-items: center;
-}
-.gp-focus__laps {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  padding: 8px 12px 10px;
-  border-top: 1px solid var(--line-100);
+.gp-focus__gap {
+  font-size: 22px;
+  line-height: 24px;
+  font-weight: 700;
+  font-variation-settings: "wdth" 75;
+  font-variant-numeric: tabular-nums;
 }
 .gp-stat__k {
   font-size: 10px;
@@ -638,63 +698,10 @@
 .gp-stat__v.is-fastest {
   color: var(--timing-fastest);
 }
-.gp-speed {
-  display: flex;
-  flex-direction: column;
-}
-.gp-speed__v {
-  font-size: 44px;
-  line-height: 44px;
-  font-weight: 700;
-  font-variation-settings: "wdth" 75;
-  font-variant-numeric: tabular-nums;
-  min-width: 2.2ch;
-}
 .gp-speed__u {
   font-size: 10px;
   letter-spacing: 0.08em;
   font-weight: 700;
-  color: var(--text-300);
-}
-.gp-gauges {
-  display: grid;
-  grid-template-columns: 22px 22px 1fr;
-  gap: 10px;
-  align-items: end;
-  height: 56px;
-}
-.gp-vbar {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  height: 100%;
-}
-.gp-vbar__track {
-  flex: 1;
-  width: 10px;
-  background: var(--surface-300);
-  border-radius: var(--radius-2);
-  position: relative;
-  overflow: hidden;
-}
-.gp-vbar__fill {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  border-radius: var(--radius-2);
-}
-.gp-vbar--thr .gp-vbar__fill {
-  background: var(--telemetry-throttle);
-}
-.gp-vbar--brk .gp-vbar__fill {
-  background: var(--telemetry-brake);
-}
-.gp-vbar__k {
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
   color: var(--text-300);
 }
 /* ---------- control panel & range ---------- */
@@ -767,56 +774,7 @@
   color: var(--text-100);
 }
 
-.gp-steer {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  justify-content: flex-end;
-  height: 100%;
-}
-.gp-steer__track {
-  height: 6px;
-  background: var(--surface-300);
-  border-radius: var(--radius-2);
-  position: relative;
-}
-.gp-steer__track::before {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: -3px;
-  bottom: -3px;
-  width: 1px;
-  background: var(--line-control);
-}
-.gp-steer__tick {
-  position: absolute;
-  top: -4px;
-  width: 4px;
-  height: 14px;
-  margin-left: -2px;
-  background: var(--telemetry-steer);
-  border-radius: 1px;
-}
-.gp-steer__row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.gp-surface {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  padding: 1px 4px;
-  border-radius: var(--radius-2);
-  background: var(--surface-300);
-  color: var(--text-200);
-}
-.gp-surface--off {
-  background: var(--status-warn);
-  color: var(--on-chalk);
-}
-.gp-focus.is-out .gp-focus__body {
+.gp-focus.is-out .gp-focus__dial {
   opacity: var(--opacity-out);
 }
 

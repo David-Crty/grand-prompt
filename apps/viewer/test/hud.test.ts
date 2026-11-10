@@ -9,7 +9,6 @@ import {
   fastestId,
   finishers,
   focusAfter,
-  focusLap,
   ghostLine,
   justOut,
   mapCars,
@@ -85,15 +84,9 @@ describe("hud data", () => {
     expect(mapPins(model, 5, project)).toEqual([]);
   });
 
-  it("derives the focus card's lap clock, the fastest car and the start board's entries", () => {
+  it("derives the fastest car and the start board's entries", () => {
     const rows = (t: number) => liveStandings(model.cars, t);
-    const a = model.cars[0]!;
-    const atStart = focusLap(a, rows(a.startTime + 2).find((r) => r.id === "a")!, a.startTime + 2);
-    expect(atStart.current).toBeCloseTo(2);
-    expect(atStart.time).toBeNull();
     const end = model.duration;
-    const done = focusLap(a, rows(end).find((r) => r.id === "a")!, end);
-    expect(done).toEqual({ current: null, time: a.car.result.lapTime });
     expect(fastestId(rows(1))).toBeNull();
     expect(fastestId(rows(end))).toBe("a");
     expect(fastestId([])).toBeNull();

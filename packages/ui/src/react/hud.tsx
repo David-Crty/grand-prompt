@@ -1,9 +1,10 @@
 import * as React from "react";
 import { CAMERA_LABEL, CAMERA_MODES, type CameraMode } from "../cameras.js";
 import { type Entry, entryVar } from "../entries.js";
-import { formatClock, formatGap, formatLapTime, kmh } from "../format.js";
+import { formatClock, formatGap, kmh } from "../format.js";
+import { arcPath, fillTo, GAUGE_MAX_KMH, sectorPath, wheelAngle } from "../gauge.js";
 import { mergeMarkers, type TimelineMarker } from "../timeline.js";
-import { lapOrDash, type TimingRow } from "../timing.js";
+import type { TimingRow } from "../timing.js";
 import { Icon, type IconName, MarkerIcon } from "./icons.js";
 import {
   cx,
@@ -13,7 +14,6 @@ import {
   IconButton,
   PositionBox,
   SegmentedControl,
-  Stat,
   StatusBadge,
 } from "./primitives.js";
 import { GapText } from "./timing.js";
@@ -30,38 +30,97 @@ export interface TelemetrySample {
   ended: boolean;
 }
 
-const SURFACES = ["TRACK", "KERB", "GRASS", "GRAVEL", "BARRIER"];
 const pct = (v: number) => `${Math.round(Math.min(1, Math.max(0, v)) * 100)}%`;
 
-export function TelemetryGauge({ sample }: { sample: TelemetrySample | null }) {
-  const live = sample && !sample.ended ? sample : null;
-  const surface = sample?.surface ?? 0;
+const DIAL = 196;
+const C = DIAL / 2;
+const SPEED = { r: 88, w: 7, a0: 225, a1: 495 };
+const THROTTLE = { r: 71, w: 13, a0: 228, a1: 352 };
+const BRAKE = { r: 71, w: 13, a0: 8, a1: 132 };
+const WHEEL_R = 17;
+
+type Ring = { r: number; w: number; a0: number; a1: number };
+
+function DialArc({
+  id,
+  ring,
+  value,
+  tone,
+  label,
+}: {
+  id: string;
+  ring: Ring;
+  value: number;
+  tone: "speed" | "thr" | "brk";
+  label?: string;
+}) {
+  const { r, w, a0, a1 } = ring;
+  const fill = sectorPath(C, C, r - w / 2, r + w / 2, a0, fillTo(a0, a1, value));
+  const text = label ? (
+    <textPath href={`#${id}-p`} startOffset="50%" textAnchor="middle">
+      {label}
+    </textPath>
+  ) : null;
   return (
-    <div className="gp-gauges">
-      <div className="gp-vbar gp-vbar--thr">
-        <div className="gp-vbar__track">
-          <i className="gp-vbar__fill" style={{ height: pct(live?.throttle ?? 0) }} />
-        </div>
-        <span className="gp-vbar__k">THR</span>
-      </div>
-      <div className="gp-vbar gp-vbar--brk">
-        <div className="gp-vbar__track">
-          <i className="gp-vbar__fill" style={{ height: pct(live?.brake ?? 0) }} />
-        </div>
-        <span className="gp-vbar__k">BRK</span>
-      </div>
-      <div className="gp-steer">
-        <div className="gp-steer__row">
-          <span className="gp-vbar__k">STEER</span>
-          <span className={cx("gp-surface", surface >= 2 && "gp-surface--off")}>
-            {SURFACES[surface] ?? "TRACK"}
-          </span>
-        </div>
-        <div className="gp-steer__track">
-          <i className="gp-steer__tick" style={{ left: `${50 - (live?.steer ?? 0) * 50}%` }} />
-        </div>
-      </div>
-    </div>
+    <g className={`gp-dial__arc gp-dial__arc--${tone}`}>
+      <path className="gp-dial__track" d={sectorPath(C, C, r - w / 2, r + w / 2, a0, a1)} />
+      <path className="gp-dial__fill" d={fill} />
+      {label ? (
+        <>
+          <path id={`${id}-p`} d={arcPath(C, C, r, a0, a1)} fill="none" />
+          <clipPath id={`${id}-c`}>
+            <path d={fill} />
+          </clipPath>
+          <text className="gp-dial__label" dominantBaseline="central">
+            {text}
+          </text>
+          <text
+            className="gp-dial__label gp-dial__label--on"
+            dominantBaseline="central"
+            clipPath={`url(#${id}-c)`}
+          >
+            {text}
+          </text>
+        </>
+      ) : null}
+    </g>
+  );
+}
+
+/** Speed on a fixed scale round the rim, throttle left and brake right inside it, the wheel turning with steer. */
+export function TelemetryDial({ sample }: { sample: TelemetrySample | null }) {
+  const id = `gp-dial-${React.useId().replace(/[^a-zA-Z0-9]/g, "")}`;
+  const live = sample && !sample.ended ? sample : null;
+  const speed = live ? kmh(live.speed) : 0;
+  const thr = live?.throttle ?? 0;
+  const brk = live?.brake ?? 0;
+  return (
+    <svg
+      className="gp-dial"
+      width={DIAL}
+      height={DIAL}
+      viewBox={`0 0 ${DIAL} ${DIAL}`}
+      role="img"
+      aria-label={`${speed} km/h, throttle ${pct(thr)}, brake ${pct(brk)}`}
+    >
+      <DialArc id={`${id}-s`} ring={SPEED} value={speed / GAUGE_MAX_KMH} tone="speed" />
+      <DialArc id={`${id}-t`} ring={THROTTLE} value={thr} tone="thr" label="THROTTLE" />
+      <DialArc id={`${id}-b`} ring={BRAKE} value={brk} tone="brk" label="BRAKE" />
+      <g transform={`translate(${C} ${C - 38})`}>
+        <g className="gp-dial__wheel" transform={`rotate(${wheelAngle(live?.steer ?? 0)})`}>
+          <circle r={WHEEL_R} />
+          <path d={`M${-WHEEL_R} 0 H${WHEEL_R} M0 0 V${WHEEL_R}`} />
+          <circle className="gp-dial__hub" r={5} />
+          <rect className="gp-dial__notch" x={-2.5} y={-WHEEL_R - 4} width={5} height={7} rx={1} />
+        </g>
+      </g>
+      <text className="gp-dial__speed" x={C} y={C + 12} textAnchor="middle" dominantBaseline="central">
+        {speed}
+      </text>
+      <text className="gp-dial__unit" x={C} y={C + 44} textAnchor="middle">
+        KM/H
+      </text>
+    </svg>
   );
 }
 
@@ -69,56 +128,42 @@ export function FocusCard({
   row,
   entry,
   sample,
-  lap,
-  fastest,
 }: {
   row: TimingRow;
   entry: Entry;
   sample: TelemetrySample | null;
-  /** Running time since the line, and the lap time once it is timed. */
-  lap: { current: number | null; time: number | null };
-  fastest: boolean;
 }) {
-  const speed = !sample || sample.ended || row.out ? 0 : kmh(sample.speed);
   return (
-    <section className={cx("gp-focus gp-panel", row.out && "is-out")} aria-label="Followed car">
-      <div className="gp-focus__band" style={entryStyle(entry)}>
-        <PositionBox position={row.position} out={row.out} />
-        <EntryName entry={entry} meta />
-        <span className="gp-flex" />
-        {row.out ? (
-          <StatusBadge kind="dnf">DNF</StatusBadge>
-        ) : row.deleted ? (
-          <StatusBadge kind="warn">DEL</StatusBadge>
-        ) : row.finished ? (
-          <StatusBadge kind="fin">FIN</StatusBadge>
-        ) : null}
+    <section className={cx("gp-focus", row.out && "is-out")} aria-label="Followed car">
+      <div className="gp-focus__dial gp-panel">
+        <TelemetryDial sample={row.out ? null : sample} />
       </div>
-      <div className="gp-focus__body">
-        <div className="gp-speed">
-          <span className="gp-speed__v">{speed}</span>
-          <span className="gp-speed__u">KM/H</span>
+      <div className="gp-focus__strip gp-panel">
+        <div className="gp-focus__row">
+          <PositionBox position={row.position} out={row.out} />
+          <EntryName entry={entry} meta />
+          <span className="gp-flex" />
+          {row.out ? (
+            <StatusBadge kind="dnf">DNF</StatusBadge>
+          ) : row.deleted ? (
+            <StatusBadge kind="warn">DEL</StatusBadge>
+          ) : row.finished ? (
+            <StatusBadge kind="fin">FIN</StatusBadge>
+          ) : null}
         </div>
-        <TelemetryGauge sample={sample} />
-      </div>
-      <div className="gp-focus__laps">
-        <Stat
-          k="Lap"
-          v={row.out || row.finished ? "–" : lapOrDash(lap.current, (t) => formatLapTime(t, 1))}
-        />
-        <Stat
-          k="Time"
-          v={row.deleted ? "No time" : lapOrDash(lap.time, (t) => formatLapTime(t))}
-          fastest={fastest}
-        />
-        <Stat k="Gap" v={row.position === 1 || row.gap == null ? "–" : formatGap(row.gap)} />
+        <div className="gp-focus__row">
+          <span className="gp-stat__k">Gap</span>
+          <span className="gp-focus__gap">
+            {row.position === 1 || row.gap == null ? "–" : formatGap(row.gap)}
+          </span>
+        </div>
       </div>
     </section>
   );
 }
 
 /**
- * A labelled slider drawn like the steer gauge: a track, a chalk tick for the value and a faint mark
+ * A labelled slider: a track, a chalk tick for the value and a faint mark
  * at `mark`, the default, which a double-click returns to.
  */
 export function RangeControl({
