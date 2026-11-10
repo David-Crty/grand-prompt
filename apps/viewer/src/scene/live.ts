@@ -45,6 +45,7 @@ export interface LiveState {
     offset: [number, number];
     span: number;
     framed: string[];
+    wait: Record<string, number>;
   };
   wheelSpin: number[];
   fps: {

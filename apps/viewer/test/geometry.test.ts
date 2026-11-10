@@ -7,10 +7,14 @@ import {
   onboardPose,
   stepZoom,
   TV_JOIN,
+  TV_JOIN_HOLD,
+  TV_LEAVE_HOLD,
   TV_MARGIN,
   TV_MAX_SPAN,
   TV_MIN_SPAN,
   TV_PAD,
+  TV_STRETCH,
+  TV_TILT,
   TV_ZOOM_MAX,
   TV_ZOOM_MIN,
   tvFrame,
@@ -220,7 +224,7 @@ describe("camera", () => {
   });
   it("frames the focus alone at the tightest zoom", () => {
     const f = tvFrame({ id: "a", x: 10, y: 20 }, [{ id: "z", x: 900, y: 20 }], 0, 16 / 9);
-    expect(f).toEqual({ x: 10, y: 20, span: TV_MIN_SPAN, ids: ["a"] });
+    expect(f).toEqual({ x: 10, y: 20, span: TV_MIN_SPAN, ids: ["a"], wait: {} });
   });
   it("zooms out for nearby cars, nearest first, up to the max span", () => {
     const focus = { id: "a", x: 0, y: 0 };
@@ -232,7 +236,7 @@ describe("camera", () => {
     expect(f.span).toBeCloseTo((55 + 2 * TV_PAD) / (1 - 2 * TV_MARGIN));
     expect(f.x).toBeCloseTo(-27.5);
     expect(f.y).toBeCloseTo(0);
-    const tight = tvFrame(focus, [near, mid], 0, 16 / 9, [], 90);
+    const tight = tvFrame(focus, [near, mid], 0, 16 / 9, { maxSpan: 90 });
     expect(tight.ids).toEqual(["a", "b"]);
     expect(tight.span).toBeLessThanOrEqual(90);
   });
@@ -249,20 +253,62 @@ describe("camera", () => {
     const gap = ((TV_MAX_SPAN * (TV_JOIN + 1)) / 2) * (1 - 2 * TV_MARGIN) - 2 * TV_PAD;
     const cars = [{ id: "b", x: gap, y: 0 }];
     expect(tvFrame({ id: "a", x: 0, y: 0 }, cars, 0, 16 / 9).ids).toEqual(["a"]);
-    const kept = tvFrame({ id: "a", x: 0, y: 0 }, cars, 0, 16 / 9, ["a", "b"]);
+    const kept = tvFrame({ id: "a", x: 0, y: 0 }, cars, 0, 16 / 9, { prev: ["a", "b"] });
     expect(kept.ids).toEqual(["a", "b"]);
     expect(kept.span).toBeLessThanOrEqual(TV_MAX_SPAN);
   });
+  const gapAt = (share: number) => share * TV_MAX_SPAN * (1 - 2 * TV_MARGIN) - 2 * TV_PAD;
+  const run = (xs: number[], dt: number, prev: string[]) => {
+    let f = { ids: prev, wait: {} as Record<string, number> };
+    const seen: string[][] = [];
+    for (const x of xs) {
+      f = tvFrame({ id: "a", x: 0, y: 0 }, [{ id: "b", x, y: 0 }], 0, 16 / 9, {
+        prev: f.ids,
+        wait: f.wait,
+        dt,
+      });
+      seen.push(f.ids);
+    }
+    return { f, seen };
+  };
+  it("lets a car join only once it has fitted for the join hold", () => {
+    const inside = gapAt(TV_JOIN * 0.9);
+    const steps = Math.ceil(TV_JOIN_HOLD / 0.25);
+    const { f, seen } = run(Array(steps).fill(inside), 0.25, ["a"]);
+    expect(seen.slice(0, -1).every((ids) => ids.length === 1)).toBe(true);
+    expect(f.ids).toEqual(["a", "b"]);
+    expect(f.wait).toEqual({});
+  });
+  it("restarts the hold when a car drifts back across the limit", () => {
+    const xs = [gapAt(0.5), gapAt(0.5), gapAt(0.95), gapAt(0.5), gapAt(0.95), gapAt(0.5)];
+    const { seen } = run(xs, TV_JOIN_HOLD / 3, ["a"]);
+    expect(seen.every((ids) => ids.length === 1)).toBe(true);
+  });
+  it("holds a framed car past the limit for the leave hold, then lets it go", () => {
+    const out = gapAt(1.1);
+    const steps = Math.ceil(TV_LEAVE_HOLD / 0.25);
+    const { f, seen } = run(Array(steps).fill(out), 0.25, ["a", "b"]);
+    expect(seen.slice(0, -1).every((ids) => ids.length === 2)).toBe(true);
+    expect(seen[0]!.length).toBe(2);
+    expect(f.ids).toEqual(["a"]);
+  });
+  it("drops a framed car at once past the stretch, and decides at once on a new focus", () => {
+    expect(run([gapAt(TV_STRETCH * 1.05)], 0.01, ["a", "b"]).f.ids).toEqual(["a"]);
+    expect(run([gapAt(0.5)], 0.01, ["z", "b"]).f.ids).toEqual(["a", "b"]);
+    expect(run([gapAt(0.5)], 0.01, []).f.ids).toEqual(["a", "b"]);
+  });
   it("looks straight down with the heading pointing right, clear of the HUD", () => {
-    const p = tvPose({ x: 100, y: 50, span: 60 }, 0, 1600, 900);
+    const top = (f: { x: number; y: number; span: number }, h: number, ins?: Parameters<typeof tvPose>[4]) =>
+      tvPose(f, h, 1600, 900, ins, 24, 0);
+    const p = top({ x: 100, y: 50, span: 60 }, 0);
     expect(p.pos[0]).toBeCloseTo(100);
     expect(p.pos[2]).toBeCloseTo(-50);
     expect(p.look).toEqual([p.pos[0], 0, p.pos[2]]);
     expect(p.up?.[0]).toBeCloseTo(0);
     expect(p.up?.[2]).toBeCloseTo(-1);
-    const wide = tvPose({ x: 100, y: 50, span: 120 }, 0, 1600, 900);
+    const wide = top({ x: 100, y: 50, span: 120 }, 0);
     expect(wide.pos[1]).toBeCloseTo(p.pos[1] * 2);
-    const hud = tvPose({ x: 100, y: 50, span: 60 }, 0, 1600, 900, {
+    const hud = top({ x: 100, y: 50, span: 60 }, 0, {
       left: 400,
       right: 0,
       top: 100,
@@ -270,7 +316,7 @@ describe("camera", () => {
     });
     expect(hud.pos[0]).toBeLessThan(100);
     expect(-hud.pos[2]).toBeGreaterThan(50);
-    const north = tvPose({ x: 0, y: 0, span: 60 }, Math.PI / 2, 1600, 900, {
+    const north = top({ x: 0, y: 0, span: 60 }, Math.PI / 2, {
       left: 400,
       right: 0,
       top: 0,
@@ -279,6 +325,16 @@ describe("camera", () => {
     expect(north.pos[0]).toBeCloseTo(0);
     expect(-north.pos[2]).toBeLessThan(0);
     expect(north.up?.[0]).toBeCloseTo(-1);
+  });
+  it("leans off the vertical from the car's right, at the same distance", () => {
+    const flat = tvPose({ x: 100, y: 50, span: 60 }, 0, 1600, 900, undefined, 24, 0);
+    const lean = tvPose({ x: 100, y: 50, span: 60 }, 0, 1600, 900);
+    expect(lean.look).toEqual(flat.look);
+    const [bx, by, bz] = [lean.pos[0] - lean.look[0], lean.pos[1], lean.pos[2] - lean.look[2]];
+    expect(Math.hypot(bx, by, bz)).toBeCloseTo(flat.pos[1]);
+    expect(bx).toBeCloseTo(0);
+    expect(bz).toBeGreaterThan(0);
+    expect((Math.atan2(Math.hypot(bx, bz), by) * 180) / Math.PI).toBeCloseTo(TV_TILT);
   });
 });
 

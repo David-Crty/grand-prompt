@@ -79,6 +79,7 @@ export function Viewer({
         offset: [0, 0],
         span: 0,
         framed: [],
+        wait: {},
       },
       wheelSpin: [],
       fps: { frames: 0, acc: 0, avgMs: 0, lastLog: 0, jsAcc: 0, jsMs: 0, calls: 0, tris: 0 },

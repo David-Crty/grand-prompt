@@ -132,15 +132,13 @@ export function Driver({
         return k === focusIdx || o.ended ? [] : [{ id: c.car.id, x: o.x, y: o.y }];
       });
       const prevFocus = L.cam.framed[0];
-      const frame = tvFrame(
-        { id: L.focusId, x: a.x, y: a.y },
-        others,
-        L.cam.heading,
-        aspect,
-        L.cam.framed,
-        TV_MAX_SPAN / L.tvZoom,
-        TV_MIN_SPAN / L.tvZoom,
-      );
+      const frame = tvFrame({ id: L.focusId, x: a.x, y: a.y }, others, L.cam.heading, aspect, {
+        prev: fresh ? [] : L.cam.framed,
+        wait: L.cam.wait,
+        dt,
+        maxSpan: TV_MAX_SPAN / L.tvZoom,
+        minSpan: TV_MIN_SPAN / L.tvZoom,
+      });
       const target: [number, number] = [frame.x - a.x, frame.y - a.y];
       if (fresh) {
         L.cam.offset = target;
@@ -157,6 +155,7 @@ export function Driver({
         L.cam.span = damp(L.cam.span, frame.span, 2.2 * rate, dt);
       }
       L.cam.framed = frame.ids;
+      L.cam.wait = frame.wait;
       pose = tvPose(
         { x: a.x + L.cam.offset[0], y: a.y + L.cam.offset[1], span: L.cam.span },
         L.cam.heading,
