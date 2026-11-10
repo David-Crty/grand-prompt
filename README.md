@@ -118,7 +118,7 @@ roster model owns.
 ### 2. Race
 
 ```shell
-pnpm bench race r2-medium                          # every circuit -> results/races/r2-medium-<track>/
+pnpm bench race r2-medium                          # every circuit -> results/races/<track>/r2-medium/
 pnpm bench race r2-medium --track monaco           # one circuit
 pnpm bench reproduce r2-medium                     # re-run every race and check every hash
 ```
@@ -135,9 +135,11 @@ crossing the line together at the same speed, then one timed lap.
 make dev      # http://localhost:5173/
 ```
 
-The home page lists the races of one event, `/races/<id>` plays one (`/races/r2-medium-monaco`)
-and `/drivers` lists the models that built the event's drivers, with their standings: 10-8-6-5-4-3-2-1
-points in every race for a valid lap. The lists open on `defaultEvent` in [site.json](site.json), and
+The home page lists the races of one event, `/races/<track>/<event>` plays one
+(`/races/monaco/r2-medium`, whose picker switches to another event on the same circuit and restarts
+the lap in the same camera), `/races/<track>/<event>/results` gives its full results with a tab per
+event on that circuit, and `/drivers` lists the models that built the event's drivers, with their
+standings: 10-8-6-5-4-3-2-1 points in every race for a valid lap. The lists open on `defaultEvent` in [site.json](site.json), and
 the event picker (or `?event=r2-medium`) shows another. Results stay hidden until you show them. Press `?` for the
 keyboard shortcuts. Below 600 px wide it switches to a phone layout.
 

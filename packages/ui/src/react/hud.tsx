@@ -645,17 +645,19 @@ export function MiniMap({
 
 // ------------------------------------------------------------------ phone
 
-/** The phone's header bar: back, track and the clock. */
+/** The phone's header bar: back, track, a picker (the event) and the clock. */
 export function SessionBar({
   backHref,
   backLabel,
   track,
+  picker,
   final = false,
   t,
 }: {
   backHref?: string;
   backLabel?: string;
   track: string;
+  picker?: React.ReactNode;
   /** Every car has finished or retired. */
   final?: boolean;
   t: number;
@@ -674,6 +676,7 @@ export function SessionBar({
       <div className="gp-bar__track">
         <span className="gp-session__name">{track}</span>
       </div>
+      {picker}
       {final ? <span className="gp-c gp-bar__lap">FINAL</span> : null}
       <span className="gp-session__clock gp-c gp-bar__clock">{formatClock(t)}</span>
     </header>

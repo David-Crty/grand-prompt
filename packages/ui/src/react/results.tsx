@@ -22,6 +22,23 @@ export interface ClassRow {
     tokens: string;
     buildTime: string;
   } | null;
+  /** The cells of the table's `extras` columns, in their order. */
+  extra?: React.ReactNode[];
+}
+
+/** A column after the sectors; a `result` one is concealed with the others. */
+export interface ExtraColumn {
+  label: string;
+  result?: boolean;
+}
+
+/** In place of a result while results are hidden: the same blurred mark in every cell, so no width tells. */
+function Concealed({ mark = "0:00.000" }: { mark?: string }) {
+  return (
+    <span className="gp-concealed" aria-hidden="true">
+      {mark}
+    </span>
+  );
 }
 
 const dash = "–";
@@ -106,20 +123,25 @@ export function BuildFactsHelp({
 }
 
 /**
- * The final classification: the driver program and, with `full`, what it took to build, then the lap and its
- * sectors. A car without a time shows why in place of its lap time.
+ * The final classification: the driver program and, with `full`, what it took to build, then the lap, its
+ * sectors and any `extras`. A car without a time shows why in place of its lap time. `concealed` hides every
+ * result (place, lap, gap, sectors, result extras) and leaves the rows in the order given.
  */
 export function ClassificationTable({
   rows,
   columns,
   sectors = 3,
   buildHelp,
+  extras = [],
+  concealed = false,
 }: {
   rows: ClassRow[];
   columns: "lap" | "full";
   sectors?: number;
   /** The driver build column's "?" popover. */
   buildHelp?: React.ReactNode;
+  extras?: ExtraColumn[];
+  concealed?: boolean;
 }) {
   const full = columns === "full";
   const names = Array.from({ length: sectors }, (_, k) => `S${k + 1}`);
@@ -145,13 +167,20 @@ export function ClassificationTable({
                 {n}
               </th>
             ))}
+            {extras.map((x) => (
+              <th key={x.label} className="n">
+                {x.label}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.entry.id} className={r.lapTime == null ? "is-out" : undefined}>
+            <tr key={r.entry.id} className={r.lapTime == null && !concealed ? "is-out" : undefined}>
               <td>
-                {r.position == null ? (
+                {concealed ? (
+                  <Concealed mark="00" />
+                ) : r.position == null ? (
                   <StatusBadge kind="outline">{r.out ? "DNF" : "–"}</StatusBadge>
                 ) : (
                   <PositionBox position={r.position} />
@@ -161,7 +190,21 @@ export function ClassificationTable({
                 <EntryName entry={r.entry} />
               </td>
               {full ? <td>{r.build ? <BuildFacts build={r.build} /> : null}</td> : null}
-              {r.lapTime != null ? (
+              {concealed ? (
+                <>
+                  <td className="n">
+                    <Concealed />
+                  </td>
+                  <td className="n">
+                    <Concealed mark="+0.000" />
+                  </td>
+                  {names.map((n) => (
+                    <td key={n} className="n">
+                      <Concealed mark="00.000" />
+                    </td>
+                  ))}
+                </>
+              ) : r.lapTime != null ? (
                 <>
                   <td className={`n${r.position === 1 ? " is-fastest" : ""}`}>{formatLapTime(r.lapTime)}</td>
                   <td className="n">{r.gap != null ? formatGap(r.gap) : ""}</td>
@@ -179,6 +222,11 @@ export function ClassificationTable({
                   <NoTime row={r} /> <span className="gp-faint gp-outtext">{r.outText}</span>
                 </td>
               )}
+              {extras.map((x, k) => (
+                <td key={x.label} className="n">
+                  {concealed && x.result ? <Concealed mark="000" /> : r.extra?.[k]}
+                </td>
+              ))}
             </tr>
           ))}
         </tbody>
@@ -187,36 +235,64 @@ export function ClassificationTable({
   );
 }
 
-/** The phone's classification: one block per car, the time on the right, build facts underneath. */
-export function ResultList({ rows, showBuild }: { rows: ClassRow[]; showBuild: boolean }) {
+/**
+ * The phone's classification: one block per car, the time on the right, build facts underneath. `concealed`
+ * hides the place and the times and leaves the rows in the order given.
+ */
+export function ResultList({
+  rows,
+  showBuild,
+  concealed = false,
+}: {
+  rows: ClassRow[];
+  showBuild: boolean;
+  concealed?: boolean;
+}) {
   return (
     <div className="gp-rlist">
-      {rows.map((r) => (
-        <div key={r.entry.id} className={`gp-ritem${r.lapTime == null ? " is-out" : ""}`}>
-          <PositionBox position={r.position} out={r.lapTime == null} />
-          <div className="gp-ritem__main">
-            <EntryChip entry={r.entry} />
-            <span className="gp-entry__name gp-trunc">{r.entry.name}</span>
+      {rows.map((r) =>
+        concealed ? (
+          <div key={r.entry.id} className="gp-ritem">
+            <Concealed mark="00" />
+            <div className="gp-ritem__main">
+              <EntryChip entry={r.entry} />
+              <span className="gp-entry__name gp-trunc">{r.entry.name}</span>
+            </div>
+            <div className="gp-ritem__time">
+              <Concealed mark="+0.000" />
+            </div>
+            <div className="gp-ritem__sub">
+              <Concealed />
+              {showBuild && r.build ? <BuildFacts build={r.build} /> : null}
+            </div>
           </div>
-          <div className="gp-ritem__time">
-            {r.lapTime == null ? (
-              <NoTime row={r} />
-            ) : r.position === 1 || r.gap == null ? (
-              <b className="gp-fastest">{formatLapTime(r.lapTime)}</b>
-            ) : (
-              formatGap(r.gap)
-            )}
+        ) : (
+          <div key={r.entry.id} className={`gp-ritem${r.lapTime == null ? " is-out" : ""}`}>
+            <PositionBox position={r.position} out={r.lapTime == null} />
+            <div className="gp-ritem__main">
+              <EntryChip entry={r.entry} />
+              <span className="gp-entry__name gp-trunc">{r.entry.name}</span>
+            </div>
+            <div className="gp-ritem__time">
+              {r.lapTime == null ? (
+                <NoTime row={r} />
+              ) : r.position === 1 || r.gap == null ? (
+                <b className="gp-fastest">{formatLapTime(r.lapTime)}</b>
+              ) : (
+                formatGap(r.gap)
+              )}
+            </div>
+            <div className="gp-ritem__sub">
+              {r.lapTime == null ? (
+                <span>{r.outText}</span>
+              ) : (
+                <span>{r.position === 1 ? "Pole" : formatLapTime(r.lapTime)}</span>
+              )}
+              {showBuild && r.build ? <BuildFacts build={r.build} /> : null}
+            </div>
           </div>
-          <div className="gp-ritem__sub">
-            {r.lapTime == null ? (
-              <span>{r.outText}</span>
-            ) : (
-              <span>{r.position === 1 ? "Pole" : formatLapTime(r.lapTime)}</span>
-            )}
-            {showBuild && r.build ? <BuildFacts build={r.build} /> : null}
-          </div>
-        </div>
-      ))}
+        ),
+      )}
     </div>
   );
 }

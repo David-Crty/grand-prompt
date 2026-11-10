@@ -1,5 +1,5 @@
 import { type GapMode, stepMarker, type TimelineMarker } from "@bench/ui";
-import type { TransportFlag } from "@bench/ui/react";
+import { Dropdown, type TransportFlag } from "@bench/ui/react";
 import { Canvas } from "@react-three/fiber";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type * as THREE from "three";
@@ -23,7 +23,14 @@ import { crossedLine, defaultFocus, fastestId, finishers, focusAfter, justOut } 
 import type { Incident } from "./lib/incidents.js";
 import { visibleToasts } from "./lib/messages.js";
 import type { ViewerModel } from "./lib/model.js";
-import { CAMERA_MODES, type CameraMode, SPEEDS, stepSpeed, type ViewerParams } from "./lib/params.js";
+import {
+  CAMERA_MODES,
+  type CameraMode,
+  type CameraView,
+  SPEEDS,
+  stepSpeed,
+  type ViewerParams,
+} from "./lib/params.js";
 import { PlaybackClock } from "./lib/playback.js";
 import type { EventResults } from "./lib/results.js";
 import { MARKER_LEAD, markerFocus } from "./lib/timeline.js";
@@ -39,14 +46,20 @@ export function Viewer({
   params,
   backHref,
   backLabel,
+  resultsHref,
   results = null,
+  events,
 }: {
   model: ViewerModel;
   params: ViewerParams;
   backHref?: string;
   backLabel?: string;
+  /** The race's results page. */
+  resultsHref?: string;
   /** The event's results and build manifests, when published next to the replay. */
   results?: EventResults | null;
+  /** The events that raced on this circuit; picking another hands over the camera the viewer is in. */
+  events?: { list: string[]; current: string; onChange: (event: string, view: CameraView) => void };
 }) {
   const lightRef = useRef<THREE.DirectionalLight>(null);
   const initialFocus =
@@ -117,6 +130,22 @@ export function Viewer({
   const autoShown = useRef(false);
   const played = useRef({ t: live.current.clock.t, seeks: live.current.clock.seeks });
   const [snap, setSnap] = useState<HudSnapshot | null>(null);
+
+  const picker = (phoneSize: boolean) =>
+    events && events.list.length > 1 ? (
+      <Dropdown
+        options={events.list.map((e) => ({ value: e, label: e }))}
+        value={events.current}
+        onChange={(e) => {
+          if (e === events.current) return;
+          const L = live.current;
+          events.onChange(e, { cam: L.mode, zoom: L.tvZoom, tilt: L.tvTilt });
+        }}
+        label="Event"
+        icon={phoneSize ? undefined : "flag"}
+        size={phoneSize ? "touch" : "m"}
+      />
+    ) : null;
 
   const setMode = useCallback((m: CameraMode) => {
     live.current.mode = m;
@@ -473,6 +502,8 @@ export function Viewer({
           results={results}
           backHref={backHref}
           backLabel={backLabel}
+          resultsHref={resultsHref}
+          picker={picker(true)}
           onSheet={setSheet}
           onFocus={focusCar}
           onGapMode={setGapMode}
@@ -502,6 +533,7 @@ export function Viewer({
             onPin={onWhy}
             backHref={backHref}
             backLabel={backLabel}
+            picker={picker(false)}
           />
           {incident ? (
             <IncidentMode
@@ -559,6 +591,7 @@ export function Viewer({
             setAnalysis(true);
           }}
           backHref={backHref}
+          resultsHref={resultsHref}
         />
       ) : null}
       {help ? <Help onClose={() => setHelp(false)} /> : null}

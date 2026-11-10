@@ -166,7 +166,7 @@ describe("races", () => {
     const r = await cli("race", "ev-one", "--track", "monaco", "--out", out);
     expect(r.out).toMatch(/ev-one GP \(ev-one\) on monaco, flying lap, seed 4/);
     expect(r.out).toMatch(/\| 1 +\| model-a +\| \d:\d\d\.\d{3} \| FINISHED/);
-    const replay = readReplay(join(out, "ev-one-monaco", "replay.json.gz"));
+    const replay = readReplay(join(out, "monaco", "ev-one", "replay.json.gz"));
     expect(replay.header.trackId).toBe("monaco");
     expect(replay.header.seed).toBe(4);
     writeFileSync(join(out, "plain.json"), JSON.stringify(replay));
@@ -179,7 +179,7 @@ describe("races", () => {
     for (const t of readdirSync(join(root, "tracks")).filter((f) => f.endsWith(".json"))) {
       const id = t.slice(0, -5);
       expect(r.out).toMatch(new RegExp(`on ${id}, flying lap`));
-      expect(existsSync(join(root, `results/races/ev-all-${id}/replay.json.gz`))).toBe(true);
+      expect(existsSync(join(root, `results/races/${id}/ev-all/replay.json.gz`))).toBe(true);
     }
   });
 
@@ -196,7 +196,7 @@ describe("races", () => {
     expect(r.out).toMatch(/\| 1 +\| Model A +\| 1:\d\d\.\d{3} \| FINISHED/);
     expect(r.out).toMatch(/\$0\.42/);
     expect(r.out).toMatch(/42k/);
-    const path = join(root, `results/races/${ev}-proto-ring/event-results.json`);
+    const path = join(root, `results/races/proto-ring/${ev}/event-results.json`);
     const res = JSON.parse(readFileSync(path, "utf8")) as EventResults;
     expect(res.event).toEqual({ id: ev, name: "ev-test GP", seed: 4 });
     expect(res.track).toBe("proto-ring");

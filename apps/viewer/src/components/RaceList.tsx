@@ -1,14 +1,6 @@
 import { type Entry, entryVar, formatGap, formatLapTime } from "@bench/ui";
 import { EntryChip, EntryDot, Popover } from "@bench/ui/react";
-import {
-  type CSSProperties,
-  type KeyboardEvent,
-  type ReactNode,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type CSSProperties, type KeyboardEvent, type ReactNode, useMemo, useRef, useState } from "react";
 import { eventEntries } from "../lib/entries.js";
 import {
   clusterDots,
@@ -20,6 +12,7 @@ import {
   timedField,
 } from "../lib/races.js";
 import { routeHref } from "../lib/route.js";
+import { useWidth } from "../useWidth.js";
 import { TrackOutline } from "./TrackOutline.js";
 
 function Chevron() {
@@ -58,19 +51,6 @@ const STRIP_SPAN = 92;
 /** Dots nearer than this, in px, share a popover; the hover target reaches this far past the outer ones. */
 const DOT_NEAR = 12;
 const DOT_REACH = 7;
-
-/** The strip's width in px, followed as the layout changes. */
-function useWidth(ref: React.RefObject<HTMLElement | null>): number {
-  const [width, setWidth] = useState(0);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const ro = new ResizeObserver(([e]) => setWidth(e!.contentRect.width));
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [ref]);
-  return width;
-}
 
 function Spread({ r, entries, shown }: { r: RaceEntry; entries: Map<string, Entry>; shown: boolean }) {
   const { dots, span } = useMemo(() => fieldSpread(r), [r]);
@@ -149,13 +129,10 @@ function Row({
   onActivate: () => void;
 }) {
   const entries = useMemo(() => eventEntries(r.drivers), [r.drivers]);
+  // The Watch link covers the whole row, so a click anywhere plays the replay; Results sits above it.
   return (
-    <a
-      className={active ? "rl-row is-active" : "rl-row"}
-      href={routeHref({ page: "race", id: r.id })}
-      onMouseEnter={onActivate}
-      onFocus={onActivate}
-    >
+    // biome-ignore lint/a11y/noStaticElementInteractions: hovering or focusing either link marks the row active.
+    <div className={active ? "rl-row is-active" : "rl-row"} onMouseEnter={onActivate} onFocus={onActivate}>
       <span className="rl-thumb">
         {r.outline ? <TrackOutline outline={r.outline} running={active} /> : null}
       </span>
@@ -173,11 +150,24 @@ function Row({
         <Podium r={r} entries={entries} />
         <Spread r={r} entries={entries} shown={shown} />
       </span>
-      <span className="rl-watch">
-        Watch
-        <Chevron />
+      <span className="rl-go">
+        <a
+          className="rl-watch"
+          href={routeHref({ page: "race", track: r.track, event: r.event })}
+          aria-label={`Watch ${r.trackName}`}
+        >
+          Watch
+          <Chevron />
+        </a>
+        <a
+          className="rl-open"
+          href={routeHref({ page: "result", track: r.track, event: r.event })}
+          aria-label={`${r.trackName} results`}
+        >
+          Results
+        </a>
       </span>
-    </a>
+    </div>
   );
 }
 
@@ -199,7 +189,7 @@ export function RaceList({
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
-    const rows = [...(list.current?.querySelectorAll<HTMLAnchorElement>(".rl-row") ?? [])];
+    const rows = [...(list.current?.querySelectorAll<HTMLAnchorElement>(".rl-watch") ?? [])];
     if (!rows.length) return;
     e.preventDefault();
     const at = rows.indexOf(document.activeElement as HTMLAnchorElement);
@@ -234,7 +224,7 @@ export function RaceList({
       {races.length > 0 && visible.length === 0 ? (
         <p className="home-note">No circuit matches “{query}”.</p>
       ) : null}
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: arrow keys move focus between the row links inside. */}
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: arrow keys move focus between the rows' Watch links. */}
       <div className="rl-rows" ref={list} onKeyDown={onKeyDown}>
         {visible.map((r) => (
           <Row key={r.id} r={r} active={r.id === activeId} shown={shown} onActivate={() => setActive(r.id)} />

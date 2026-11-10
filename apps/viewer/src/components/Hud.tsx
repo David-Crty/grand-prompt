@@ -14,7 +14,7 @@ import {
   TransportBar,
   type TransportFlag,
 } from "@bench/ui/react";
-import { useMemo } from "react";
+import { type ReactNode, useMemo } from "react";
 import { sliderToZoom, TV_TILT, TV_TILT_MAX, TV_TILT_MIN, zoomToSlider } from "../lib/camera.js";
 import type { CarSample } from "../lib/frames.js";
 import { entriesOf, mapCars, mapPins } from "../lib/hud.js";
@@ -58,6 +58,7 @@ export function Tower({
   onPin,
   backHref,
   backLabel,
+  picker,
 }: {
   model: ViewerModel;
   snap: HudSnapshot;
@@ -67,6 +68,7 @@ export function Tower({
   onPin: (id: string) => void;
   backHref?: string;
   backLabel?: string;
+  picker?: ReactNode;
 }) {
   const map = useMemo(() => buildMinimap(model.layout, MAP_W, MAP_H), [model]);
   return (
@@ -80,7 +82,7 @@ export function Tower({
         justOut={snap.justOut}
         onFocus={onFocus}
         onMode={onMode}
-        head={{ track: model.replay.track.name, backHref, backLabel }}
+        head={{ track: model.replay.track.name, backHref, backLabel, picker }}
       >
         <div className="hud-map">
           <MiniMap

@@ -20,6 +20,7 @@ import {
   TimingTower,
   TowerStrip,
 } from "@bench/ui/react";
+import type { ReactNode } from "react";
 import type { Incident } from "../lib/incidents.js";
 import { TOAST_KIND } from "../lib/messages.js";
 import type { ViewerModel } from "../lib/model.js";
@@ -48,6 +49,8 @@ export function PhoneHud({
   results,
   backHref,
   backLabel,
+  resultsHref,
+  picker,
   onSheet,
   onFocus,
   onGapMode,
@@ -71,6 +74,8 @@ export function PhoneHud({
   results: EventResults | null;
   backHref?: string;
   backLabel?: string;
+  resultsHref?: string;
+  picker?: ReactNode;
   onSheet: (s: PhoneSheet | null) => void;
   onFocus: (id: string) => void;
   onGapMode: (m: GapMode) => void;
@@ -99,6 +104,7 @@ export function PhoneHud({
         backHref={backHref}
         backLabel={backLabel}
         track={model.replay.track.name}
+        picker={picker}
         final={final}
         t={snap.t}
       />
@@ -236,6 +242,7 @@ export function PhoneHud({
             onRestart={onRestart}
             onAnalysis={() => onSheet("analysis")}
             backHref={backHref}
+            resultsHref={resultsHref}
           />
         </Sheet>
       ) : null}

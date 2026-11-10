@@ -12,7 +12,7 @@ for (let i = 0; i < 2; i++) {
   execFileSync("pnpm", ["-s", "bench", "race", "r1-medium", "--track", "proto-ring", "--out", out], {
     stdio: "inherit",
   });
-  const raw = readFileSync(join(out, "r1-medium-proto-ring", "replay.json.gz"));
+  const raw = readFileSync(join(out, "proto-ring", "r1-medium", "replay.json.gz"));
   const replay = JSON.parse(gunzipSync(raw).toString());
   hashes.push(`${replay.header.stateHash}:${gunzipSync(raw).length}`);
 }

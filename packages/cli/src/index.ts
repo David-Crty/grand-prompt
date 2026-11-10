@@ -39,7 +39,7 @@ drivers
 
 races (one flying lap of an event's drivers, replayed together)
   race <event> [--track <id>]    drivers/<event>/*/driver.js on every circuit, or on one
-                                 -> results/races/<event>-<track>/ (or --out <dir>/<event>-<track>/)
+                                 -> results/races/<track>/<event>/ (or --out <dir>/<track>/<event>/)
   reproduce <event>              re-run every race of the event and check every state hash
 
 practice service (what build runs for each model)

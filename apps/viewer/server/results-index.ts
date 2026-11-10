@@ -68,49 +68,50 @@ export function readSiteConfig(path: string): SiteConfig {
   return { defaultEvent: d ?? null };
 }
 
+const subdirs = (dir: string): string[] => {
+  try {
+    return readdirSync(dir, { withFileTypes: true })
+      .filter((d) => d.isDirectory() && !d.name.startsWith("."))
+      .map((d) => d.name);
+  } catch {
+    return [];
+  }
+};
+
 /**
- * Every race in `resultsDir/races/<id>/` (its `replay.json.gz` and `results.json`), summarised for the race list,
- * and the models that raced them (`event-results.json`), for the drivers page, with the events they belong to.
+ * Every race in `resultsDir/races/<track>/<event>/` (its `replay.json.gz` and `results.json`), summarised for the
+ * race list, and the models that raced them (`event-results.json`), for the drivers page, with the events they
+ * belong to.
  */
 export function scanResults(resultsDir: string, tracksDir: string, site?: SiteConfig): RaceIndex {
   const races: RaceEntry[] = [];
   const stored: StoredRace[] = [];
   const infoOf = trackInfo(tracksDir);
   const base = join(resultsDir, "races");
-  let ids: string[];
-  try {
-    ids = readdirSync(base, { withFileTypes: true })
-      .filter((d) => d.isDirectory() && !d.name.startsWith("."))
-      .map((d) => d.name);
-  } catch {
-    ids = [];
-  }
-  for (const id of ids) {
-    const dir = join(base, id);
-    let event: string | null = null;
-    try {
-      const ev = READ(dir, "event-results.json");
-      if (isEventResults(ev)) {
-        event = ev.event.id;
-        stored.push({ src: ev, trackName: infoOf(ev.track).name ?? ev.track });
+  for (const track of subdirs(base)) {
+    for (const event of subdirs(join(base, track))) {
+      const dir = join(base, track, event);
+      try {
+        const ev = READ(dir, "event-results.json");
+        if (isEventResults(ev)) stored.push({ src: ev, trackName: infoOf(ev.track).name ?? ev.track });
+      } catch {
+        // A race without its table is still listed; its models are not.
       }
-    } catch {
-      // A race without its table is still listed; its models are not.
-    }
-    try {
-      const src = READ(dir, "results.json");
-      if (isSource(src)) {
-        const time = Math.max(mtime(join(dir, "replay.json.gz")), mtime(join(dir, "results.json")));
-        races.push(summarizeRace(id, src, { event, track: infoOf(src.trackId), time }));
+      try {
+        const src = READ(dir, "results.json");
+        if (isSource(src)) {
+          const time = Math.max(mtime(join(dir, "replay.json.gz")), mtime(join(dir, "results.json")));
+          races.push(summarizeRace({ track, event }, src, { track: infoOf(src.trackId), time }));
+        }
+      } catch {
+        // A race without its replay, or unreadable or half-written, is left out of the list rather than failing it.
       }
-    } catch {
-      // A race without its replay, or unreadable or half-written, is left out of the list rather than failing it.
     }
   }
   return {
     races: sortRaces(races),
     drivers: summarizeDrivers(stored),
-    events: sortEvents(races.flatMap((r) => (r.event ? [r.event] : []))),
+    events: sortEvents(races.map((r) => r.event)),
     defaultEvent: site?.defaultEvent ?? null,
   };
 }

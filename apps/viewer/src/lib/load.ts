@@ -1,5 +1,7 @@
 import type { Replay } from "@bench/sim";
+import type { RaceResults, ResultCar } from "./result-page.js";
 import type { EventResults } from "./results.js";
+import { raceFileUrl, raceReplayUrl } from "./route.js";
 
 export class ReplayLoadError extends Error {}
 
@@ -55,7 +57,7 @@ export async function fetchReplay(url: string, fetchFn: typeof fetch = fetch): P
   return decodeReplay(await res.arrayBuffer());
 }
 
-/** An event's results sit next to its replay: `/results/races/r1-medium/replay.json.gz` -> `…/r1-medium/event-results.json`. */
+/** An event's results sit next to its replay: `/results/races/monaco/r1-medium/replay.json.gz` -> `…/r1-medium/event-results.json`. */
 export function eventResultsUrl(replayUrl: string): string | null {
   const m = replayUrl.match(/^(.*)\/replay\.json(\.gz)?(\?.*)?$/);
   return m ? `${m[1]}/event-results.json` : null;
@@ -76,4 +78,29 @@ export async function fetchEventResults(
   } catch {
     return null;
   }
+}
+
+/** A race's classification and builds, for its results page. Throws ReplayLoadError without a classification. */
+export async function fetchRaceResults(
+  track: string,
+  event: string,
+  fetchFn: typeof fetch = fetch,
+): Promise<RaceResults> {
+  const url = raceFileUrl(track, event, "results.json");
+  const res = await fetchFn(url);
+  if (!res.ok) throw new ReplayLoadError(`HTTP ${res.status} fetching ${url}`);
+  if (res.headers.get("content-type")?.includes("text/html"))
+    throw new ReplayLoadError(`No results at ${url}`);
+  let data: { classification?: unknown };
+  try {
+    data = (await res.json()) as { classification?: unknown };
+  } catch (e) {
+    throw new ReplayLoadError(`Invalid JSON at ${url}: ${(e as Error).message}`);
+  }
+  if (!Array.isArray(data?.classification)) throw new ReplayLoadError(`No classification at ${url}`);
+  return {
+    event,
+    classification: data.classification as ResultCar[],
+    results: await fetchEventResults(raceReplayUrl(track, event), fetchFn),
+  };
 }

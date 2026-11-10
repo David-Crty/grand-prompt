@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { TV_TILT } from "../src/lib/camera.js";
 import { hexToRgb, linearRgb, srgbToLinear } from "../src/lib/color.js";
 import { angleDelta, damp, dampAngle, dampFactor, lerp, toThree } from "../src/lib/coords.js";
 import { stackLabels } from "../src/lib/labels.js";
-import { parseParams, stepSpeed } from "../src/lib/params.js";
+import { parseParams, restartSearch, stepSpeed } from "../src/lib/params.js";
 import { PlaybackClock } from "../src/lib/playback.js";
 
 describe("coords", () => {
@@ -62,6 +63,19 @@ describe("params", () => {
     expect(p.hud).toBe(true);
     expect(p.trails).toBe(true);
     expect(parseParams("?t=").t).toBeNull();
+  });
+  it("restarts another replay in the same camera, keeping the view options", () => {
+    const tv = { cam: "tv", zoom: 1, tilt: TV_TILT } as const;
+    expect(restartSearch("", tv)).toBe("");
+    expect(restartSearch("?t=30&car=a&play=0&cam=map&zoom=2&tilt=10", tv)).toBe("");
+    expect(restartSearch("?t=30&hud=0&speed=4", { cam: "tv", zoom: 1.23456, tilt: 12.34 })).toBe(
+      "?hud=0&speed=4&zoom=1.235&tilt=12.3",
+    );
+    expect(parseParams(restartSearch("?fps", { ...tv, cam: "onboard" }))).toMatchObject({
+      t: null,
+      cam: "onboard",
+      fps: true,
+    });
   });
   it("steps through speeds", () => {
     expect(stepSpeed(1, 1)).toBe(2);

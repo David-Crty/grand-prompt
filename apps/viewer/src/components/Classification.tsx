@@ -1,4 +1,4 @@
-import { formatLapTime } from "@bench/ui";
+import { type Entry, formatLapTime } from "@bench/ui";
 import {
   BuildFactsHelp,
   Button,
@@ -17,39 +17,50 @@ import {
   formatBuildTime,
   formatTokens,
   type Prices,
+  type ResultRow,
 } from "../lib/results.js";
 import { StarNote } from "./StarNote.js";
 
-const PRICES = prices as Prices;
+export const PRICES = prices as Prices;
+
+/** The rows as the design system's tables take them: each car with its entry, build values formatted. */
+export function toClassRows(rows: ResultRow[], entries: Map<string, Entry>): ClassRow[] {
+  return rows.flatMap((r) => {
+    const entry = entries.get(r.id);
+    if (!entry) return [];
+    const b = r.build;
+    return [
+      {
+        ...r,
+        entry,
+        build: b
+          ? {
+              cost: b.cost,
+              tokens: formatTokens(b.tokensIn + b.tokensOut),
+              buildTime: formatBuildTime(b.wallTimeS),
+            }
+          : null,
+      },
+    ];
+  });
+}
+
+/** What the driver build column holds, for its "?" popover. */
+export function buildHelp(results: EventResults | null) {
+  const limit = results?.rows.find((r) => r.manifest?.settings?.timeLimitMin)?.manifest?.settings
+    ?.timeLimitMin;
+  return {
+    cost: "as the model's CLI reported it, or estimated from its tokens at the provider's list prices, cache reads and writes at their own rates (marked ≈). Blank when no price is known for the model.",
+    tokens: "input and output tokens the model used.",
+    buildTime: `wall time of the session${limit ? `, out of a ${limit} min limit` : ""}.`,
+  };
+}
 
 export function useClassification(model: ViewerModel, results: EventResults | null) {
   return useMemo(() => {
     const rows = classificationRows(model.replay.classification, model.incidents, results, PRICES);
-    const view: ClassRow[] = rows.flatMap((r) => {
-      const entry = model.entries.get(r.id);
-      if (!entry) return [];
-      const b = r.build;
-      return [
-        {
-          ...r,
-          entry,
-          build: b
-            ? {
-                cost: b.cost,
-                tokens: formatTokens(b.tokensIn + b.tokensOut),
-                buildTime: formatBuildTime(b.wallTimeS),
-              }
-            : null,
-        },
-      ];
-    });
-    const limit = results?.rows.find((r) => r.manifest?.settings?.timeLimitMin)?.manifest?.settings
-      ?.timeLimitMin;
-    const help = {
-      cost: "as the model's CLI reported it, or estimated from its tokens at the provider's list prices, cache reads and writes at their own rates (marked ≈). Blank when no price is known for the model.",
-      tokens: "input and output tokens the model used.",
-      buildTime: `wall time of the session${limit ? `, out of a ${limit} min limit` : ""}.`,
-    };
+    const view = toClassRows(rows, model.entries);
+    const help = buildHelp(results);
     const lap = "Purple: the fastest lap and the fastest time in each sector. Off-track deletes the lap.";
     const full = rows.some((r) => r.build);
     return {
@@ -69,20 +80,28 @@ function Actions({
   onRestart,
   onAnalysis,
   backHref,
+  resultsHref,
   touch = false,
 }: {
   onRestart?: () => void;
   onAnalysis?: () => void;
   backHref?: string;
+  resultsHref?: string;
   touch?: boolean;
 }) {
-  if (!onRestart && !onAnalysis && !backHref) return null;
+  if (!onRestart && !onAnalysis && !backHref && !resultsHref) return null;
   return (
     <div className={touch ? "classif__actions classif__actions--touch" : "classif__actions"}>
       {backHref ? (
         <a href={backHref} className={`gp-btn gp-btn--secondary${touch ? " gp-btn--touch" : ""}`}>
           <Icon name="back" />
           All races
+        </a>
+      ) : null}
+      {resultsHref ? (
+        <a href={resultsHref} className={`gp-btn gp-btn--secondary${touch ? " gp-btn--touch" : ""}`}>
+          <Icon name="list" />
+          Full results
         </a>
       ) : null}
       {onAnalysis ? (
@@ -107,6 +126,7 @@ export function Classification({
   onRestart,
   onAnalysis,
   backHref,
+  resultsHref,
 }: {
   model: ViewerModel;
   results: EventResults | null;
@@ -117,6 +137,8 @@ export function Classification({
   /** Open the lap analysis in place of the classification; no button without it. */
   onAnalysis?: () => void;
   backHref?: string;
+  /** The race's results page, beside its other events. */
+  resultsHref?: string;
 }) {
   const c = useClassification(model, results);
   const event = results?.event.name ?? null;
@@ -130,7 +152,13 @@ export function Classification({
         </div>
         <ResultList rows={c.rows} showBuild={c.full} />
         <p className="gp-table__foot">{c.phoneFoot}</p>
-        <Actions onRestart={onRestart} onAnalysis={onAnalysis} backHref={backHref} touch />
+        <Actions
+          onRestart={onRestart}
+          onAnalysis={onAnalysis}
+          backHref={backHref}
+          resultsHref={resultsHref}
+          touch
+        />
         <StarNote ask="Enjoyed the race?" />
       </div>
     );
@@ -152,7 +180,12 @@ export function Classification({
             buildHelp={<BuildFactsHelp {...c.help} />}
           />
           <p className="gp-table__foot">{c.foot}</p>
-          <Actions onRestart={onRestart} onAnalysis={onAnalysis} backHref={backHref} />
+          <Actions
+            onRestart={onRestart}
+            onAnalysis={onAnalysis}
+            backHref={backHref}
+            resultsHref={resultsHref}
+          />
           <StarNote ask="Enjoyed the race?" />
           {pole?.lapTime != null ? (
             <span className="sr-only">

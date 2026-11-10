@@ -16,10 +16,12 @@ export interface RaceDriver {
 }
 
 export interface RaceEntry {
-  /** Its directory under `results/races/`: `<event>-<track>`, e.g. "r1-medium-monaco". */
+  /** Its directory under `results/races/`: `<track>/<event>`, e.g. "monaco/r1-medium". */
   id: string;
-  /** The event it belongs to, from its `event-results.json`; null without one. */
-  event: string | null;
+  /** The circuit's id, the first part of the directory. */
+  track: string;
+  /** The event it belongs to, the second part. */
+  event: string;
   trackName: string;
   /** The circuit drawn for the list; null when its track file is missing or unreadable. */
   outline: Outline | null;
@@ -44,6 +46,11 @@ export function sortEvents(ids: Iterable<string>): string[] {
   return [...new Set(ids)].sort((a, b) => a.localeCompare(b, "en", { numeric: true }));
 }
 
+/** The events that raced on a circuit, in `sortEvents` order. */
+export function trackEvents(races: Pick<RaceEntry, "track" | "event">[], track: string): string[] {
+  return sortEvents(races.filter((r) => r.track === track).map((r) => r.event));
+}
+
 /** The event to show: the one asked for if it has races, else the default if it has, else the first. */
 export function pickEvent(
   asked: string | undefined,
@@ -61,16 +68,17 @@ export interface TrackInfo {
 }
 
 export function summarizeRace(
-  id: string,
+  at: { track: string; event: string },
   src: RaceSource,
-  opts: { event?: string | null; track?: TrackInfo; time: number },
+  opts: { track?: TrackInfo; time: number },
 ): RaceEntry {
   const drivers = [...src.classification]
     .sort((a, b) => a.position - b.position)
     .map((c) => ({ id: c.id, name: c.name, time: c.lapTime }));
   return {
-    id,
-    event: opts.event ?? null,
+    id: `${at.track}/${at.event}`,
+    track: at.track,
+    event: at.event,
     trackName: opts.track?.name ?? src.trackId,
     outline: opts.track?.outline ?? null,
     time: opts.time,

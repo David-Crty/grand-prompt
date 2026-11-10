@@ -28,7 +28,7 @@ build: ## one driver per model in models.json -> drivers/NAME/
 	$(need-name)
 	pnpm -s bench build $(NAME) $(ARGS)
 
-race: ## drivers/NAME/ on every circuit, or on TRACK -> results/races/NAME-<track>/
+race: ## drivers/NAME/ on every circuit, or on TRACK -> results/races/<track>/NAME/
 	$(need-name)
 	pnpm bench race $(NAME) $(if $(TRACK),--track $(TRACK))
 

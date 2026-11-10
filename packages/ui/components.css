@@ -1464,6 +1464,11 @@
   content: "\2248";
   color: var(--text-300);
 }
+.gp-concealed {
+  filter: blur(7px);
+  user-select: none;
+  color: var(--text-300);
+}
 /* result list (phone classification) */
 .gp-rlist {
   display: flex;
@@ -2124,6 +2129,9 @@ fieldset.gp-seg {
 .gp-bar__track .gp-session__name {
   font-size: 14px;
   line-height: 16px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .gp-bar__lap {
   font-weight: 700;

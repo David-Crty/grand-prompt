@@ -1,6 +1,6 @@
 /**
  * The final classification with what each driver program cost to build, from the event's results and build
- * manifests when they sit next to the replay (`/results/<event>/event-results.json`). Without them the table
+ * manifests when they sit next to the replay (`/results/races/<track>/<event>/event-results.json`). Without them the table
  * keeps the lap columns only.
  */
 import type { ClassifiedResult } from "@bench/sim";
@@ -20,7 +20,7 @@ export interface EventResults {
         costUsd?: number;
         wallTimeS?: number;
       };
-      settings?: { timeLimitMin?: number };
+      settings?: { timeLimitMin?: number; effort?: string };
     } | null;
   }[];
 }
@@ -129,13 +129,16 @@ function outWords(status: string, inc: Incident | undefined): string {
   return [what, inc.corner !== null ? `T${inc.corner}` : ""].filter(Boolean).join(" · ");
 }
 
+/** The fields of a classified car the table reads, whether from the replay or from `results.json`. */
+export type ClassifiedCar = Pick<ClassifiedResult, "id" | "position" | "lapTime" | "gap" | "lap" | "status">;
+
 export function classificationRows(
-  classification: ClassifiedResult[],
+  classification: ClassifiedCar[],
   incidents: Incident[],
   results: EventResults | null,
   prices: Prices,
 ): ResultRow[] {
-  const timedSectors = (r: ClassifiedResult) => (r.lapTime != null && r.lap ? r.lap.sectors : null);
+  const timedSectors = (r: ClassifiedCar) => (r.lapTime != null && r.lap ? r.lap.sectors : null);
   const best: number[] = [];
   for (const r of classification)
     timedSectors(r)?.forEach((t, k) => {

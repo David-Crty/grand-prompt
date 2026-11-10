@@ -1,4 +1,5 @@
 import { CAMERA_MODES, type CameraMode } from "@bench/ui";
+import { TV_TILT } from "./camera.js";
 
 export { CAMERA_MODES, type CameraMode };
 /** Playback speeds; below 1x is slow motion (incident replays start at 0.5x). */
@@ -57,4 +58,25 @@ export function parseParams(search: string): ViewerParams {
 export function stepSpeed(current: number, dir: 1 | -1): number {
   if (dir > 0) return SPEEDS.find((s) => s > current + 1e-9) ?? SPEEDS[SPEEDS.length - 1]!;
   return [...SPEEDS].reverse().find((s) => s < current - 1e-9) ?? SPEEDS[0];
+}
+
+/** The camera a viewer leaves in, to carry into another replay. */
+export interface CameraView {
+  cam: CameraMode;
+  zoom: number;
+  tilt: number;
+}
+
+/**
+ * The query for another event's replay on the same circuit: it starts from the top, with the same camera and the
+ * same view options. Defaults stay out of the address.
+ */
+export function restartSearch(search: string, view: CameraView): string {
+  const q = new URLSearchParams(search);
+  for (const k of ["t", "car", "play", "cam", "zoom", "tilt"]) q.delete(k);
+  if (view.cam !== "tv") q.set("cam", view.cam);
+  if (view.zoom !== 1) q.set("zoom", String(Math.round(view.zoom * 1000) / 1000));
+  if (view.tilt !== TV_TILT) q.set("tilt", String(Math.round(view.tilt * 10) / 10));
+  const out = q.toString();
+  return out ? `?${out}` : "";
 }

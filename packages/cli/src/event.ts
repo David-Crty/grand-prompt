@@ -42,7 +42,7 @@ export interface EventResultRow {
   manifest: Manifest | null;
 }
 
-/** `results/races/<event>-<track>/event-results.json`: one race of an event. */
+/** `results/races/<track>/<event>/event-results.json`: one race of an event. */
 export interface EventResults {
   event: EventConfig & { id: string; name: string };
   track: string;
@@ -81,9 +81,9 @@ function readEvent(eventId: string): EventResults["event"] {
   return { id: eventId, name: ev.name ?? eventId, seed: ev.seed };
 }
 
-/** A race's id, which is also its folder under `results/races/`. */
-export function raceId(eventId: string, track: string): string {
-  return `${eventId}-${track}`;
+/** A race's folder under `results/races/`: the circuit, then the event, as in its address on the site. */
+export function raceDir(eventId: string, track: string): string {
+  return join(track, eventId);
 }
 
 /** One race: the drivers are loaded afresh, since a session disposes of their runtimes. */
@@ -97,7 +97,7 @@ async function runRace(event: EventResults["event"], list: { path: string }[], t
 
 /**
  * The event's drivers on every circuit in `tracks/`, or on `track` alone: one flying lap each, in
- * `<out>/<event>-<track>/` (default `results/races/`), with the race's table and build manifests in
+ * `<out>/<track>/<event>/` (default `results/races/`), with the race's table and build manifests in
  * `event-results.json`.
  */
 export async function raceEvent(
@@ -110,7 +110,7 @@ export async function raceEvent(
   const parts: string[] = [];
   for (const track of opts.track ? [opts.track] : trackIds()) {
     const out = await runRace(event, list, track);
-    const dir = join(base, raceId(eventId, out.results.trackId));
+    const dir = join(base, raceDir(eventId, out.results.trackId));
     const files = writeSession(dir, out);
     const rows = list.map((d): EventResultRow => {
       const c = out.results.classification.find((x) => x.id === d.slug)!;
@@ -149,7 +149,7 @@ function storedRaces(eventId: string): EventResults[] {
   if (!existsSync(base)) return [];
   return readdirSync(base, { withFileTypes: true })
     .filter((d) => d.isDirectory())
-    .map((d) => join(base, d.name, "event-results.json"))
+    .map((d) => join(base, raceDir(eventId, d.name), "event-results.json"))
     .filter((p) => existsSync(p))
     .map((p) => readJson<EventResults>(p))
     .filter((r) => r.event?.id === eventId)

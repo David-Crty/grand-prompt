@@ -1,8 +1,8 @@
 /**
  * Assembles the static site: the built viewer, the published result files under `results/races/`, the race
  * list the dev server otherwise builds per request (with `site.json`'s default event, which must have races),
- * and the Cloudflare Pages headers. The site has no 404.html, so Pages answers `/races/<id>` and `/drivers`
- * with index.html and the viewer routes them.
+ * and the Cloudflare Pages headers. The site has no 404.html, so Pages answers `/races/<track>/<event>` and
+ * `/drivers` with index.html and the viewer routes them.
  *
  *   pnpm --filter @bench/viewer build && tsx scripts/build-site.ts [outDir]   (default site/)
  */

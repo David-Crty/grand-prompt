@@ -17,6 +17,7 @@ import {
   sortRaces,
   summarizeRace,
   timedField,
+  trackEvents,
   writeReveal,
 } from "../src/lib/races.js";
 
@@ -42,13 +43,16 @@ function source(over: Partial<RaceSource> = {}): RaceSource {
   };
 }
 
+const at = (event: string) => ({ track: "monaco", event });
+
 describe("summarizeRace", () => {
   it("keeps the field in classification order", () => {
     const outline = { width: 160, height: 100, path: "M0 0Z", length: 3300 };
-    const r = summarizeRace("monaco-001", source(), { track: { name: "Monaco", outline }, time: 1000 });
+    const r = summarizeRace(at("r1-medium"), source(), { track: { name: "Monaco", outline }, time: 1000 });
     expect(r).toEqual({
-      id: "monaco-001",
-      event: null,
+      id: "monaco/r1-medium",
+      track: "monaco",
+      event: "r1-medium",
       trackName: "Monaco",
       outline,
       time: 1000,
@@ -60,30 +64,26 @@ describe("summarizeRace", () => {
     });
   });
 
-  it("keeps its event", () => {
-    expect(summarizeRace("e-monaco", source(), { event: "e", time: 0 }).event).toBe("e");
-  });
-
   it("falls back to the track id", () => {
-    const r = summarizeRace("demo", source(), { time: 0 });
+    const r = summarizeRace(at("demo"), source(), { time: 0 });
     expect(r.trackName).toBe("monaco");
     expect(r.outline).toBeNull();
   });
 });
 
 describe("race list helpers", () => {
-  const mk = (id: string, time: number, name = "Monaco") =>
-    summarizeRace(id, source(), { track: { name }, time });
+  const mk = (event: string, time: number, name = "Monaco") =>
+    summarizeRace(at(event), source(), { track: { name }, time });
 
   it("sorts by circuit, then newest first, ties by id", () => {
     const sorted = sortRaces([mk("b", 1), mk("a", 1), mk("c", 5), mk("d", 9, "Barcelona")]);
-    expect(sorted.map((r) => r.id)).toEqual(["d", "c", "a", "b"]);
+    expect(sorted.map((r) => r.event)).toEqual(["d", "c", "a", "b"]);
   });
 
   it("filters on the circuit name only, every term", () => {
     const races = [mk("race/monaco-001", 1), mk("race/silverstone-001", 1, "Silverstone Circuit")];
     expect(filterRaces(races, "")).toBe(races);
-    expect(filterRaces(races, " silver ").map((r) => r.id)).toEqual(["race/silverstone-001"]);
+    expect(filterRaces(races, " silver ").map((r) => r.event)).toEqual(["race/silverstone-001"]);
     expect(filterRaces(races, "SILVERSTONE circ")).toHaveLength(1);
     expect(filterRaces(races, "race")).toHaveLength(0);
     expect(filterRaces(races, "o")).toHaveLength(2);
@@ -110,11 +110,11 @@ describe("race list helpers", () => {
       span: 0.5,
     });
     expect(fieldSpread(r).dots[1]).toMatchObject({ name: r.drivers[1]!.name, time: r.drivers[1]!.time });
-    const one = summarizeRace("r", source({ classification: [row({ id: "a", position: 1 })] }), {
+    const one = summarizeRace(at("r"), source({ classification: [row({ id: "a", position: 1 })] }), {
       time: 0,
     });
     expect(fieldSpread(one)).toMatchObject({ dots: [{ id: "a", at: 0, gap: 0 }], span: 0 });
-    const none = summarizeRace("r", source({ classification: [] }), { time: 0 });
+    const none = summarizeRace(at("r"), source({ classification: [] }), { time: 0 });
     expect(fieldSpread(none)).toEqual({ dots: [], span: 0 });
   });
 });
@@ -167,6 +167,12 @@ describe("events", () => {
       "r2-medium",
       "r10-medium",
     ]);
+  });
+
+  it("lists the events that raced on a circuit", () => {
+    const races = [at("r2"), at("r10"), { track: "ring", event: "r3" }, at("r2")];
+    expect(trackEvents(races, "monaco")).toEqual(["r2", "r10"]);
+    expect(trackEvents(races, "nope")).toEqual([]);
   });
 
   it("shows the event asked for, else the default, else the first", () => {
@@ -243,26 +249,32 @@ describe("scanResults", () => {
     return d;
   };
 
-  it("lists every race under results/races/, and skips bad entries", () => {
-    const a = race("monaco-001");
+  it("lists every race under results/races/<track>/<event>/, and skips bad entries", () => {
+    const a = race("monaco/e1");
     touch(join(a, "replay.json.gz"), 100);
     touch(join(a, "results.json"), 200);
-    const ev = race("my event", source({ trackId: "ring" }));
+    const ev = race("ring/my event", source({ trackId: "ring" }));
     touch(join(ev, "replay.json.gz"), 50);
     touch(join(ev, "results.json"), 50);
 
-    race("not-a-result", { not: "a result" });
-    race("broken", "{");
-    writeFileSync(join(dir("replay-less"), "results.json"), JSON.stringify(source()));
-    race(".hidden");
+    race("x/not-a-result", { not: "a result" });
+    race("x/broken", "{");
+    writeFileSync(join(dir("x/replay-less"), "results.json"), JSON.stringify(source()));
+    race("x/.hidden");
+    race(".hidden/e1");
+    race("one-level");
     writeFileSync(join(results, "races", "stray.json"), "{}");
+    writeFileSync(join(results, "races", "x", "stray.json"), "{}");
     const practice = join(results, "practice", "baseline-001");
     mkdirSync(practice, { recursive: true });
     writeFileSync(join(practice, "replay.json.gz"), gzipSync("{}"));
     writeFileSync(join(practice, "results.json"), JSON.stringify(source()));
 
     const { races } = scanResults(results, tracks);
-    expect(races.map((r) => r.id)).toEqual(["monaco-001", "my event"]);
+    expect(races.map((r) => [r.id, r.track, r.event])).toEqual([
+      ["monaco/e1", "monaco", "e1"],
+      ["ring/my event", "ring", "my event"],
+    ]);
     const [m, e] = races;
     expect(m!.trackName).toBe("Monaco");
     expect(m!.outline?.length).toBe(400);
@@ -272,8 +284,8 @@ describe("scanResults", () => {
   });
 
   it("uses no track name for unreadable track files", () => {
-    race("x", source({ trackId: "broken" }));
-    race("y", source({ trackId: "broken" }));
+    race("broken/x", source({ trackId: "broken" }));
+    race("broken/y", source({ trackId: "broken" }));
     expect(scanResults(results, tracks).races.map((r) => r.trackName)).toEqual(["broken", "broken"]);
   });
 
@@ -286,23 +298,26 @@ describe("scanResults", () => {
       usage: { inputTokens: 10, outputTokens: 2, wallTimeS: 60, practiceRuns: 3 },
       settings: { cli: "codex", effort: "low" },
     };
-    table("old-monaco", "old", "monaco", [
+    table("monaco/old", "old", "monaco", [
       { slug: "m1", name: "Model One", position: 2, lapTime: 90 },
       { slug: "m2", name: "Another", position: 1, lapTime: 89, manifest },
     ]);
-    table("new-monaco", "new", "monaco", [{ slug: "m1", name: "Model One", position: 1, lapTime: null }]);
-    table("new-ring", "new", "ring", [{ slug: "m1", name: "Model One", position: 1, lapTime: 61 }]);
-    race("new-ring");
-    race("loose");
-    writeFileSync(join(dir("bad"), "event-results.json"), "{");
-    writeFileSync(join(dir("other"), "event-results.json"), JSON.stringify({ event: { id: "x" }, rows: [] }));
+    table("monaco/new", "new", "monaco", [{ slug: "m1", name: "Model One", position: 1, lapTime: null }]);
+    table("ring/new", "new", "ring", [{ slug: "m1", name: "Model One", position: 1, lapTime: 61 }]);
+    race("ring/new");
+    race("monaco/tableless");
+    writeFileSync(join(dir("x/bad"), "event-results.json"), "{");
+    writeFileSync(
+      join(dir("x/other"), "event-results.json"),
+      JSON.stringify({ event: { id: "x" }, rows: [] }),
+    );
 
     const index = scanResults(results, tracks, { defaultEvent: "new" });
     expect(index.races.map((r) => [r.id, r.event]).sort()).toEqual([
-      ["loose", null],
-      ["new-ring", "new"],
+      ["monaco/tableless", "tableless"],
+      ["ring/new", "new"],
     ]);
-    expect(index.events).toEqual(["new"]);
+    expect(index.events).toEqual(["new", "tableless"]);
     expect(index.defaultEvent).toBe("new");
     const { drivers } = index;
     expect(drivers.map((d) => [d.id, d.event])).toEqual([
