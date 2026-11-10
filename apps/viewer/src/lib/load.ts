@@ -55,7 +55,7 @@ export async function fetchReplay(url: string, fetchFn: typeof fetch = fetch): P
   return decodeReplay(await res.arrayBuffer());
 }
 
-/** An event's results sit next to its replay: `/results/races/gp-1/replay.json.gz` -> `…/gp-1/event-results.json`. */
+/** An event's results sit next to its replay: `/results/races/r1-medium/replay.json.gz` -> `…/r1-medium/event-results.json`. */
 export function eventResultsUrl(replayUrl: string): string | null {
   const m = replayUrl.match(/^(.*)\/replay\.json(\.gz)?(\?.*)?$/);
   return m ? `${m[1]}/event-results.json` : null;

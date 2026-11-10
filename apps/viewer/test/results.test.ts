@@ -18,7 +18,7 @@ const prices = {
 };
 const manifest = (usage: object) => ({ usage, settings: { timeLimitMin: 30 } });
 const results: EventResults = {
-  event: { id: "gp-1", name: "gp-1" },
+  event: { id: "r1-medium", name: "r1-medium" },
   rows: [
     {
       slug: "gpt-x",

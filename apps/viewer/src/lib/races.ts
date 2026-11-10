@@ -16,7 +16,7 @@ export interface RaceDriver {
 }
 
 export interface RaceEntry {
-  /** Its directory under `results/races/`: `<event>-<track>`, e.g. "gp-1-monaco". */
+  /** Its directory under `results/races/`: `<event>-<track>`, e.g. "r1-medium-monaco". */
   id: string;
   trackName: string;
   /** The circuit drawn for the list; null when its track file is missing or unreadable. */

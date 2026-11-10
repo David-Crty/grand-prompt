@@ -24,8 +24,17 @@ import {
 
 describe("buildOptions", () => {
   it("applies defaults and options", () => {
-    const o = buildOptions("gp-2", { jobs: "2", only: "codex,claude-haiku-5-5", "dry-run": true }, "m.json");
-    expect(o).toMatchObject({ name: "gp-2", jobs: 2, only: ["codex", "claude-haiku-5-5"], dryRun: true });
+    const o = buildOptions(
+      "r2-medium",
+      { jobs: "2", only: "codex,claude-haiku-5-5", "dry-run": true },
+      "m.json",
+    );
+    expect(o).toMatchObject({
+      name: "r2-medium",
+      jobs: 2,
+      only: ["codex", "claude-haiku-5-5"],
+      dryRun: true,
+    });
     expect(o).toMatchObject({ timeout: 30, models: "m.json", port: 8787 });
     expect(buildOptions("x", { "practice-tracks": "a,b", budget: "3" }, "m")).toMatchObject({
       practice: ["a", "b"],

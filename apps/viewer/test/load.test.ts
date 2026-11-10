@@ -65,25 +65,25 @@ describe("load", () => {
 
 describe("event results", () => {
   it("finds the results next to a published replay", async () => {
-    expect(eventResultsUrl("/results/races/gp-1/replay.json.gz")).toBe(
-      "/results/races/gp-1/event-results.json",
+    expect(eventResultsUrl("/results/races/r1-medium/replay.json.gz")).toBe(
+      "/results/races/r1-medium/event-results.json",
     );
-    expect(eventResultsUrl("https://x.dev/results/races/gp-1/replay.json?v=2")).toBe(
-      "https://x.dev/results/races/gp-1/event-results.json",
+    expect(eventResultsUrl("https://x.dev/results/races/r1-medium/replay.json?v=2")).toBe(
+      "https://x.dev/results/races/r1-medium/event-results.json",
     );
     expect(eventResultsUrl("/my/replay.json")).toBe("/my/event-results.json");
     expect(eventResultsUrl("/my/lap.json")).toBeNull();
-    const rows = { event: { id: "gp-1", name: "gp-1" }, rows: [{ slug: "a" }] };
+    const rows = { event: { id: "r1-medium", name: "r1-medium" }, rows: [{ slug: "a" }] };
     const ok = (async () => Response.json(rows)) as unknown as typeof fetch;
-    expect((await fetchEventResults("/results/races/gp-1/replay.json.gz", ok))?.rows).toHaveLength(1);
+    expect((await fetchEventResults("/results/races/r1-medium/replay.json.gz", ok))?.rows).toHaveLength(1);
     const missing = (async () => new Response("no", { status: 404 })) as unknown as typeof fetch;
-    expect(await fetchEventResults("/results/races/gp-1/replay.json.gz", missing)).toBeNull();
+    expect(await fetchEventResults("/results/races/r1-medium/replay.json.gz", missing)).toBeNull();
     const bad = (async () => Response.json({ nope: 1 })) as unknown as typeof fetch;
-    expect(await fetchEventResults("/results/races/gp-1/replay.json.gz", bad)).toBeNull();
+    expect(await fetchEventResults("/results/races/r1-medium/replay.json.gz", bad)).toBeNull();
     const broken = (async () => {
       throw new Error("offline");
     }) as unknown as typeof fetch;
-    expect(await fetchEventResults("/results/races/gp-1/replay.json.gz", broken)).toBeNull();
+    expect(await fetchEventResults("/results/races/r1-medium/replay.json.gz", broken)).toBeNull();
     expect(await fetchEventResults("/x.json", ok)).toBeNull();
   });
 });

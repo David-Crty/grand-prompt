@@ -5,7 +5,7 @@ SHELL := bash
 NAME  ?=
 ARGS  ?=
 
-need-name = @[[ -n "$(NAME)" ]] || { echo "set NAME=<event>, e.g. make $@ NAME=gp-1"; exit 2; }
+need-name = @[[ -n "$(NAME)" ]] || { echo "set NAME=<event>, e.g. make $@ NAME=r1-medium"; exit 2; }
 
 .PHONY: help install dev gates format build race golden tokens car clean
 

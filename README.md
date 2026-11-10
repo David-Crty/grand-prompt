@@ -60,7 +60,7 @@ come from OpenStreetMap and the TUMFTM racetrack database (see
 
 ## Status
 
-The current results come from `gp-1`: eleven Claude, GPT and Gemini models, each built once at
+The current results come from `r1-medium`: eleven Claude, GPT and Gemini models, each built once at
 medium effort.
 
 ## Run it yourself
@@ -79,19 +79,19 @@ installed and logged in.
 ### 1. Build drivers
 
 ```shell
-pnpm bench build gp-2 --check          # sandbox, practice service and CLIs, no model run
-pnpm bench build gp-2                  # every model in models.json, in parallel, with a live view
-pnpm bench build gp-2 --only claude-opus-5-5     # a provider, a CLI or a model id
-pnpm bench build gp-2 --effort high     # every models with high effort
+pnpm bench build r2-medium --check                 # sandbox, practice service and CLIs, no model run
+pnpm bench build r2-medium                         # every model in models.json, in parallel, with a live view
+pnpm bench build r2-medium --only claude-opus-5-5  # a provider, a CLI or a model id
+pnpm bench build r1-high --effort high             # the same roster at high effort
 ```
 
 Each model gets 30 minutes and 10 practice laps, shared between Monaco, Silverstone and Portimão
 (`--timeout`, `--budget` and `--practice-tracks` change them; `pnpm bench --help` lists every
 option). A model whose CLI is not installed is skipped.
 
-Each driver lands in `drivers/gp-2/<model>/driver.js`, with a `manifest.json` recording the
-tokens, cost, wall time and practice laps it used. `drivers/gp-2/event.json` holds the event's
-name and seed, and the build logs go to `results/builds/gp-2/<model>/build/`.
+Each driver lands in `drivers/r2-medium/<model>/driver.js`, with a `manifest.json` recording the
+tokens, cost, wall time and practice laps it used. `drivers/r2-medium/event.json` holds the event's
+name and seed, and the build logs go to `results/builds/r2-medium/<model>/build/`.
 
 The models come from [models.json](models.json), the roster. A provider names the CLI that builds
 its models and the paint of their car bodies; a model has a name, a three-letter code and an entry
@@ -112,15 +112,15 @@ colour of its own (its chip, trail and livery stripe), the same in every event:
 To work on a driver by hand: `pnpm bench validate <driver.js>` loads it and drives 10 s, and
 `pnpm bench practice <driver.js> --track monaco` drives a flying lap, with the telemetry, the
 summary and a replay in `results/practice/`. To race it, put it in an event as
-`drivers/gp-2/<name>/driver.js`: a driver off the roster gets a code from its name and a colour no
+`drivers/r2-medium/<name>/driver.js`: a driver off the roster gets a code from its name and a colour no
 roster model owns.
 
 ### 2. Race
 
 ```shell
-pnpm bench race gp-2                   # every circuit -> results/races/gp-2-<track>/
-pnpm bench race gp-2 --track monaco    # one circuit
-pnpm bench reproduce gp-2              # re-run every race and check every hash
+pnpm bench race r2-medium                          # every circuit -> results/races/r2-medium-<track>/
+pnpm bench race r2-medium --track monaco           # one circuit
+pnpm bench reproduce r2-medium                     # re-run every race and check every hash
 ```
 
 Each race folder holds `replay.json.gz`, `results.json`, `summary.txt` and `event-results.json`
@@ -135,7 +135,7 @@ crossing the line together at the same speed, then one timed lap.
 make dev      # http://localhost:5173/
 ```
 
-The home page lists every race in `results/races/`, `/races/<id>` plays one (`/races/gp-2-monaco`)
+The home page lists every race in `results/races/`, `/races/<id>` plays one (`/races/r2-medium-monaco`)
 and `/drivers` lists the models that built the drivers, with their standings: 10-8-6-5-4-3-2-1
 points in every race for a valid lap. Results stay hidden until you show them. Press `?` for the
 keyboard shortcuts. Below 600 px wide it switches to a phone layout.
@@ -143,7 +143,7 @@ keyboard shortcuts. Below 600 px wide it switches to a phone layout.
 ### Make
 
 `make` lists the shortcuts: `make dev`, `make gates` (lint, types, tests with coverage,
-determinism, viewer build), `make build NAME=gp-2 ARGS="--only codex"`, `make race NAME=gp-2`
+determinism, viewer build), `make build NAME=r2-medium ARGS="--only codex"`, `make race NAME=r2-medium`
 (add `TRACK=monaco` for one circuit).
 
 ## Add a circuit

@@ -49,7 +49,7 @@ commands.
 before each commit.
 - Coverage ≥ 90% on lines, statements, functions and branches (`vitest.config.ts`). Pair unit tests
   with feature tests that run real sessions (`sim/test/race.test.ts`, `cli/test/cli.test.ts`).
-- `pnpm determinism` races the `gp-1` drivers on proto-ring in two processes and compares hashes.
+- `pnpm determinism` races the `r1-medium` drivers on proto-ring in two processes and compares hashes.
 - Changing physics, race control or track processing moves the golden hashes: `make golden`, bump
   `SIM_VERSION`, check the plausibility targets in `sim/test/vehicle.test.ts`. The anti-exploit
   rules in `sim/test/race.test.ts` (checkpoints, track limits, barriers, full lock at speed) must
@@ -80,7 +80,7 @@ before each commit.
 - No F1 branding, team names or liveries.
 
 ## Status
-- `gp-1`: 11 Claude, GPT and Gemini models at medium effort.
+- `r1-medium`: 11 Claude, GPT and Gemini models at medium effort.
 - Known: `clipRunoffByProximity` (`track.ts`) only looks `maxRunoff + 2·maxWidth + 5` m around a
   sample, so sections slightly farther apart can keep overlapping runoff. Fixing it changes results.
 

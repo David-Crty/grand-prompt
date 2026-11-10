@@ -9,10 +9,10 @@ import { gunzipSync } from "node:zlib";
 const hashes: string[] = [];
 for (let i = 0; i < 2; i++) {
   const out = mkdtempSync(join(tmpdir(), "det-"));
-  execFileSync("pnpm", ["-s", "bench", "race", "gp-1", "--track", "proto-ring", "--out", out], {
+  execFileSync("pnpm", ["-s", "bench", "race", "r1-medium", "--track", "proto-ring", "--out", out], {
     stdio: "inherit",
   });
-  const raw = readFileSync(join(out, "gp-1-proto-ring", "replay.json.gz"));
+  const raw = readFileSync(join(out, "r1-medium-proto-ring", "replay.json.gz"));
   const replay = JSON.parse(gunzipSync(raw).toString());
   hashes.push(`${replay.header.stateHash}:${gunzipSync(raw).length}`);
 }
