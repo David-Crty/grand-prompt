@@ -81,9 +81,8 @@ make dev      # http://localhost:5173/
 
 The home page lists every race in `results/races/`, `/races/<id>` plays one (`/races/gp-2-monaco`)
 and `/drivers` lists the models that built the drivers, with their standings: 10-8-6-5-4-3-2-1
-points in every race for a valid lap. Results stay hidden until you show them. A `replay.json.gz`
-dropped on the page, a practice run's for instance, plays too. Press `?` for the keyboard shortcuts. Below 600 px wide it
-switches to a phone layout.
+points in every race for a valid lap. Results stay hidden until you show them. Press `?` for the
+keyboard shortcuts. Below 600 px wide it switches to a phone layout.
 
 ## Make
 

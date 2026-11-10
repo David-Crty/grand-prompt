@@ -206,47 +206,39 @@ button {
   white-space: nowrap;
 }
 
-/* drop zone */
-.dropzone {
+/* a race loading, or not found */
+.race-load {
   position: fixed;
   inset: 0;
   display: grid;
   place-items: center;
-  background: radial-gradient(circle at 50% 40%, #1b2130, #0b0d12);
-  z-index: 10;
+  background: var(--surface-100);
 }
 
-.dropzone.over {
-  background: rgba(5, 7, 10, 0.6);
-}
-
-.drop-card {
-  padding: 26px 30px;
+.race-load__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 24px 28px;
   max-width: 460px;
   margin: 16px;
 }
 
-.dropzone.drag .drop-card {
-  outline: 2px dashed #fff;
+.race-load__card p {
+  margin: 0;
+  color: var(--text-200);
+  overflow-wrap: anywhere;
 }
 
-.drop-card h1 {
-  margin: 8px 0;
-  font-size: 30px;
+.race-load__card p.error {
+  color: var(--status-dnf);
 }
 
-.drop-card p {
-  color: var(--muted);
-}
-
-.drop-card__back {
+.race-load__back {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-}
-
-.drop-card p.error {
-  color: #fca5a5;
+  color: var(--text-100);
 }
 
 .fps {
@@ -379,11 +371,6 @@ button {
 
 .home-note.error {
   color: var(--status-dnf);
-}
-
-.home-foot {
-  margin-top: var(--space-4);
-  font-size: 13px;
 }
 
 .is-concealed {

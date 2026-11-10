@@ -58,11 +58,3 @@ export function stepSpeed(current: number, dir: 1 | -1): number {
   if (dir > 0) return SPEEDS.find((s) => s > current + 1e-9) ?? SPEEDS[SPEEDS.length - 1]!;
   return [...SPEEDS].reverse().find((s) => s < current - 1e-9) ?? SPEEDS[0];
 }
-
-/**
- * Deep-link time, camera and car belong to the replay named in the URL. A replay dropped onto the page
- * opens at the start, followed car and camera reset.
- */
-export function paramsForReplay(p: ViewerParams, fromUrl: boolean): ViewerParams {
-  return fromUrl ? p : { ...p, t: null, cam: null, car: null };
-}

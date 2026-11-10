@@ -21,7 +21,7 @@ type HomePage = "races" | "drivers";
 const pageOf = (pathname: string): HomePage =>
   parseRoute(pathname).page === "drivers" ? "drivers" : "races";
 
-export function Home({ error, loading }: { error: string | null; loading: string | null }) {
+export function Home() {
   const [page, setPage] = useState<HomePage>(() => pageOf(window.location.pathname));
   const [shown, setShown] = useState(() => readReveal(storage()));
   const [index, setIndex] = useState<RaceIndex | null>(null);
@@ -77,8 +77,6 @@ export function Home({ error, loading }: { error: string | null; loading: string
         </Button>
       </header>
       <main className="home-page">
-        {loading ? <p className="home-note">Loading {loading}…</p> : null}
-        {error ? <p className="home-note error">{error}</p> : null}
         {failed ? <p className="home-note error">Could not list races: {failed}</p> : null}
         {!index && !failed ? <p className="home-note">Looking for races…</p> : null}
         {index ? (
@@ -87,11 +85,6 @@ export function Home({ error, loading }: { error: string | null; loading: string
           ) : (
             <RaceList races={index.races} shown={shown} />
           )
-        ) : null}
-        {page === "races" ? (
-          <p className="home-note home-foot">
-            You can also drop a replay.json or replay.json.gz anywhere on this page.
-          </p>
         ) : null}
       </main>
     </div>
