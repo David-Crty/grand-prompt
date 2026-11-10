@@ -11,6 +11,7 @@ import {
   Play,
   Plus,
   RotateCcw,
+  SkipBack,
   Spline,
   Timer,
   TriangleAlert,
@@ -35,7 +36,8 @@ export type IconName =
   | "list"
   | "help"
   | "minus"
-  | "plus";
+  | "plus"
+  | "restart";
 
 const ICONS: Record<IconName, LucideIcon> = {
   play: Play,
@@ -53,6 +55,7 @@ const ICONS: Record<IconName, LucideIcon> = {
   help: CircleHelp,
   minus: Minus,
   plus: Plus,
+  restart: SkipBack,
 };
 
 /** Drawn filled, as transport controls usually are. */

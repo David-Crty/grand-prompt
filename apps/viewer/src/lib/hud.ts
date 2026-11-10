@@ -1,6 +1,6 @@
 import type { Entry } from "@bench/ui";
 import { type CarIndex, type CarSample, sampleCar } from "./frames.js";
-import type { StandingRow } from "./timing.js";
+import { liveStandings, type StandingRow } from "./timing.js";
 
 type Project = (x: number, y: number) => [number, number];
 
@@ -80,4 +80,33 @@ export function fastestId(rows: StandingRow[]): string | null {
 /** Under the track name: why the cars drive through each other. */
 export function ghostLine(cars: number): string {
   return cars === 1 ? "1 car, driving alone" : `${cars} cars, each driving alone`;
+}
+
+/** Cars that crossed the finish line in the played span (from, to]. */
+export function crossedLine(cars: CarIndex[], from: number, to: number): string[] {
+  return cars
+    .filter((c) => c.finishTime !== null && c.finishTime > from && c.finishTime <= to)
+    .map((c) => c.car.id);
+}
+
+/** Cars that cross the finish line, in the order they cross it. */
+export function finishers(cars: CarIndex[]): string[] {
+  return cars
+    .filter((c) => c.finishTime !== null)
+    .sort((a, b) => a.finishTime! - b.finishTime!)
+    .map((c) => c.car.id);
+}
+
+/** Replay seconds the camera stays on a car after it crosses the line. */
+export const FINISH_HOLD = 2;
+
+/**
+ * Who to follow after playing (from, to]: once the followed car has been FINISH_HOLD s past the line, the car
+ * that was following it when it crossed, unless that one has retired since.
+ */
+export function focusAfter(cars: CarIndex[], focusId: string, from: number, to: number): string {
+  const fin = cars.find((c) => c.car.id === focusId)?.finishTime ?? null;
+  if (fin === null || fin + FINISH_HOLD <= from || fin + FINISH_HOLD > to) return focusId;
+  const out = new Set(cars.filter((c) => c.outTime !== null && c.outTime <= to).map((c) => c.car.id));
+  return liveStandings(cars, fin).find((r) => !r.finished && !r.out && !out.has(r.id))?.id ?? focusId;
 }

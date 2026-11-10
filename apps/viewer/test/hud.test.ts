@@ -1,7 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { detectCorners, whereOnLap } from "../src/lib/corners.js";
 import { indexReplay, sampleCar } from "../src/lib/frames.js";
-import { entriesOf, fastestId, focusLap, ghostLine, justOut, mapCars, mapPins } from "../src/lib/hud.js";
+import {
+  crossedLine,
+  entriesOf,
+  FINISH_HOLD,
+  fastestId,
+  finishers,
+  focusAfter,
+  focusLap,
+  ghostLine,
+  justOut,
+  mapCars,
+  mapPins,
+} from "../src/lib/hud.js";
 import { impactKmh } from "../src/lib/messages.js";
 import { buildModel } from "../src/lib/model.js";
 import { markerFocus, timelineMarkers } from "../src/lib/timeline.js";
@@ -85,6 +97,24 @@ describe("hud data", () => {
     expect(fastestId(rows(end))).toBe("a");
     expect(fastestId([])).toBeNull();
     expect(entriesOf(["a", "nobody", "b"], model.entries).map((e) => e.id)).toEqual(["a", "b"]);
+  });
+
+  it("sees who crossed the line while playing, and who to follow next", () => {
+    const a = model.cars[0]!;
+    expect(finishers(model.cars)).toEqual(["a", "b"]);
+    expect(finishers([model.cars[1]!, a])).toEqual(["a", "b"]);
+    expect(finishers([model.cars[2]!])).toEqual([]);
+    expect(crossedLine(model.cars, a.finishTime! - 0.1, a.finishTime!)).toEqual(["a"]);
+    expect(crossedLine(model.cars, a.finishTime!, a.finishTime! + 0.01)).toEqual([]);
+    expect(crossedLine(model.cars, 0, model.duration)).toEqual(["a"]);
+    const held = a.finishTime! + FINISH_HOLD;
+    expect(focusAfter(model.cars, "a", a.finishTime! - 0.1, a.finishTime! + 0.1)).toBe("a");
+    expect(focusAfter(model.cars, "a", held - 0.1, held)).toBe("b");
+    expect(focusAfter(model.cars, "a", held, held + 0.1)).toBe("a");
+    expect(focusAfter([a], "a", held - 0.1, held)).toBe("a");
+    const bOut = { ...model.cars[1]!, outTime: held - 1 };
+    expect(focusAfter([a, bOut], "a", held - 0.1, held)).toBe("a");
+    expect(focusAfter(model.cars, "c", 0, model.duration)).toBe("c");
   });
 
   it("knows who retired and when", () => {

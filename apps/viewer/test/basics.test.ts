@@ -86,8 +86,10 @@ describe("PlaybackClock", () => {
     expect(c.t).toBe(10);
     expect(c.playing).toBe(false);
     expect(c.atEnd).toBe(true);
+    expect(c.seeks).toBe(0);
     c.toggle();
     expect(c.t).toBe(0);
+    expect(c.seeks).toBe(1);
     expect(c.playing).toBe(true);
   });
   it("seeks, clamps and pauses", () => {

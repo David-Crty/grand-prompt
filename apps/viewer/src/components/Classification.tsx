@@ -1,5 +1,13 @@
 import { formatLapTime } from "@bench/ui";
-import { BuildFactsHelp, ClassificationTable, type ClassRow, IconButton, ResultList } from "@bench/ui/react";
+import {
+  BuildFactsHelp,
+  Button,
+  ClassificationTable,
+  type ClassRow,
+  Icon,
+  IconButton,
+  ResultList,
+} from "@bench/ui/react";
 import { useMemo } from "react";
 import prices from "../../../../prices.json";
 import type { ViewerModel } from "../lib/model.js";
@@ -61,11 +69,16 @@ export function Classification({
   results,
   layout = "card",
   onClose,
+  onRestart,
+  backHref,
 }: {
   model: ViewerModel;
   results: EventResults | null;
   layout?: "card" | "sheet";
   onClose: () => void;
+  /** Play the race again from the start; no button without it. */
+  onRestart?: () => void;
+  backHref?: string;
 }) {
   const c = useClassification(model, results);
   const event = results?.event.name ?? null;
@@ -82,9 +95,9 @@ export function Classification({
       </div>
     );
   return (
-    <div className="overlay">
+    <div className="overlay overlay--clear">
       <button type="button" className="backdrop" onClick={onClose} aria-label="Close" />
-      <section className="gp-panel gp-panel--solid classif" aria-label="Final classification">
+      <section className="gp-panel classif" aria-label="Final classification">
         <div className="classif__head">
           <h2 className="gp-x">Final classification</h2>
           <span className="gp-faint classif__sub">{sub}</span>
@@ -99,6 +112,21 @@ export function Classification({
             buildHelp={<BuildFactsHelp {...c.help} />}
           />
           <p className="gp-table__foot">{c.foot}</p>
+          {onRestart || backHref ? (
+            <div className="classif__actions">
+              {backHref ? (
+                <a href={backHref} className="gp-btn gp-btn--secondary">
+                  <Icon name="back" />
+                  All races
+                </a>
+              ) : null}
+              {onRestart ? (
+                <Button variant="primary" icon="restart" onClick={onRestart}>
+                  Restart
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
           {pole?.lapTime != null ? (
             <span className="sr-only">
               {pole.entry.name} on pole in {formatLapTime(pole.lapTime)}

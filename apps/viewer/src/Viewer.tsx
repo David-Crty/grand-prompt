@@ -18,7 +18,7 @@ import {
 import { INCIDENT_SHEET_PX, PhoneHud, type PhoneSheet } from "./components/PhoneHud.js";
 import { clampZoom, stepZoom } from "./lib/camera.js";
 import { cycleSpeed, pinchFactor, swipeDir } from "./lib/gestures.js";
-import { fastestId, justOut } from "./lib/hud.js";
+import { crossedLine, fastestId, finishers, focusAfter, justOut } from "./lib/hud.js";
 import type { Incident } from "./lib/incidents.js";
 import { visibleToasts } from "./lib/messages.js";
 import type { ViewerModel } from "./lib/model.js";
@@ -103,6 +103,7 @@ export function Viewer({
   phoneRef.current = phone;
   live.current.insetBottom = phone && sheet === "incident" ? INCIDENT_SHEET_PX : null;
   const autoShown = useRef(false);
+  const played = useRef({ t: live.current.clock.t, seeks: live.current.clock.seeks });
   const [snap, setSnap] = useState<HudSnapshot | null>(null);
 
   const setMode = useCallback((m: CameraMode) => {
@@ -130,9 +131,21 @@ export function Viewer({
   );
 
   useEffect(() => {
+    const order = finishers(model.cars);
+    const reveal = new Set([order[0], order.at(-1)]);
+    const showResult = () => {
+      if (phoneRef.current) setSheet("result");
+      else setClassif(true);
+    };
     const tick = () => {
       const L = live.current;
       const t = L.clock.t;
+      const from = played.current;
+      played.current = { t, seeks: L.clock.seeks };
+      if (from.seeks === L.clock.seeks && t > from.t) {
+        L.focusId = focusAfter(model.cars, L.focusId, from.t, t);
+        if (crossedLine(model.cars, from.t, t).some((id) => reveal.has(id))) showResult();
+      }
       const k = model.cars.findIndex((c) => c.car.id === L.focusId);
       setSnap({
         t,
@@ -149,10 +162,9 @@ export function Viewer({
         fpsMs: L.fps.avgMs,
         stats: { jsMs: L.fps.jsMs, calls: L.fps.calls, tris: L.fps.tris },
       });
-      if (L.clock.atEnd && !autoShown.current) {
+      if (!order.length && L.clock.atEnd && !autoShown.current) {
         autoShown.current = true;
-        if (phoneRef.current) setSheet("result");
-        else setClassif(true);
+        showResult();
       }
     };
     const id = window.setInterval(tick, 66);
@@ -336,6 +348,15 @@ export function Viewer({
     },
     [model, onWhy, seekMarker],
   );
+  const restart = useCallback(() => {
+    const L = live.current;
+    setIncident(null);
+    setClassif(false);
+    L.focusId = initialFocus;
+    L.clock.speed = 1;
+    L.clock.seek(0);
+    L.clock.playing = true;
+  }, [initialFocus]);
   const exitIncident = useCallback(() => {
     setIncident(null);
     setSheet((s) => (s === "incident" ? null : s));
@@ -496,7 +517,13 @@ export function Viewer({
         </div>
       ) : null}
       {classif && !phone ? (
-        <Classification model={model} results={results} onClose={() => setClassif(false)} />
+        <Classification
+          model={model}
+          results={results}
+          onClose={() => setClassif(false)}
+          onRestart={restart}
+          backHref={backHref}
+        />
       ) : null}
       {help ? <Help onClose={() => setHelp(false)} /> : null}
       {fps && snap ? (

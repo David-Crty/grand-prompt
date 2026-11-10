@@ -172,6 +172,10 @@ button {
   padding: 16px;
 }
 
+.overlay--clear {
+  background: transparent;
+}
+
 .card {
   padding: 18px 22px;
   max-width: min(920px, 100%);
@@ -444,6 +448,7 @@ button {
   overflow: auto;
   border-radius: var(--radius-3);
   box-shadow: var(--shadow-overlay);
+  backdrop-filter: blur(var(--blur-hud));
 }
 
 .classif__head {
@@ -468,6 +473,13 @@ button {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.classif__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .sr-only {

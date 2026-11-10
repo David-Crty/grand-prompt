@@ -3,6 +3,8 @@ export class PlaybackClock {
   t = 0;
   speed = 1;
   playing = true;
+  /** Bumped by every jump in time, so a watcher can tell played time from a seek. */
+  seeks = 0;
   readonly duration: number;
 
   constructor(duration: number, opts: { t?: number; speed?: number; playing?: boolean } = {}) {
@@ -26,6 +28,7 @@ export class PlaybackClock {
 
   seek(t: number): void {
     this.t = this.clampT(t);
+    this.seeks++;
   }
 
   seekBy(dt: number): void {
@@ -33,7 +36,7 @@ export class PlaybackClock {
   }
 
   toggle(): void {
-    if (!this.playing && this.t >= this.duration) this.t = 0;
+    if (!this.playing && this.t >= this.duration) this.seek(0);
     this.playing = !this.playing;
   }
 
