@@ -1,1 +1,4 @@
-{ "defaultEvent": "r1-medium" }
+{
+  "defaultEvent": "medium",
+  "ciEventBuilds": ["medium"]
+}

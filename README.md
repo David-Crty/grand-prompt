@@ -12,9 +12,9 @@
   <a href="#run-it-yourself">Run it yourself</a>
 </p>
 
-https://github.com/user-attachments/assets/7d9faa92-9def-4c08-945d-42c3fe8cbe7b
+https://github.com/user-attachments/assets/78b97e20-2d77-4d27-a460-a8679fe9c65a
 
-<p align="center"><sub>Barcelona, the first 20 seconds. Every car is driven by code an AI wrote; each runs alone and the laps are replayed together.</sub></p>
+<p align="center"><sub>Portimão, the full lap, sped up after the first corner. Every car is driven by code an AI wrote; each runs alone and the laps are replayed together.</sub></p>
 
 # LLM Racing
 

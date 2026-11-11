@@ -38,7 +38,8 @@ commands.
 - `models.json`: the roster (providers with their CLI and car body; models with id, name, code,
   colour). `prices.json`: list prices for the build cost when a CLI reports none (Codex,
   `agy`). `site.json`: `defaultEvent`, the event the race and driver lists open on (`?event=`
-  picks another); the site build fails if it has no races.
+  picks another), and `ciEventBuilds`, the events the deploy races; the site build fails if
+  `defaultEvent` has no races.
 - `cars/proto.json`: the full car, hidden constants included. `cars/sources/*.stl` → the viewer's
   mesh (`make car`).
 - `drivers/<event>/`: `event.json` (name, seed) and `<model>/driver.js` + `manifest.json`.
@@ -88,11 +89,11 @@ before each commit.
 
 ## Deployment
 https://llm-racing.crty.dev on Cloudflare Pages. On every push to `main`, the `deploy` job in
-`.github/workflows/ci.yml` runs after the gates: it reruns every event in `drivers/`, builds the
-viewer (with Umami, via `UMAMI_WEBSITE_ID`) and `site/`, then `wrangler pages deploy`. Only the
-`PUBLISHED` files in `build-site.ts` leave `results/races/`. The site has no 404.html, so Pages
-serves index.html for the viewer's paths. Infrastructure: Terraform in `David-Crty/infra`
-(`terraform/llm-racing`).
+`.github/workflows/ci.yml` runs after the gates: it reruns the events in `site.json`'s
+`ciEventBuilds`, builds the viewer (with Umami, via `UMAMI_WEBSITE_ID`) and `site/`, then
+`wrangler pages deploy`. Only the `PUBLISHED` files in `build-site.ts` leave `results/races/`. The
+site has no 404.html, so Pages serves index.html for the viewer's paths. Infrastructure: Terraform
+in `David-Crty/infra` (`terraform/llm-racing`).
 
 ## Git
 Commit directly on `main`; branches only if the owner asks. No decision log: the why of a
