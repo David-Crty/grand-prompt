@@ -52,7 +52,7 @@ commands.
 before each commit.
 - Coverage ≥ 90% on lines, statements, functions and branches (`vitest.config.ts`). Pair unit tests
   with feature tests that run real sessions (`sim/test/race.test.ts`, `cli/test/cli.test.ts`).
-- `pnpm determinism` races the `r1-medium` drivers on proto-ring in two processes and compares hashes.
+- `pnpm determinism` races the `medium` drivers on proto-ring in two processes and compares hashes.
 - Changing physics, race control or track processing moves the golden hashes: `make golden`, bump
   `SIM_VERSION`, check the plausibility targets in `sim/test/vehicle.test.ts`. The anti-exploit
   rules in `sim/test/race.test.ts` (checkpoints, track limits, barriers, full lock at speed) must
