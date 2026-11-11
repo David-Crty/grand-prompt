@@ -47,10 +47,10 @@ export function Home() {
     if (path !== window.location.pathname + window.location.search) window.history.pushState(null, "", path);
     setRoute(readRoute());
   };
-  const go = (to: ListPage) => (e: MouseEvent<HTMLAnchorElement>) => {
+  const go = (path: string) => (e: MouseEvent<HTMLAnchorElement>) => {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
     e.preventDefault();
-    visit(href(to));
+    visit(path);
   };
   const choose = (ev: string) => visit(href(page, ev));
   const picker =
@@ -68,7 +68,7 @@ export function Home() {
       className="home-nav__link"
       href={href(to)}
       aria-current={page === to ? (route.page === "result" ? "true" : "page") : undefined}
-      onClick={go(to)}
+      onClick={go(href(to))}
     >
       {label}
     </a>
@@ -77,7 +77,14 @@ export function Home() {
   return (
     <div className="home">
       <header className="home-bar">
-        <Wordmark />
+        <a
+          className="home-logo"
+          href={href("races", null)}
+          aria-label="LLM Racing home"
+          onClick={go(href("races", null))}
+        >
+          <Wordmark />
+        </a>
         <nav className="home-nav" aria-label="Pages">
           {link("races", "Races")}
           {link("drivers", "Drivers")}

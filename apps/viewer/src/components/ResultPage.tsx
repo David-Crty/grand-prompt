@@ -20,7 +20,6 @@ import {
   circuitDrivers,
   circuits,
   eventEffort,
-  fieldSummary,
   formatSpeed,
   formatTick,
   labelLanes,
@@ -283,7 +282,6 @@ export function ResultPage({
         No race at {track}. <a href={allRaces}>All races</a>
       </p>
     );
-  const summary = race ? fieldSummary(race.drivers) : null;
   const also = alsoRaced(races, event);
   return (
     <div className="rp">
@@ -293,24 +291,26 @@ export function ResultPage({
       </a>
       <header className="rp-head">
         <span className="rp-thumb">{info.outline ? <TrackOutline outline={info.outline} /> : null}</span>
-        <div className="rp-title">
-          <span className="gp-label">Results</span>
-          <h1>{info.trackName}</h1>
-          <span className="rp-sub">
-            {info.outline ? <span>{formatLength(info.outline.length)}</span> : null}
-            <span>
-              {events.length} {events.length === 1 ? "event" : "events"}
+        <div className="rp-head__main">
+          <div className="rp-title">
+            <span className="gp-label">Results</span>
+            <h1>{info.trackName}</h1>
+            <span className="rp-sub">
+              {info.outline ? <span>{formatLength(info.outline.length)}</span> : null}
+              <span>
+                {events.length} {events.length === 1 ? "event" : "events"}
+              </span>
             </span>
-            <span>One flying lap, each car alone</span>
-          </span>
+          </div>
+          <Dropdown
+            options={circuits(index.races).map((c) => ({ value: c.track, label: c.name }))}
+            value={track}
+            onChange={pickCircuit}
+            label="Circuit"
+            icon="map"
+            size="touch"
+          />
         </div>
-        <Dropdown
-          options={circuits(index.races).map((c) => ({ value: c.track, label: c.name }))}
-          value={track}
-          onChange={pickCircuit}
-          label="Circuit"
-          icon="map"
-        />
       </header>
       <EventTabs
         races={races}
@@ -321,30 +321,21 @@ export function ResultPage({
       />
       {race ? (
         <>
-          <div className="rp-actions">
-            <a className="gp-btn gp-btn--primary" href={routeHref({ page: "race", track, event })}>
-              <Icon name="play" />
-              Watch {event} in 3D
-            </a>
-            <a className="gp-btn gp-btn--secondary" href={routeHref({ page: "drivers", event })}>
-              Drivers in {event}
-            </a>
-            <span className="gp-flex" />
-            {summary ? (
-              <span className="rp-summary">
-                <b>
-                  {summary.valid} of {summary.cars}
-                </b>{" "}
-                set a valid lap
-                {summary.spread != null ? (
-                  <>
-                    {" "}
-                    · field spread <b>{formatLapTime(summary.spread)} s</b>
-                  </>
-                ) : null}
+          <a className="rp-watch" href={routeHref({ page: "race", track, event })}>
+            <span className="rp-watch__shot" aria-hidden="true" />
+            <span className="rp-watch__play" aria-hidden="true">
+              <Icon name="play" size={20} />
+            </span>
+            <span className="rp-watch__text">
+              <span className="rp-watch__title">Watch the race</span>
+              <span className="rp-watch__sub">
+                {event} · {info.trackName} in 3D
               </span>
-            ) : null}
-          </div>
+            </span>
+            <span className="rp-watch__go" aria-hidden="true">
+              →
+            </span>
+          </a>
           {!phone ? <Podium race={race} entries={entries} /> : null}
           <FieldStrip race={race} scale={scale} entries={entries} trackName={info.trackName} />
           {typeof current === "string" ? <p className="home-note error">{current}</p> : null}
@@ -362,11 +353,6 @@ export function ResultPage({
               />
             )
           ) : null}
-          <p className="gp-table__foot">
-            Purple: the fastest lap and the fastest time in each sector. Off-track deletes the lap. Points:
-            10-8-6-5-4-3-2-1 for a valid lap. Lap times compare across events: same seed, car and circuit,
-            each car alone.
-          </p>
           {also.length ? (
             <div className="rp-also">
               <span className="gp-label">Raced here in another event, not in {event}</span>
@@ -383,6 +369,11 @@ export function ResultPage({
               </span>
             </div>
           ) : null}
+          <div>
+            <a className="gp-btn gp-btn--secondary" href={routeHref({ page: "drivers", event })}>
+              Drivers in {event}
+            </a>
+          </div>
         </>
       ) : (
         <p className="home-note">

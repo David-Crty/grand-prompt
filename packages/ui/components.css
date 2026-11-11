@@ -285,17 +285,6 @@
   width: 28px;
   height: 28px;
 }
-.gp-tower__lap {
-  font-variation-settings: "wdth" 75;
-  font-weight: 700;
-  font-size: 20px;
-  line-height: 22px;
-}
-.gp-tower__lap small {
-  font-size: 13px;
-  color: var(--text-300);
-  font-weight: 600;
-}
 .gp-tower__rows {
   display: flex;
   flex-direction: column;

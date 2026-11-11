@@ -533,6 +533,7 @@ export function Viewer({
             onPin={onWhy}
             backHref={backHref}
             backLabel={backLabel}
+            resultsHref={resultsHref}
             picker={picker(false)}
           />
           {incident ? (

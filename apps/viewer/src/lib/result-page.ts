@@ -21,20 +21,6 @@ export function eventEffort(results: EventResults | null): string | null {
   return efforts.size === 1 ? [...efforts][0]! : null;
 }
 
-/** How many cars set a valid lap, and the gap from pole to the slowest of them; null with fewer than two. */
-export function fieldSummary(cars: { time: number | null }[]): {
-  cars: number;
-  valid: number;
-  spread: number | null;
-} {
-  const laps = cars.flatMap((c) => (c.time != null ? [c.time] : []));
-  return {
-    cars: cars.length,
-    valid: laps.length,
-    spread: laps.length > 1 ? Math.max(...laps) - Math.min(...laps) : null,
-  };
-}
-
 export interface StripScale {
   from: number;
   to: number;

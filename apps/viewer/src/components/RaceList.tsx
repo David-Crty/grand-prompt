@@ -118,7 +118,13 @@ function Row({ r, active, onActivate }: { r: RaceEntry; active: boolean; onActiv
   // The Watch link covers the whole row, so a click anywhere plays the replay; Results sits above it.
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: hovering or focusing either link marks the row active.
-    <div className={active ? "rl-row is-active" : "rl-row"} onMouseEnter={onActivate} onFocus={onActivate}>
+    <div
+      className={active ? "rl-row is-active" : "rl-row"}
+      onPointerEnter={(e) => {
+        if (e.pointerType === "mouse") onActivate();
+      }}
+      onFocus={onActivate}
+    >
       <span className="rl-thumb">
         {r.outline ? <TrackOutline outline={r.outline} running={active} /> : null}
       </span>

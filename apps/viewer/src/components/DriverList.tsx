@@ -12,36 +12,44 @@ import {
 } from "../lib/drivers.js";
 import { eventEntries } from "../lib/entries.js";
 import { buildCost, formatBuildTime, formatTokens, type Prices } from "../lib/results.js";
-import { driverSourceUrl } from "../lib/route.js";
+import { driverSourceUrl, routeHref } from "../lib/route.js";
 
 const PRICES = prices as Prices;
 
-/** A driver's place in each race, one mark per circuit in the columns' order; each names its circuit. */
+/** A driver's place in each race, one mark per circuit in the columns' order, each linking to that race's results. */
 function Results({
   results,
   tracks,
+  event,
 }: {
   results: DriverResult[];
   tracks: { track: string; trackName: string }[];
+  event: string;
 }) {
   return (
     <span className="dl-results">
       {tracks.map((t) => {
         const r = results.find((x) => x.track === t.track);
-        const text = r ? formatResult(r) : "–";
-        const cls = !r
-          ? undefined
-          : r.lapTime == null
-            ? "rl-dnf"
-            : r.position === 1
-              ? "is-fastest"
-              : undefined;
+        if (!r) {
+          return (
+            <span key={t.track} className="dl-result">
+              –
+            </span>
+          );
+        }
+        const text = formatResult(r);
+        const cls = r.lapTime == null ? "rl-dnf" : r.position === 1 ? "is-fastest" : undefined;
         return (
-          <span key={t.track} className="dl-result">
-            <Popover label={`${t.trackName}: ${text}`} trigger={<span className={cls}>{text}</span>} hover>
+          <a
+            key={t.track}
+            className="dl-result dl-result__link"
+            href={routeHref({ page: "result", track: t.track, event })}
+            aria-label={`${t.trackName}: ${text}, results`}
+          >
+            <Popover label={`${t.trackName}: ${text}`} trigger={<span className={cls}>{text}</span>} passive>
               {t.trackName}
             </Popover>
-          </span>
+          </a>
         );
       })}
     </span>
@@ -68,10 +76,6 @@ export function DriverList({ drivers, picker }: { drivers: DriverEntry[]; picker
         </p>
       ) : (
         <>
-          <p className="home-note">
-            Each model wrote one driving program in its own coding CLI. Points: 10-8-6-5-4-3-2-1 in every
-            race, for a valid lap.
-          </p>
           <div className="dl-scroll">
             <table className="gp-table dl-table">
               <thead>
@@ -114,7 +118,7 @@ export function DriverList({ drivers, picker }: { drivers: DriverEntry[]; picker
                       </td>
                       <td className="n">{u?.practiceRuns != null ? `${u.practiceRuns} runs` : "–"}</td>
                       <td>
-                        <Results results={d.results} tracks={tracks} />
+                        <Results results={d.results} tracks={tracks} event={d.event} />
                       </td>
                       <td className="n">
                         <span className="dl-result">{d.points}</span>

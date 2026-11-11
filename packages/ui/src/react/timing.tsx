@@ -1,6 +1,6 @@
 import type * as React from "react";
 import type { Entry } from "../entries.js";
-import { type GapMode, gapLabel, statusCell, type TimingRow, towerFinal } from "../timing.js";
+import { type GapMode, gapLabel, statusCell, type TimingRow } from "../timing.js";
 import { Icon } from "./icons.js";
 import {
   Chequer,
@@ -106,7 +106,6 @@ export function TimingTower({
   /** Below the footer: the minimap on desktop. */
   children?: React.ReactNode;
 }) {
-  const final = towerFinal(rows);
   const dense = layout === "panel" && rows.length > 10;
   const seg = (
     <SegmentedControl<GapMode>
@@ -145,7 +144,6 @@ export function TimingTower({
             <span className="gp-session__name">{head.track}</span>
           </div>
           {head.picker}
-          {final ? <span className="gp-tower__lap gp-c">FINAL</span> : null}
         </div>
       ) : null}
       <div className="gp-tower__rows">

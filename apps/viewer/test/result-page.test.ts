@@ -4,7 +4,6 @@ import {
   circuitDrivers,
   circuits,
   eventEffort,
-  fieldSummary,
   formatSpeed,
   formatTick,
   labelLanes,
@@ -24,16 +23,6 @@ describe("results page", () => {
     expect(eventEffort(builds("high", "medium"))).toBeNull();
     expect(eventEffort(builds(undefined))).toBeNull();
     expect(eventEffort(null)).toBeNull();
-  });
-
-  it("counts the valid laps and the field's spread", () => {
-    expect(fieldSummary([{ time: 90 }, { time: null }, { time: 95.5 }])).toEqual({
-      cars: 3,
-      valid: 2,
-      spread: 5.5,
-    });
-    expect(fieldSummary([{ time: 90 }])).toEqual({ cars: 1, valid: 1, spread: null });
-    expect(fieldSummary([])).toEqual({ cars: 0, valid: 0, spread: null });
   });
 
   it("puts every event of a circuit on one axis of whole ticks", () => {

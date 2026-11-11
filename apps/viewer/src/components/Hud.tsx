@@ -3,6 +3,7 @@ import {
   CarLabel,
   ControlPanel,
   FocusCard,
+  Icon,
   IncidentCard,
   IncidentPin,
   MiniMap,
@@ -58,6 +59,7 @@ export function Tower({
   onPin,
   backHref,
   backLabel,
+  resultsHref,
   picker,
 }: {
   model: ViewerModel;
@@ -68,6 +70,7 @@ export function Tower({
   onPin: (id: string) => void;
   backHref?: string;
   backLabel?: string;
+  resultsHref?: string;
   picker?: ReactNode;
 }) {
   const map = useMemo(() => buildMinimap(model.layout, MAP_W, MAP_H), [model]);
@@ -84,6 +87,14 @@ export function Tower({
         onMode={onMode}
         head={{ track: model.replay.track.name, backHref, backLabel, picker }}
       >
+        {resultsHref ? (
+          <div className="hud-results">
+            <a className="gp-btn gp-btn--secondary" href={resultsHref}>
+              <Icon name="list" />
+              Full results
+            </a>
+          </div>
+        ) : null}
         <div className="hud-map">
           <MiniMap
             width={map.width}
