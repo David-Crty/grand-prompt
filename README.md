@@ -43,6 +43,9 @@ The model never touches the controls during the race.
    Its entry is the `driver.js` it leaves behind or, if time runs out mid-edit, its newest driver
    that completed a clean practice lap.
 
+   <img src=".github/assets/build.gif" alt="The eleven models writing their drivers at the same time: time used, practice laps (● clean, ✕ not), last lap time, tool calls and what each one is doing" width="100%">
+   <sub>A 15-minute build, sped up: ● a clean practice lap, ✕ a lap that didn't count.</sub>
+
 2. **Race.** Every driver then races on all six circuits, including three it never practised on:
    Barcelona, Spa and a handmade test circuit. Each is handed the circuit's geometry and runs alone on
    track (ghost mode), in a QuickJS sandbox with the same compute budget: a flying start, then one
