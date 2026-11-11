@@ -219,7 +219,7 @@ export function tvFrame(
 }
 
 /** How far (degrees) the TV camera leans off the vertical, looking across the track from its right. */
-export const TV_TILT = 32;
+export const TV_TILT = 60;
 /** Range of the live tilt; past the max the far edge of the frame nears the horizon. */
 export const TV_TILT_MIN = 0;
 export const TV_TILT_MAX = 60;
