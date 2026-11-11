@@ -45,8 +45,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Races (results are a pure function of the committed drivers, so they are rebuilt, not stored)
         run: |
-          for f in drivers/*/event.json; do
-            pnpm bench race "$(basename "$(dirname "$f")")"
+          events=$(jq -er '.ciEventBuilds | if type == "array" and length > 0 then .[] else error("site.json: ciEventBuilds lists no event") end' site.json)
+          for event in $events; do
+            pnpm bench race "$event"
           done
       - run: pnpm --filter @bench/viewer build
         env:
