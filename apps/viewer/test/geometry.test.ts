@@ -357,9 +357,9 @@ describe("camera", () => {
 describe("minimap", () => {
   const layout = buildLayout(stadiumTrack());
   it("fits the circuit into the box, keeping its shape", () => {
-    const m = buildMinimap(layout, 340, 190);
+    const m = buildMinimap(layout, undefined, 340, 190);
     expect(m.angle).toBeGreaterThanOrEqual(0);
-    expect(m.angle).toBeLessThan(Math.PI);
+    expect(m.angle).toBeLessThan(2 * Math.PI);
     expect(m.width).toBe(340);
     expect(m.height).toBeLessThanOrEqual(190);
     expect(m.path.startsWith("M")).toBe(true);
@@ -391,13 +391,13 @@ describe("minimap", () => {
   it("lays a tall circuit on its side", () => {
     const tall = buildLayout(stadiumTrack());
     const swap = { ...tall, cx: tall.cy, cy: tall.cx, nx: tall.ny, ny: tall.nx };
-    const m = buildMinimap(swap, 340, 190);
-    const flat = buildMinimap(tall, 340, 190);
+    const m = buildMinimap(swap, undefined, 340, 190);
+    const flat = buildMinimap(tall, undefined, 340, 190);
     expect(m.angle).toBeGreaterThan(0);
     expect(m.height).toBeCloseTo(flat.height, -1);
   });
   it("keeps every point when the track is short", () => {
-    const m = buildMinimap(layout, 200, 200, 5, layout.n * 2);
+    const m = buildMinimap(layout, undefined, 200, 200, 5, layout.n * 2);
     expect(m.path.split("L")).toHaveLength(layout.n);
   });
 });

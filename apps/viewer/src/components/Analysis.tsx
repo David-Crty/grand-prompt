@@ -69,7 +69,13 @@ export function Analysis({
   const refIdx = model.cars.find((c) => c.car.id === pair.ref);
   const delta = useMemo(() => (carIdx && refIdx ? deltaSeries(refIdx, carIdx, 5) : null), [carIdx, refIdx]);
   const map = useMemo(() => {
-    const m = buildMinimap(model.layout, sheet ? 340 : 360, sheet ? 240 : 250, 28);
+    const m = buildMinimap(
+      model.layout,
+      model.replay.header.trackId,
+      sheet ? 340 : 360,
+      sheet ? 240 : 250,
+      28,
+    );
     return {
       m,
       stretches: data.segments.flatMap((g, k) => {

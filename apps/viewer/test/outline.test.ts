@@ -24,7 +24,7 @@ describe("trackOutline", () => {
       [10, 100],
       [0, 100],
     ];
-    const o = trackOutline(tall, 160, 100)!;
+    const o = trackOutline(tall, undefined, 160, 100)!;
     expect(o.length).toBe(220);
     expect(o.path.startsWith("M")).toBe(true);
     expect(o.path.endsWith("Z")).toBe(true);
@@ -46,7 +46,7 @@ describe("trackOutline", () => {
       const a = (i / 1000) * 2 * Math.PI;
       return [Math.cos(a) * 500, Math.sin(a) * 300, 6, 6];
     });
-    expect(coords(trackOutline(ring, 160, 100, 100)!.path)).toHaveLength(100);
+    expect(coords(trackOutline(ring, undefined, 160, 100, 100)!.path)).toHaveLength(100);
   });
 
   it("refuses what is not a circuit", () => {

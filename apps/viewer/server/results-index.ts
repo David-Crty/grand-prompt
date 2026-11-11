@@ -37,7 +37,7 @@ function trackInfo(tracksDir: string): (id: string) => TrackInfo {
           points?: unknown;
         };
         if (typeof t.name === "string") info.name = t.name;
-        info.outline = trackOutline(t.points);
+        info.outline = trackOutline(t.points, id);
       } catch {
         // The race keeps its track id as its name and goes without an outline.
       }

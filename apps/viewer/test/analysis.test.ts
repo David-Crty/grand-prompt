@@ -247,7 +247,7 @@ describe("the field", () => {
 
   it("draws each corner's stretch of the map and labels it on the outside", () => {
     const layout = buildLayout(track);
-    const m = buildMinimap(layout, 340, 190);
+    const m = buildMinimap(layout, undefined, 340, 190);
     const d = stretchPath(layout, m, 0, 100);
     expect(d.startsWith("M")).toBe(true);
     expect(d.split("L")).toHaveLength(14);

@@ -73,7 +73,7 @@ export function Tower({
   resultsHref?: string;
   picker?: ReactNode;
 }) {
-  const map = useMemo(() => buildMinimap(model.layout, MAP_W, MAP_H), [model]);
+  const map = useMemo(() => buildMinimap(model.layout, model.replay.header.trackId, MAP_W, MAP_H), [model]);
   return (
     <div className="hud-tower">
       <TimingTower
