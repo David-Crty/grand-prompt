@@ -29,6 +29,23 @@ export interface Manifest {
     practiceRuns?: number;
   };
   settings?: Record<string, unknown>;
+  /** Set by `bench select`: which source event this driver came from, and why. */
+  selection?: Selection;
+}
+
+/** One build of a model in `bench select`: its lap on each practice circuit (null: no valid lap). */
+export interface SelectionCandidate {
+  event: string;
+  laps: Record<string, number | null>;
+  validLaps: number;
+  /** Sum of the valid laps, s. */
+  totalTime: number;
+}
+
+export interface Selection {
+  event: string;
+  rule: string;
+  candidates: SelectionCandidate[];
 }
 
 export interface EventResultRow {
@@ -74,7 +91,7 @@ export function listEventDrivers(eventId: string): { slug: string; path: string 
     .sort((a, b) => a.slug.localeCompare(b.slug));
 }
 
-function readEvent(eventId: string): EventResults["event"] {
+export function readEvent(eventId: string): EventResults["event"] {
   const p = eventPaths(eventId).config;
   if (!existsSync(p)) throw new Error(`no event '${eventId}' (looked for ${p})`);
   const ev = readJson<EventConfig>(p);
@@ -87,7 +104,7 @@ export function raceDir(eventId: string, track: string): string {
 }
 
 /** One race: the drivers are loaded afresh, since a session disposes of their runtimes. */
-async function runRace(event: EventResults["event"], list: { path: string }[], track: string) {
+export async function runRace(event: EventResults["event"], list: { path: string }[], track: string) {
   const drivers = await loadEntries(
     list.map((d) => d.path),
     { seed: event.seed },

@@ -126,6 +126,18 @@ pnpm bench reproduce r2-medium                     # re-run every race and check
 Each race folder holds `replay.json.gz`, `results.json`, `summary.txt` and `event-results.json`
 (the table with each model's build manifest).
 
+To build each model more than once and race one driver per model, select from the repeated events:
+
+```shell
+pnpm bench select --output r2-best --input r2-a,r2-b,r2-c
+pnpm bench race r2-best                            # the selected drivers on every circuit
+```
+
+For each model it keeps the build with the most valid laps on that model's practice circuits, then
+the lowest total time of those laps, then the earlier event. The circuits it never saw play no part
+in the choice, so they still measure how the driver generalises. The chosen `driver.js` is copied
+unchanged, and its manifest gets a `selection` with every candidate's laps.
+
 A session is the same everywhere, practice included: a 3 s run-up placed by the sim, every car
 crossing the line together at the same speed, then one timed lap.
 

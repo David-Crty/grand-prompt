@@ -3,6 +3,7 @@ import { parseArgs } from "node:util";
 import { buildOptions, count } from "./build/lib.js";
 import { raceEvent, reproduceEvent } from "./event.js";
 import { repoRoot } from "./load.js";
+import { selectEvent } from "./select.js";
 import { serve } from "./service.js";
 import { practice, validate } from "./session.js";
 import { importTracks, listTracks } from "./tracks.js";
@@ -11,6 +12,7 @@ import { createWorkspace } from "./workspace.js";
 export * from "./build/lib.js";
 export * from "./event.js";
 export * from "./load.js";
+export * from "./select.js";
 export * from "./service.js";
 export * from "./session.js";
 export * from "./tracks.js";
@@ -41,6 +43,9 @@ races (one flying lap of an event's drivers, replayed together)
   race <event> [--track <id>]    drivers/<event>/*/driver.js on every circuit, or on one
                                  -> results/races/<track>/<event>/ (or --out <dir>/<track>/<event>/)
   reproduce <event>              re-run every race of the event and check every state hash
+  select --output <event> --input <a,b,c>
+                                 one driver per model from repeated builds -> drivers/<event>/:
+                                 most valid laps on its practice circuits, then lowest total time
 
 practice service (what build runs for each model)
   serve [--port n]               the service that runs practice laps outside the workspace (default 8787)
@@ -60,6 +65,8 @@ const OPTIONS = {
   port: { type: "string" },
   budget: { type: "string" },
   event: { type: "string" },
+  input: { type: "string" },
+  output: { type: "string" },
   model: { type: "string" },
   "service-url": { type: "string" },
   "practice-tracks": { type: "string" },
@@ -113,6 +120,13 @@ export async function run(argv: string[], out: (s: string) => void): Promise<num
       need(1, "<event>");
       out((await raceEvent(rest[0]!, { track: values.track, out: values.out })).text);
       return 0;
+    case "select": {
+      if (!values.output) throw new Error("select: --output <event> is required");
+      if (!values.input) throw new Error("select: --input <event,event,...> is required");
+      const input = values.input.split(",").filter(Boolean);
+      out((await selectEvent(values.output, input)).text);
+      return 0;
+    }
     case "reproduce": {
       need(1, "<event>");
       const r = await reproduceEvent(rest[0]!);

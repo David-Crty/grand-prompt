@@ -23,8 +23,9 @@ commands.
   control), `session.ts` (ghost mode), `replay.ts`, `telemetry.ts`.
 - `packages/sandbox`: QuickJS for untrusted drivers. Budgets count interrupt-handler calls, not time.
 - `packages/cli`: `bench`. `index.ts` options and dispatch, `load.ts` repo root, car, driver
-  loading and hashes, `session.ts` validate/practice, `event.ts` race/reproduce, `tracks.ts`
-  circuits, `service.ts` + `workspace.ts` the practice service, `build/` the agentic builds
+  loading and hashes, `session.ts` validate/practice, `event.ts` race/reproduce, `select.ts` one
+  driver per model from repeated builds, `tracks.ts` circuits, `service.ts` + `workspace.ts` the
+  practice service, `build/` the agentic builds
   (`lib.ts` is tested; `run.ts`, `index.tsx`, `ui.tsx` are run by hand and excluded from coverage).
 - `packages/ui`: the design system. `tokens.json` → `tokens.gen.*` (`make tokens`),
   `components.css` (prefix `gp-`), React components in `src/react`, entries in `entries.ts` and
