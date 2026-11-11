@@ -87,12 +87,21 @@ export async function validate(
   driverPath: string,
   opts: SessionOpts,
 ): Promise<CommandOutput & { ok: boolean }> {
-  const lines: string[] = [`validate ${driverPath}`];
+  return validateWith(driverPath, () => loadDriver(driverPath, { ...opts.sandbox, logging: true }), opts);
+}
+
+/** `validate` for a driver from any loader; `label` is the only name of it the report shows. */
+export async function validateWith(
+  label: string,
+  load: () => Promise<LoadedDriver>,
+  opts: SessionOpts,
+): Promise<CommandOutput & { ok: boolean }> {
+  const lines: string[] = [`validate ${label}`];
   const done = (ok: boolean) => ({ ok, text: `${lines.join("\n")}\n` });
   let d: LoadedDriver;
   const t0 = performance.now();
   try {
-    d = await loadDriver(driverPath, { ...opts.sandbox, logging: true });
+    d = await load();
   } catch (e) {
     lines.push(`FAIL load: ${(e as Error).message}`);
     return done(false);

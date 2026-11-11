@@ -1,4 +1,4 @@
-# Driver Specification (DDK 0.2.0, API 0.1)
+# Driver Specification (driver development kit 0.5.0, API 0.1)
 
 You are writing the control program of an open-wheel race car. Your program is a single
 JavaScript ES module. It is called 50 times per second of simulated time, and it must drive the

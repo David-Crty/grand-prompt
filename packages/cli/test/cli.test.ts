@@ -17,6 +17,7 @@ import {
   createWorkspace,
   driverIdentity,
   type EventResults,
+  loadTrack,
   readReplay,
   readTokens,
   registerToken,
@@ -246,7 +247,12 @@ describe("agentic workspace and practice service", () => {
       ])
         expect(existsSync(join(ws, f))).toBe(true);
       expect(existsSync(join(ws, "tracks/silverstone.json"))).toBe(false);
-      expect(readFileSync(join(ws, "TASK.md"), "utf8")).toMatch(/practice circuits: `proto-ring`, `monaco`/);
+      expect(JSON.parse(readFileSync(join(ws, "tracks/monaco.json"), "utf8"))).toEqual(
+        loadTrack("monaco").toInfo(),
+      );
+      expect(readFileSync(join(ws, "TASK.md"), "utf8")).toMatch(
+        /practice circuits \(`proto-ring`, `monaco`\)/,
+      );
       expect(existsSync(join(ws, "cars"))).toBe(false);
       expect(readFileSync(join(ws, "car-public.json"), "utf8")).not.toMatch(/ClA|tireFront/);
       expect(readTokens()[w.token]!.budget).toBe(2);
@@ -260,7 +266,13 @@ describe("agentic workspace and practice service", () => {
         /'silverstone' is not a practice circuit \(available: proto-ring, monaco\)/,
       );
       const v = await node(["validate", "driver.js"]);
+      expect(v.stdout).toMatch(/^validate driver\.js\n/);
       expect(v.stdout).toMatch(/PASS/);
+      expect(v.stdout).not.toContain(root);
+      writeFileSync(join(ws, "imports.js"), 'import { x } from "./elsewhere.js";\n');
+      const imports = await node(["validate", "imports.js"]);
+      expect(imports.stdout).toMatch(/FAIL load/);
+      expect(imports.stdout).not.toContain(root);
       const p = await node(["practice", "driver.js", "--track", "monaco"]);
       expect(p.stdout).toMatch(/FLYING LAP on monaco/);
       expect(p.stdout).toMatch(/runs\/001/);

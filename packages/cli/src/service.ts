@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server } from "node:http";
 import { join } from "node:path";
 import { loadDriverSource, readJson, repoRoot, writeJson } from "./load.js";
-import { practiceWith, validate } from "./session.js";
+import { practiceWith, validateWith } from "./session.js";
 
 /**
  * Practice service for agentic builds. It runs outside the model's workspace, so a model practises without
@@ -111,7 +111,11 @@ export async function serve(opts: { port: number; host?: string }): Promise<{
       mkdirSync(join(dir, "validate"), { recursive: true });
       const file = join(dir, "validate", filename);
       writeFileSync(file, source);
-      const r = await validate(file, { track });
+      const r = await validateWith(
+        String(b.filename ?? "driver.js"),
+        () => loadDriverSource(source, filename, rec.model, { logging: true }),
+        { track },
+      );
       return { ok: r.ok, text: r.text };
     }
 

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   type EventResultsSource,
@@ -125,6 +126,15 @@ describe("drivers", () => {
     expect(racePoints(9, 100)).toBe(0);
     expect(racePoints(1, null)).toBe(0);
     expect(racePoints(null, 90)).toBe(0);
+  });
+
+  it("gives the points the models are told about", () => {
+    const task = readFileSync(
+      new URL("../../../driver-development-kit/PROMPT_AGENTIC.md", import.meta.url),
+      "utf8",
+    ).replace(/\s+/g, " ");
+    expect(POINTS).toHaveLength(8);
+    expect(task).toContain(`${POINTS.join(", ")} for the first eight valid laps`);
   });
 
   it("formats effort and result", () => {

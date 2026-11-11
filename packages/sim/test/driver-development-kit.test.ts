@@ -1,7 +1,7 @@
 // driver-development-kit/driver.d.ts is hand-written for LLM readers; keep it in sync with what the sim sends.
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { CarSim, carSpec } from "../src/index.js";
+import { API_VERSION, CarSim, carSpec, DRIVER_DEVELOPMENT_KIT_VERSION } from "../src/index.js";
 import { fnDriver, protoCar, protoRing } from "./helpers.js";
 
 const dts = readFileSync(new URL("../../../driver-development-kit/driver.d.ts", import.meta.url), "utf8");
@@ -27,6 +27,15 @@ describe("driver-development-kit/driver.d.ts matches the sim", () => {
   it("CarSpec", () =>
     expect(fields("CarSpec")).toEqual([...Object.keys(carSpec(protoCar())), "hidden"].sort()));
   it("Controls", () => expect(fields("Controls")).toEqual(["brake", "steer", "throttle"]));
+  it("DRIVER_SPEC.md states the kit and API versions", () => {
+    const spec = readFileSync(
+      new URL("../../../driver-development-kit/DRIVER_SPEC.md", import.meta.url),
+      "utf8",
+    );
+    expect(spec.split("\n")[0]).toBe(
+      `# Driver Specification (driver development kit ${DRIVER_DEVELOPMENT_KIT_VERSION}, API ${API_VERSION})`,
+    );
+  });
   it("car-public.json is the public section", () => {
     const pub = JSON.parse(
       readFileSync(new URL("../../../driver-development-kit/car-public.json", import.meta.url), "utf8"),

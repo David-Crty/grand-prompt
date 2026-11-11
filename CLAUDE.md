@@ -33,7 +33,7 @@ commands.
   pages in `src/components`, routes in `src/lib/route.ts`. The dev server serves `results/` and
   builds `/results/index.json` per request (`server/results-index.ts`).
 - `driver-development-kit/`: everything a model sees. `PROMPT_AGENTIC.md` (copied in as
-  `TASK.md`) carries the prompt version (`agentic-0.5`) that each manifest records.
+  `TASK.md`) carries the prompt version (`agentic-0.6`) that each manifest records.
 - `models.json`: the roster (providers with their CLI and car body; models with id, name, code,
   colour). `prices.json`: list prices for the build cost when a CLI reports none (Codex,
   `agy`). `site.json`: `defaultEvent`, the event the race and driver lists open on (`?event=`

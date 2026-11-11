@@ -1,6 +1,6 @@
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { repoRoot, trackPath, writeJson } from "./load.js";
+import { loadTrack, repoRoot, trackPath, writeJson } from "./load.js";
 import { registerToken } from "./service.js";
 
 export const DEFAULT_PRACTICE_BUDGET = 10;
@@ -45,7 +45,8 @@ export function createWorkspace(dir: string, opts: WorkspaceOptions): { dir: str
     join(abs, "TASK.md"),
     task.replace("{{PRACTICE_TRACKS}}", opts.tracks.map((t) => `\`${t}\``).join(", ")),
   );
-  for (const t of opts.tracks) copyFileSync(trackPath(t), join(abs, "tracks", `${t}.json`));
+  for (const t of opts.tracks)
+    writeFileSync(join(abs, "tracks", `${t}.json`), JSON.stringify(loadTrack(t).toInfo()));
   const token = registerToken(opts.event, opts.model, opts.budget ?? DEFAULT_PRACTICE_BUDGET, opts.tracks);
   writeJson(join(abs, ".bench.json"), { serviceUrl: opts.serviceUrl, token, tracks: opts.tracks });
   return { dir: abs, token };

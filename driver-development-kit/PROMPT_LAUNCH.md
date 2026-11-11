@@ -16,6 +16,7 @@ moment you are stopped without warning and whatever is in driver.js is your subm
 driver.js at your best tested version at all times: develop on a copy and replace driver.js
 only with a version that completed a clean practice run.
 
-Work until you are satisfied with driver.js or your time is nearly up. When you finish, report: best practice lap time,
-practice runs used, whether the last practice run was clean (no crash or ECU failure), and a
-3-line summary of your driving strategy.
+Work until you are satisfied with driver.js or your time is nearly up. When you finish, report: the
+lap time of your final driver.js on each practice circuit it ran, practice runs used, whether the
+last practice run was clean (no crash or ECU failure), and a 3-line summary of your driving
+strategy.

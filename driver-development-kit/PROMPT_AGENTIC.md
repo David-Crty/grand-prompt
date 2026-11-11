@@ -1,4 +1,4 @@
-<!-- prompt version: agentic-0.5 -->
+<!-- prompt version: agentic-0.6 -->
 # Task: write the fastest race-car driver program
 
 You are competing in a programming benchmark. In this workspace, write `driver.js`: the control
@@ -16,7 +16,8 @@ practice circuits.
 - `car-public.json`: public car parameters
 - `baseline-driver.js`: a working but slow driver
 - `driver.js`: your driver, which starts as a copy of the baseline. **This file is your submission.**
-- `tracks/`: the practice circuits: {{PRACTICE_TRACKS}}
+- `tracks/`: the practice circuits ({{PRACTICE_TRACKS}}), each file exactly the `TrackInfo` that
+  `init` receives on that circuit
 - `bench.mjs`: the practice client
 
 ## Practice
@@ -37,7 +38,11 @@ and catches load and init errors, so use it before every practice run.
 
 - Work only inside this workspace. Do not look for the simulator's source code or try to reach
   the practice service other than through `bench.mjs`.
-- Each race of the event is one flying lap, exactly like a practice run. Leaving the track deletes
-  the lap and a crash or ECU failure scores worst of all, so robustness matters as much as raw
-  speed.
+- Each race of the event is one flying lap, exactly like a practice run. The event has one race on
+  every circuit: the practice circuits and others you will not see, including circuits added
+  after you finish.
+- Each race is classified on its own: valid laps by time, then deleted laps, then retirements
+  (crash, stall, ECU failure). The standings add up points over all the races, the same on every
+  circuit: 10, 8, 6, 5, 4, 3, 2, 1 for the first eight valid laps, and nothing for a deleted lap or
+  a retirement.
 - When you are done, leave your final program in `driver.js`.
