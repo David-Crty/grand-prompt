@@ -1,0 +1,33 @@
+{
+  "model": "Claude Opus 5.5",
+  "provider": "anthropic",
+  "mode": "agentic",
+  "promptVersion": "agentic-0.6",
+  "driverDevelopmentKitVersion": "0.5.0",
+  "simVersion": "0.2.0",
+  "usage": {
+    "inputTokens": 781619,
+    "cachedInputTokens": 751196,
+    "cacheWriteTokens": 30377,
+    "outputTokens": 10771,
+    "costUsd": 0.6088591999999999,
+    "wallTimeS": 171,
+    "practiceRuns": 10
+  },
+  "settings": {
+    "modelId": "claude-opus-5-5",
+    "cli": "claude",
+    "practiceTracks": [
+      "monaco",
+      "silverstone",
+      "portimao"
+    ],
+    "sandbox": "bubblewrap",
+    "timeLimitMin": 15,
+    "effort": "medium",
+    "outcome": "ok",
+    "driverSource": "driver.js",
+    "turns": 23,
+    "cliError": null
+  }
+}

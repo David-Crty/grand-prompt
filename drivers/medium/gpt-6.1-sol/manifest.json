@@ -1,0 +1,32 @@
+{
+  "model": "GPT-6.1 Sol",
+  "provider": "openai",
+  "mode": "agentic",
+  "promptVersion": "agentic-0.6",
+  "driverDevelopmentKitVersion": "0.5.0",
+  "simVersion": "0.2.0",
+  "usage": {
+    "inputTokens": 1076199,
+    "cachedInputTokens": 1041024,
+    "cacheWriteTokens": 0,
+    "outputTokens": 7914,
+    "wallTimeS": 277,
+    "practiceRuns": 10
+  },
+  "settings": {
+    "modelId": "gpt-6.1-sol",
+    "cli": "codex",
+    "practiceTracks": [
+      "monaco",
+      "silverstone",
+      "portimao"
+    ],
+    "sandbox": "bubblewrap",
+    "timeLimitMin": 15,
+    "effort": "medium",
+    "outcome": "ok",
+    "driverSource": "driver.js",
+    "turns": 1,
+    "cliError": null
+  }
+}
